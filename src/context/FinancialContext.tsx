@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useMemo, useCallback, ReactNode } from 'react';
+import { createContext, useMemo, useCallback, ReactNode, useEffect } from 'react';
 import {
   collection,
   doc,
@@ -55,6 +55,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   , [firestore, user]);
   const { data: userSettings, isLoading: userSettingsLoading } = useDoc<User>(userSettingsRef);
   
+  useEffect(() => {
+    if (user && !userSettingsLoading && !userSettings) {
+        setDocumentNonBlocking(userSettingsRef!, { currency: 'INR' }, { merge: true });
+    }
+  }, [user, userSettings, userSettingsLoading, userSettingsRef]);
+
   const currency = userSettings?.currency || 'INR'; 
 
   const setCurrency = useCallback((newCurrency: string) => {

@@ -1,139 +1,196 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model, ensuring that users can only access data associated with their own user ID.
+ * @fileoverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user has complete
+ * control over their data stored under their respective `/users/{userId}` path.
+ * No cross-user access is permitted except through explicitly defined sharing
+ * mechanisms (which are not implemented in this base ruleset).
  *
  * Data Structure:
- * All data is nested under /users/{userId}, with subcollections for transactions, debts, and bank accounts. This hierarchical structure simplifies access control.
- * /users/{userId} - User profile information
- * /users/{userId}/transactions/{transactionId} - Financial transactions
- * /users/{userId}/debts/{debtId} - Debt information
- * /users/{userId}/bankAccounts/{accountId} - Bank account details
+ * All data is nested under `/users/{userId}`, including user profiles,
+ * transactions, debts, and bank accounts. This hierarchical structure simplifies
+ * the security rules and ensures clear ownership.
  *
  * Key Security Decisions:
- * - User listing is disallowed to prevent unauthorized enumeration of user accounts.
- * - All write operations are restricted to the owning user.
+ * - Users can only create, read, update, and delete their own data.
+ * - Listing other users is disallowed.
+ * - The rules explicitly deny any unauthorized access attempts.
  *
  * Denormalization for Authorization:
- * The `userId` field within each document is critically important for authorization. It must match the `userId` in the path.
+ * To avoid costly `get()` calls, all documents include a `userId` field that
+ * is validated against the path. This redundancy allows for fast and simple
+ * ownership checks without additional database reads.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures the user profile document. Users can only read and modify their own profile.
+     * @description Manages user profile data.
      * @path /users/{userId}
-     * @allow (create) - User A can create their own profile if request.auth.uid == userId.
-     * @allow (get, update, delete) - User A can access their own profile if request.auth.uid == userId.
-     * @deny (create) - User A cannot create a profile for User B.
-     * @deny (get, update, delete) - User A cannot access User B's profile.
-     * @principle Enforces document ownership.  Validates userId on create. Enforces immutable userId on updates.
+     * @allow (create) - Authenticated user creates their own profile with matching userId.
+     * @allow (get, update, delete) - Authenticated user accesses their own profile.
+     * @deny (create) - User attempts to create a profile with a mismatched userId.
+     * @deny (get, update, delete) - User attempts to access another user's profile.
+     * @principle Enforces document ownership for writes; restricts access to a user's own data.
      */
     match /users/{userId} {
+      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the authenticated user ID matches the requested user ID
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isSignedIn() && isOwner(userId) && resource.data != null;
+      // Helper function to check if the authenticated user is creating their own user profile.
+      function canCreateUser(userId) {
+        return isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false; // Prevent user enumeration
+      // Helper function to check if the authenticated user is updating their own user profile.
+      function canUpdateUser(userId) {
+        return isSignedIn() && isOwner(userId) && resource.data.id == userId;
+      }
 
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      // Helper function to check if the authenticated user is deleting their own user profile.
+      function isExistingOwner(userId) {
+          return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false; // Do not allow listing of users.
+      allow create: if canCreateUser(userId);
+      allow update: if canUpdateUser(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures transaction documents under a user's profile. Only the owner can manage transactions.
+     * @description Manages user transactions.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (create) - User A can create a transaction under their profile (request.auth.uid == userId).
-     * @allow (get, list, update, delete) - User A can manage transactions under their profile.
-     * @deny (create) - User A cannot create a transaction under User B's profile.
-     * @deny (get, list, update, delete) - User A cannot manage transactions under User B's profile.
-     * @principle Enforces document ownership and path consistency. Validates userId on create and enforces immutable userId on updates.
+     * @allow (create) - Authenticated user creates a transaction for their own account with matching userId.
+     * @allow (get, list, update, delete) - Authenticated user accesses their own transactions.
+     * @deny (create) - User attempts to create a transaction with a mismatched userId.
+     * @deny (get, list, update, delete) - User attempts to access another user's transactions.
+     * @principle Enforces document ownership for writes; restricts access to a user's own data.
      */
     match /users/{userId}/transactions/{transactionId} {
+      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the authenticated user ID matches the requested user ID
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-       function isExistingOwner(userId) {
-        return isSignedIn() && isOwner(userId) && resource.data != null;
+      // Helper function to check if the authenticated user is creating a transaction for themselves.
+      function canCreateTransaction(userId) {
+        return isSignedIn() && isOwner(userId) && request.resource.data.userId == userId && request.resource.data.id == transactionId;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      // Helper function to check if the authenticated user is updating their own transaction.
+      function canUpdateTransaction(userId) {
+        return isSignedIn() && isOwner(userId) && resource.data.userId == userId && resource.data.id == request.resource.data.id;
+      }
+
+      // Helper function to check if the authenticated user is deleting their own transaction.
+      function isExistingOwner(userId) {
+          return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if canCreateTransaction(userId);
+      allow update: if canUpdateTransaction(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures debt documents under a user's profile. Only the owner can manage debts.
+     * @description Manages user debts.
      * @path /users/{userId}/debts/{debtId}
-     * @allow (create) - User A can create a debt under their profile (request.auth.uid == userId).
-     * @allow (get, list, update, delete) - User A can manage debts under their profile.
-     * @deny (create) - User A cannot create a debt under User B's profile.
-     * @deny (get, list, update, delete) - User A cannot manage debts under User B's profile.
-     * @principle Enforces document ownership and path consistency. Validates userId on create and enforces immutable userId on updates.
+     * @allow (create) - Authenticated user creates a debt entry for their own account with matching userId.
+     * @allow (get, list, update, delete) - Authenticated user accesses their own debt entries.
+     * @deny (create) - User attempts to create a debt entry with a mismatched userId.
+     * @deny (get, list, update, delete) - User attempts to access another user's debt entries.
+     * @principle Enforces document ownership for writes; restricts access to a user's own data.
      */
     match /users/{userId}/debts/{debtId} {
+      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the authenticated user ID matches the requested user ID
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-       function isExistingOwner(userId) {
-        return isSignedIn() && isOwner(userId) && resource.data != null;
+      // Helper function to check if the authenticated user is creating a debt entry for themselves.
+      function canCreateDebt(userId) {
+        return isSignedIn() && isOwner(userId) && request.resource.data.userId == userId && request.resource.data.id == debtId;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      // Helper function to check if the authenticated user is updating their own debt entry.
+      function canUpdateDebt(userId) {
+        return isSignedIn() && isOwner(userId) && resource.data.userId == userId && resource.data.id == request.resource.data.id;
+      }
+
+      // Helper function to check if the authenticated user is deleting their own debt entry.
+      function isExistingOwner(userId) {
+          return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if canCreateDebt(userId);
+      allow update: if canUpdateDebt(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures bank account documents under a user's profile. Only the owner can manage bank accounts.
+     * @description Manages user bank accounts.
      * @path /users/{userId}/bankAccounts/{accountId}
-     * @allow (create) - User A can create a bank account under their profile (request.auth.uid == userId).
-     * @allow (get, list, update, delete) - User A can manage bank accounts under their profile.
-     * @deny (create) - User A cannot create a bank account under User B's profile.
-     * @deny (get, list, update, delete) - User A cannot manage bank accounts under User B's profile.
-     * @principle Enforces document ownership and path consistency. Validates userId on create and enforces immutable userId on updates.
+     * @allow (create) - Authenticated user creates a bank account for their own account with matching userId.
+     * @allow (get, list, update, delete) - Authenticated user accesses their own bank accounts.
+     * @deny (create) - User attempts to create a bank account with a mismatched userId.
+     * @deny (get, list, update, delete) - User attempts to access another user's bank accounts.
+     * @principle Enforces document ownership for writes; restricts access to a user's own data.
      */
     match /users/{userId}/bankAccounts/{accountId} {
+      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the authenticated user ID matches the requested user ID
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-       function isExistingOwner(userId) {
-        return isSignedIn() && isOwner(userId) && resource.data != null;
+      // Helper function to check if the authenticated user is creating a bank account for themselves.
+      function canCreateBankAccount(userId) {
+        return isSignedIn() && isOwner(userId) && request.resource.data.userId == userId && request.resource.data.id == accountId;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      // Helper function to check if the authenticated user is updating their own bank account.
+      function canUpdateBankAccount(userId) {
+        return isSignedIn() && isOwner(userId) && resource.data.userId == userId && resource.data.id == request.resource.data.id;
+      }
+
+      // Helper function to check if the authenticated user is deleting their own bank account.
+      function isExistingOwner(userId) {
+          return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if canCreateBankAccount(userId);
+      allow update: if canUpdateBankAccount(userId);
       allow delete: if isExistingOwner(userId);
     }
   }
