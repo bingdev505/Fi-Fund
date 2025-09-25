@@ -85,6 +85,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
 
   const renderEntry = (entry: Debt) => {
     const color = entry.type === 'debtor' ? 'text-green-600' : 'text-red-600';
+    const RepaymentIcon = entry.type === 'creditor' ? ArrowUpCircle : ArrowDownCircle;
     
     return (
       <Dialog open={openDialogId === entry.id} onOpenChange={(isOpen) => setOpenDialogId(isOpen ? entry.id : null)}>
@@ -109,7 +110,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
               </div>
                <DialogTrigger asChild>
                   <Button variant="ghost" size="icon">
-                    <ArrowUpCircle className="h-5 w-5" />
+                    <RepaymentIcon className="h-5 w-5" />
                     <span className="sr-only">Pay Off</span>
                   </Button>
                </DialogTrigger>
