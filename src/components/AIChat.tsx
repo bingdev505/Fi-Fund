@@ -195,7 +195,7 @@ export default function AIChat() {
                     accountId: accountIdToUse,
                 });
                 const toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
-                assistantResponse = `I've logged that for you! ${toastDescription}`;
+                assistantResponse = toastDescription;
                 toast({
                     title: 'Logged via AI Chat',
                     description: toastDescription,
@@ -209,7 +209,7 @@ export default function AIChat() {
                     accountId: accountIdToUse
                 });
                 const toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
-                assistantResponse = `I've logged that for you! ${toastDescription}`;
+                assistantResponse = toastDescription;
                 toast({
                     title: 'Logged via AI Chat',
                     description: toastDescription,
@@ -427,5 +427,3 @@ export default function AIChat() {
     </Dialog>
   );
 }
-
-    
