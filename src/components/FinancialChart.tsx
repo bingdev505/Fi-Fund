@@ -98,47 +98,49 @@ export default function FinancialChart({ transactions, period }: FinancialChartP
     }, [transactions, period]);
 
   if (transactions.length === 0) {
-    return <div className="h-[250px] md:h-[350px] w-full flex items-center justify-center text-muted-foreground">Add some transaction data to see the report.</div>
+    return <div className="h-[350px] w-full flex items-center justify-center text-muted-foreground">Add some transaction data to see the report.</div>
   }
 
   return (
-    <ChartContainer config={chartConfig} className="min-h-[200px] w-full h-[250px] md:h-[350px]">
-      <BarChart accessibilityLayer data={data}>
-        <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey="date"
-          tickLine={false}
-          tickMargin={10}
-          axisLine={false}
-          tickFormatter={(value) => value}
-        />
-        <YAxis
+    <div className="w-full h-[350px] overflow-x-auto overflow-y-hidden">
+        <ChartContainer config={chartConfig} className="min-h-[200px] w-full min-w-[300px]">
+        <BarChart accessibilityLayer data={data}>
+            <CartesianGrid vertical={false} />
+            <XAxis
+            dataKey="date"
             tickLine={false}
-            axisLine={false}
             tickMargin={10}
-            tickFormatter={formatCurrency}
-        />
-        <ChartTooltip
-            cursor={false}
-            content={<ChartTooltipContent
-                labelFormatter={(label, payload) => {
-                    return payload?.[0]?.payload.date
-                }}
-                indicator="dot" 
-                formatter={(value, name, item) => {
-                    return (
-                        <div className="flex flex-col">
-                            <span className="capitalize">{name}</span>
-                            <span>{formatCurrency(Number(value))}</span>
-                        </div>
-                    )
-                }}
-            />}
-        />
-        <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="income" fill="var(--color-income)" radius={4} />
-        <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
-      </BarChart>
-    </ChartContainer>
+            axisLine={false}
+            tickFormatter={(value) => value}
+            />
+            <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                tickFormatter={formatCurrency}
+            />
+            <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent
+                    labelFormatter={(label, payload) => {
+                        return payload?.[0]?.payload.date
+                    }}
+                    indicator="dot" 
+                    formatter={(value, name, item) => {
+                        return (
+                            <div className="flex flex-col">
+                                <span className="capitalize">{name}</span>
+                                <span>{formatCurrency(Number(value))}</span>
+                            </div>
+                        )
+                    }}
+                />}
+            />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Bar dataKey="income" fill="var(--color-income)" radius={4} />
+            <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
+        </BarChart>
+        </ChartContainer>
+    </div>
   );
 }
