@@ -48,6 +48,7 @@ const logFinancialDataPrompt = ai.definePrompt({
 - Only extract the name of the account, like 'savings', 'checking', 'federal', or 'gramin'. Do not include the account name in the category or description.
 - A bank name can sometimes appear at the very beginning of the input.
 - If the user does *not* specify a bank account in their latest message, look at the chat history to see if a bank account was mentioned recently. If so, use that account name.
+- For loans, if the user says "[Name] give me loan", it means the user owes money to [Name], so the transactionType is 'creditor'. If the user says "I gave [Name] a loan", it means the user is owed money by [Name], so the transactionType is 'debtor'.
 
 User Input: {{{chatInput}}}
 
