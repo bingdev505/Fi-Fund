@@ -1,0 +1,125 @@
+/**
+ * @fileoverview Firestore Security Rules for FinanceFlow AI.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user's data (incomes, expenses, creditors, debtors) is stored under their respective user ID,
+ * ensuring that only the authenticated user can access their own financial records.
+ *
+ * Data Structure:
+ * All data is nested under /users/{userId}, with subcollections for incomes, expenses, creditors, and debtors.
+ * - /users/{userId} (User profile information)
+ * - /users/{userId}/incomes/{incomeId} (Income records)
+ * - /users/{userId}/expenses/{expenseId} (Expense records)
+ * - /users/{userId}/creditors/{creditorId} (Creditor records)
+ * - /users/{userId}/debtors/{debtorId} (Debtor records)
+ *
+ * Key Security Decisions:
+ * - User listing is implicitly disallowed by not providing a rule for it.
+ * - All write operations are restricted to the owner of the data.
+ * - No data validation is performed beyond ownership checks in this prototyping phase.
+ *
+ * Denormalization for Authorization:
+ *  The `userId` is present in every document, enabling fast ownership checks without additional reads. The `userId` is used to create path-based rules.
+ * Structural Segregation:
+ *  All user data is stored under the /users/{userId} path, ensuring private access.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description: Manages user profile access. Allows a user to create their profile if the userId matches their auth ID, and to read/write their own profile data.
+     * @path: /users/{userId}
+     * @allow: User with UID 'user123' can (create) a document at /users/user123.
+     * @deny: User with UID 'user456' cannot (create) a document at /users/user123.
+     * @principle: Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false; // User listing is not permitted.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && resource.data.id == userId;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description: Manages income record access. Allows a user to create, read, update, and delete their own income records.
+     * @path: /users/{userId}/incomes/{incomeId}
+     * @allow: User with UID 'user123' can (create) an income record at /users/user123/incomes/income001.
+     * @deny: User with UID 'user456' cannot (create) an income record at /users/user123/incomes/income001.
+     * @principle: Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/incomes/{incomeId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description: Manages expense record access. Allows a user to create, read, update, and delete their own expense records.
+     * @path: /users/{userId}/expenses/{expenseId}
+     * @allow: User with UID 'user123' can (create) an expense record at /users/user123/expenses/expense001.
+     * @deny: User with UID 'user456' cannot (create) an expense record at /users/user123/expenses/expense001.
+     * @principle: Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/expenses/{expenseId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description: Manages creditor record access. Allows a user to create, read, update, and delete their own creditor records.
+     * @path: /users/{userId}/creditors/{creditorId}
+     * @allow: User with UID 'user123' can (create) a creditor record at /users/user123/creditors/creditor001.
+     * @deny: User with UID 'user456' cannot (create) a creditor record at /users/user123/creditors/creditor001.
+     * @principle: Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/creditors/{creditorId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description: Manages debtor record access. Allows a user to create, read, update, and delete their own debtor records.
+     * @path: /users/{userId}/debtors/{debtorId}
+     * @allow: User with UID 'user123' can (create) a debtor record at /users/user123/debtors/debtor001.
+     * @deny: User with UID 'user456' cannot (create) a debtor record at /users/user123/debtors/debtor001.
+     * @principle: Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/debtors/{debtorId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+  }
+}
