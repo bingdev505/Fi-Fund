@@ -136,7 +136,7 @@ export default function EntryForm() {
         accountId: data.accountId!,
       });
       toast({
-        title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
+        title: `${entryType === 'creditor' ? 'Loan Taken' : 'Loan Given'} added`,
         description: `Debt related to ${data.category} for ${formatCurrency(data.amount)} has been logged.`,
       });
     }
@@ -180,8 +180,8 @@ export default function EntryForm() {
                   <SelectContent>
                     <SelectItem value="expense">Expense</SelectItem>
                     <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="creditor">You Owe (Creditor)</SelectItem>
-                    <SelectItem value="debtor">Owed to You (Debtor)</SelectItem>
+                    <SelectItem value="creditor">I Owe (Loan Taken)</SelectItem>
+                    <SelectItem value="debtor">They Owe (Loan Given)</SelectItem>
                     <SelectItem value="transfer">Bank Transfer</SelectItem>
                   </SelectContent>
                 </Select>
@@ -322,7 +322,7 @@ export default function EntryForm() {
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>
-                        {entryType === 'creditor' ? 'Creditor Name' : 'Debtor Name'}
+                        {entryType === 'creditor' ? "Lender's Name (Creditor)" : "Borrower's Name (Debtor)"}
                         </FormLabel>
                         <FormControl>
                         <Input
