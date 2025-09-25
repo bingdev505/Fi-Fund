@@ -142,7 +142,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </aside>
-        <div className='flex-1 overflow-y-auto bg-gray-50'>
+        <div className='flex-1 flex flex-col overflow-y-auto bg-gray-50'>
             {children}
         </div>
       </div>
