@@ -13,6 +13,7 @@ interface FinancialContextType {
   currency: string;
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId'>) => void;
   addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId'>) => void;
+  addRepayment: (debt: Debt, amount: number, accountId: string) => void;
   addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
   setCurrency: (currency: string) => void;
   setPrimaryBankAccount: (accountId: string) => void;
@@ -107,14 +108,48 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     
     addDocumentNonBlocking(debtsColRef, newDebt);
 
-    // Update account balances
-    if (debt.type === 'creditor') { // Money I owe, so it's paid out from my account
-      updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'subtract');
-    } else if (debt.type === 'debtor') { // Money owed to me, so it comes into my account
+    // When a debt is created, the money moves.
+    // 'creditor' (I owe someone) implies money came INTO my account (e.g. a loan).
+    // 'debtor' (Someone owes me) implies money went OUT of my account (e.g. I loaned someone money).
+    if (debt.type === 'creditor') { 
       updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'add');
+    } else if (debt.type === 'debtor') { 
+      updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'subtract');
     }
 
   }, [user, firestore, debtsColRef]);
+
+  const addRepayment = useCallback((debt: Debt, amount: number, accountId: string) => {
+    if (!user || !debtsColRef || !firestore || !transactionsColRef) return;
+    
+    const debtRef = doc(debtsColRef, debt.id);
+    const newDebtAmount = debt.amount - amount;
+
+    // Non-blocking update to the debt amount
+    updateDocumentNonBlocking(debtRef, { amount: newDebtAmount });
+
+    // Add a corresponding transaction log for the repayment
+    const repaymentTransaction = {
+      type: 'repayment' as const,
+      amount: amount,
+      category: 'Debt Repayment',
+      description: `Payment for debt: ${debt.name}`,
+      date: serverTimestamp() as Timestamp,
+      userId: user.uid,
+      debtId: debt.id,
+      accountId: accountId,
+    };
+    addDocumentNonBlocking(transactionsColRef, repaymentTransaction);
+    
+    // Update the bank account balance based on the debt type
+    if (debt.type === 'creditor') {
+      // I am paying someone back, so money SUBTRACTS from my account
+      updateAccountBalance(firestore, user.uid, accountId, amount, 'subtract');
+    } else { // 'debtor'
+      // Someone is paying me back, so money ADDS to my account
+      updateAccountBalance(firestore, user.uid, accountId, amount, 'add');
+    }
+  }, [user, firestore, debtsColRef, transactionsColRef]);
 
   const addBankAccount = useCallback((account: Omit<BankAccount, 'id'| 'userId'>) => {
     if (!user || !bankAccountsColRef) return;
@@ -162,11 +197,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     currency: userSettings?.currency || 'INR',
     addTransaction,
     addDebt,
+    addRepayment,
     addBankAccount,
     setCurrency,
     setPrimaryBankAccount,
     isLoading,
-  }), [transactions, debts, bankAccounts, userSettings, addTransaction, addDebt, addBankAccount, setCurrency, setPrimaryBankAccount, isLoading]);
+  }), [transactions, debts, bankAccounts, userSettings, addTransaction, addDebt, addRepayment, addBankAccount, setCurrency, setPrimaryBankAccount, isLoading]);
 
   return (
     <FinancialContext.Provider value={contextValue}>

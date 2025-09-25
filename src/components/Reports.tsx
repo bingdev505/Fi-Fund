@@ -21,8 +21,8 @@ export default function Reports() {
 
   const { totalDebtors, totalCreditors } = useMemo(() => {
     return {
-      totalDebtors: debts.filter(d => d.type === 'debtor').reduce((sum, d) => sum + d.amount, 0),
-      totalCreditors: debts.filter(d => d.type === 'creditor').reduce((sum, d) => sum + d.amount, 0),
+      totalDebtors: debts.filter(d => d.type === 'debtor' && d.amount > 0).reduce((sum, d) => sum + d.amount, 0),
+      totalCreditors: debts.filter(d => d.type === 'creditor' && d.amount > 0).reduce((sum, d) => sum + d.amount, 0),
     };
   }, [debts]);
 

@@ -9,8 +9,12 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { Debt } from '@/lib/types';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
+import { Button } from './ui/button';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import RepaymentForm from './RepaymentForm';
+
 
 type DebtListProps = {
   type: 'creditor' | 'debtor';
@@ -19,6 +23,7 @@ type DebtListProps = {
 
 export default function DebtList({ type, limit }: DebtListProps) {
   const { debts, currency, bankAccounts, isLoading } = useFinancials();
+  const [openDialogId, setOpenDialogId] = useState<string | null>(null);
 
   const filteredDebts = useMemo(() => {
     const toDate = (date: any) => {
@@ -29,7 +34,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
     }
 
     const filtered = debts
-      .filter(d => d.type === type)
+      .filter(d => d.type === type && d.amount > 0)
       .map(d => ({...d, date: toDate(d.date), dueDate: d.dueDate ? toDate(d.dueDate) : undefined }));
     
     const sorted = filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -61,7 +66,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
   if (filteredDebts.length === 0) {
     return (
       <div className="text-center text-muted-foreground min-h-[150px] flex items-center justify-center">
-        <p>No {type}s recorded yet.</p>
+        <p>No outstanding {type}s recorded yet.</p>
       </div>
     );
   }
@@ -82,6 +87,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
     const color = entry.type === 'debtor' ? 'text-green-600' : 'text-red-600';
     
     return (
+      <Dialog open={openDialogId === entry.id} onOpenChange={(isOpen) => setOpenDialogId(isOpen ? entry.id : null)}>
         <div className="flex items-start justify-between py-3">
             <div className="flex items-center gap-4">
                 {renderIcon(entry)}
@@ -97,10 +103,25 @@ export default function DebtList({ type, limit }: DebtListProps) {
                     )}
                 </div>
             </div>
-            <div className={`font-semibold text-right shrink-0 ${color}`}>
-              {formatCurrency(entry.amount)}
+            <div className='flex items-center gap-2'>
+              <div className={`font-semibold text-right shrink-0 ${color}`}>
+                {formatCurrency(entry.amount)}
+              </div>
+               <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">Pay Off</Button>
+               </DialogTrigger>
             </div>
         </div>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Log a Repayment</DialogTitle>
+                <DialogDescription>
+                    Log a full or partial payment for this debt. This will update the outstanding balance.
+                </DialogDescription>
+            </DialogHeader>
+            <RepaymentForm debt={entry} onFinished={() => setOpenDialogId(null)} />
+        </DialogContent>
+      </Dialog>
     );
   }
 

@@ -4,7 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 export type Transaction = {
   id: string;
   userId: string;
-  type: 'income' | 'expense' | 'transfer';
+  type: 'income' | 'expense' | 'transfer' | 'repayment';
   category: string;
   amount: number;
   description: string;
@@ -12,6 +12,7 @@ export type Transaction = {
   accountId?: string;
   fromAccountId?: string;
   toAccountId?: string;
+  debtId?: string; // To link repayment to a debt
 };
 
 export type Debt = {
