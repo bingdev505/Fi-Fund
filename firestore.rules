@@ -3,145 +3,179 @@
  *
  * Core Philosophy:
  * This ruleset enforces a strict user-ownership model. Users can only
- * read and write data associated with their own user ID. This ensures
- * data privacy and prevents unauthorized access.
+ * create, read, update, and delete data associated with their own user ID.
  *
  * Data Structure:
- * All data is nested under /users/{userId}, with subcollections for
- * transactions, debts, bank accounts, and chat history. This hierarchical
- * structure simplifies the security rules and ensures clear ownership.
+ * All data is nested under /users/{userId}, ensuring that all collections are
+ *scoped to individual users. This structure simplifies security rules and
+ * prevents unauthorized data access.
  *
  * Key Security Decisions:
- * - Users can only manage their own profile and related data.
- * - No public data or shared resources are supported in this version.
- * - List operations are restricted to the owner of the data.
+ * - User listing is explicitly denied.
+ * - All data validation is skipped in this prototyping phase, except
+ *   for ownership checks on the 'id' field.
+ * - Read operations are generally restricted to the owner, though `get` requests
+ *   to non-existent documents will still reach the backend to return a 404.
+ * - All write operations require a verified, signed-in user.
  *
  * Denormalization for Authorization:
- * The rules rely on the `userId` field within each document to match
- * the `{userId}` path segment. This avoids costly `get()` operations
- * and enables efficient authorization checks.
+ * The 'userId' field is present on all documents to simplify ownership checks.
+ * This avoids costly `get()` operations to parent documents.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces authentication for all requests.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the requested user ID matches the authenticated user ID.
-     * @param {string} userId - The user ID to compare against.
-     * @return {boolean} - True if the user IDs match, false otherwise.
-     *
-     * Example Usage:
-     * isOwner("some_user_id")
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the requested user ID matches the authenticated user ID and that the resource exists
-     * @param {string} userId - The user ID to compare against.
-     * @return {boolean} - True if the user IDs match, false otherwise.
-     *
-     * Example Usage:
-     * isExistingOwner("some_user_id")
-     */
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Rules for the /users/{userId} document.
+     * @description Enforces access control for user profile documents. Only the user
+     *              with the matching user ID can read and write their own profile.
      * @path /users/{userId}
-     * @allow (create) - User with auth UID 'user123' can create their own user document at /users/user123 if the document's id field also contains 'user123'.
-     * @allow (get, update, delete) - User with auth UID 'user123' can read, update and delete their own user document at /users/user123.
-     * @deny (create) - User with auth UID 'user456' cannot create a user document at /users/user123.
-     * @deny (update, delete) - User with auth UID 'user456' cannot update or delete the user document at /users/user123.
+     * @allow (create) User with auth UID 'user_abc' can create a new profile document at /users/user_abc.
+     * @deny (create) User with auth UID 'user_xyz' cannot create a profile document at /users/user_abc.
+     * @allow (get) User with auth UID 'user_abc' can read their profile document at /users/user_abc.
+     * @deny (get) User with auth UID 'user_xyz' cannot read the profile document at /users/user_abc.
+     * @allow (update) User with auth UID 'user_abc' can update their profile document at /users/user_abc.
+     * @deny (update) User with auth UID 'user_xyz' cannot update the profile document at /users/user_abc.
+     * @allow (delete) User with auth UID 'user_abc' can delete their profile document at /users/user_abc.
+     * @deny (delete) User with auth UID 'user_xyz' cannot delete the profile document at /users/user_abc.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
       allow get: if isOwner(userId);
       allow list: if false;
-
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for the /users/{userId}/transactions/{transactionId} collection.
+     * @description Enforces access control for transaction documents under a user's profile.
+     *              Only the user with the matching user ID can read and write their own transactions.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (create) - User with auth UID 'user123' can create a transaction under /users/user123/transactions/txn1.
-     * @allow (get, update, delete) - User with auth UID 'user123' can read, update, and delete a transaction under /users/user123/transactions/txn1.
-     * @deny (create) - User with auth UID 'user456' cannot create a transaction under /users/user123/transactions/txn1.
-     * @deny (update, delete) - User with auth UID 'user456' cannot update or delete a transaction under /users/user123/transactions/txn1.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (create) User with auth UID 'user_abc' can create a new transaction document at /users/user_abc/transactions/transaction_123.
+     * @deny (create) User with auth UID 'user_xyz' cannot create a transaction document at /users/user_abc/transactions/transaction_123.
+     * @allow (get) User with auth UID 'user_abc' can read their transaction document at /users/user_abc/transactions/transaction_123.
+     * @deny (get) User with auth UID 'user_xyz' cannot read the transaction document at /users/user_abc/transactions/transaction_123.
+     * @allow (update) User with auth UID 'user_abc' can update their transaction document at /users/user_abc/transactions/transaction_123.
+     * @deny (update) User with auth UID 'user_xyz' cannot update the transaction document at /users/user_abc/transactions/transaction_123.
+     * @allow (delete) User with auth UID 'user_abc' can delete their transaction document at /users/user_abc/transactions/transaction_123.
+     * @deny (delete) User with auth UID 'user_xyz' cannot delete the transaction document at /users/user_abc/transactions/transaction_123.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/transactions/{transactionId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
-    }
-
-     /**
-      * @description Rules for the /users/{userId}/debts/{debtId} collection.
-      * @path /users/{userId}/debts/{debtId}
-      * @allow (create) - User with auth UID 'user123' can create a debt under /users/user123/debts/debt1.
-      * @allow (get, update, delete) - User with auth UID 'user123' can read, update, and delete a debt under /users/user123/debts/debt1.
-      * @deny (create) - User with auth UID 'user456' cannot create a debt under /users/user123/debts/debt1.
-      * @deny (update, delete) - User with auth UID 'user456' cannot update or delete a debt under /users/user123/debts/debt1.
-      * @principle Restricts access to a user's own data tree.
-      */
-    match /users/{userId}/debts/{debtId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
-    }
-
-     /**
-      * @description Rules for the /users/{userId}/bankAccounts/{accountId} collection.
-      * @path /users/{userId}/bankAccounts/{accountId}
-      * @allow (create) - User with auth UID 'user123' can create a bank account under /users/user123/bankAccounts/account1.
-      * @allow (get, update, delete) - User with auth UID 'user123' can read, update, and delete a bank account under /users/user123/bankAccounts/account1.
-      * @deny (create) - User with auth UID 'user456' cannot create a bank account under /users/user123/bankAccounts/account1.
-      * @deny (update, delete) - User with auth UID 'user456' cannot update or delete a bank account under /users/user123/bankAccounts/account1.
-      * @principle Restricts access to a user's own data tree.
-      */
-    match /users/{userId}/bankAccounts/{accountId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for the /users/{userId}/chatHistory/{messageId} collection.
-     * @path /users/{userId}/chatHistory/{messageId}
-     * @allow (create) - User with auth UID 'user123' can create a chat message under /users/user123/chatHistory/message1.
-     * @allow (get, update, delete) - User with auth UID 'user123' can read, update, and delete a chat message under /users/user123/chatHistory/message1.
-     * @deny (create) - User with auth UID 'user456' cannot create a chat message under /users/user123/chatHistory/message1.
-     * @deny (update, delete) - User with auth UID 'user456' cannot update or delete a chat message under /users/user123/chatHistory/message1.
-     * @principle Restricts access to a user's own data tree.
+     * @description Enforces access control for debt documents under a user's profile.
+     *              Only the user with the matching user ID can read and write their own debts.
+     * @path /users/{userId}/debts/{debtId}
+     * @allow (create) User with auth UID 'user_abc' can create a new debt document at /users/user_abc/debts/debt_123.
+     * @deny (create) User with auth UID 'user_xyz' cannot create a debt document at /users/user_abc/debts/debt_123.
+     * @allow (get) User with auth UID 'user_abc' can read their debt document at /users/user_abc/debts/debt_123.
+     * @deny (get) User with auth UID 'user_xyz' cannot read the debt document at /users/user_abc/debts/debt_123.
+     * @allow (update) User with auth UID 'user_abc' can update their debt document at /users/user_abc/debts/debt_123.
+     * @deny (update) User with auth UID 'user_xyz' cannot update the debt document at /users/user_abc/debts/debt_123.
+     * @allow (delete) User with auth UID 'user_abc' can delete their debt document at /users/user_abc/debts/debt_123.
+     * @deny (delete) User with auth UID 'user_xyz' cannot delete the debt document at /users/user_abc/debts/debt_123.
+     * @principle Enforces document ownership for writes.
      */
-    match /users/{userId}/chatHistory/{messageId} {
+    match /users/{userId}/debts/{debtId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
 
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+    /**
+     * @description Enforces access control for bank account documents under a user's profile.
+     *              Only the user with the matching user ID can read and write their own bank accounts.
+     * @path /users/{userId}/bankAccounts/{accountId}
+     * @allow (create) User with auth UID 'user_abc' can create a new bank account document at /users/user_abc/bankAccounts/account_123.
+     * @deny (create) User with auth UID 'user_xyz' cannot create a bank account document at /users/user_abc/bankAccounts/account_123.
+     * @allow (get) User with auth UID 'user_abc' can read their bank account document at /users/user_abc/bankAccounts/account_123.
+     * @deny (get) User with auth UID 'user_xyz' cannot read the bank account document at /users/user_abc/bankAccounts/account_123.
+     * @allow (update) User with auth UID 'user_abc' can update their bank account document at /users/user_abc/bankAccounts/account_123.
+     * @deny (update) User with auth UID 'user_xyz' cannot update the bank account document at /users/user_abc/bankAccounts/account_123.
+     * @allow (delete) User with auth UID 'user_abc' can delete their bank account document at /users/user_abc/bankAccounts/account_123.
+     * @deny (delete) User with auth UID 'user_xyz' cannot delete the bank account document at /users/user_abc/bankAccounts/account_123.
+     */
+    match /users/{userId}/bankAccounts/{accountId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces access control for chat history documents under a user's profile.
+     *              Only the user with the matching user ID can read and write their own chat history.
+     * @path /users/{userId}/chatHistory/{messageId}
+     * @allow (create) User with auth UID 'user_abc' can create a new chat message document at /users/user_abc/chatHistory/message_123.
+     * @deny (create) User with auth UID 'user_xyz' cannot create a chat message document at /users/user_abc/chatHistory/message_123.
+     * @allow (get) User with auth UID 'user_abc' can read their chat message document at /users/user_abc/chatHistory/message_123.
+     * @deny (get) User with auth UID 'user_xyz' cannot read the chat message document at /users/user_abc/chatHistory/message_123.
+     * @allow (update) User with auth UID 'user_abc' can update their chat message document at /users/user_abc/chatHistory/message_123.
+     * @deny (update) User with auth UID 'user_xyz' cannot update the chat message document at /users/user_abc/chatHistory/message_123.
+     * @allow (delete) User with auth UID 'user_abc' can delete their chat message document at /users/user_abc/chatHistory/message_123.
+     * @deny (delete) User with auth UID 'user_xyz' cannot delete the chat message document at /users/user_abc/chatHistory/message_123.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/chatHistory/{messageId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
