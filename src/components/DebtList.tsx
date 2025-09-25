@@ -84,8 +84,8 @@ export default function DebtList({ type, limit }: DebtListProps) {
   };
 
   const renderEntry = (entry: Debt) => {
-    const color = entry.type === 'creditor' ? 'text-green-600' : 'text-green-600';
-    const RepaymentIcon = entry.type === 'debtor' ? ArrowUpCircle : ArrowDownCircle;
+    const color = entry.type === 'creditor' ? 'text-red-600' : 'text-green-600';
+    const RepaymentIcon = entry.type === 'debtor' ? ArrowDownCircle : ArrowUpCircle;
     
     return (
       <Dialog open={openDialogId === entry.id} onOpenChange={(isOpen) => setOpenDialogId(isOpen ? entry.id : null)}>
