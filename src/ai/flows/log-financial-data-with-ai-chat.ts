@@ -26,7 +26,7 @@ const LogFinancialDataOutputSchema = z.object({
   transactionType: z
     .enum(['income', 'expense', 'creditor', 'debtor'])
     .describe('The type of financial transaction.'),
-  category: z.string().describe('The category of the transaction.'),
+  category: z.string().describe('The category of the transaction for income/expense, or the name of the person/entity for creditor/debtor.'),
   amount: z.number().describe('The amount of the transaction.'),
   description: z.string().optional().describe('A description of the transaction.'),
 });
@@ -40,7 +40,14 @@ const logFinancialDataPrompt = ai.definePrompt({
   name: 'logFinancialDataPrompt',
   input: {schema: LogFinancialDataInputSchema},
   output: {schema: LogFinancialDataOutputSchema},
-  prompt: `You are a financial assistant. Extract the transaction type (income, expense, creditor, debtor), category, amount, and description from the following user input:\n\nUser Input: {{{chatInput}}}\n\nEnsure that the amount is a number. If a description is not explicitly provided, provide a short summary of the input.\n\nReturn the extracted information in JSON format.`,
+  prompt: `You are a financial assistant. Extract the transaction type (income, expense, creditor, debtor), category, amount, and description from the following user input.
+For 'creditor' or 'debtor' types, the 'category' field should contain the name of the person or entity. For 'income' or 'expense' types, it should be a general category.
+
+User Input: {{{chatInput}}}
+
+Ensure that the amount is a number. If a description is not explicitly provided, provide a short summary of the input.
+
+Return the extracted information in JSON format.`,
 });
 
 const logFinancialDataFlow = ai.defineFlow(
