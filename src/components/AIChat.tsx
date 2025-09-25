@@ -20,7 +20,7 @@ import {
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { ChatMessage as ChatMessageType } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 
 export default function AIChat() {
@@ -62,8 +62,8 @@ export default function AIChat() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInput(value);
-    // Show popover if the last character is '@'
-    if (value.endsWith('@')) {
+    // Show popover if the last character is '@' and there's no space after it
+    if (value.endsWith('@') && !value.endsWith(' @')) {
       setIsBankPopoverOpen(true);
     } else {
       setIsBankPopoverOpen(false);
@@ -71,7 +71,7 @@ export default function AIChat() {
   };
 
   const handleBankSelect = (bankName: string) => {
-    // Replace the '@' with the bank name
+    // Replace the '@' with the bank name and add a space
     setInput(input.slice(0, -1) + bankName + ' ');
     setIsBankPopoverOpen(false);
   };
@@ -82,6 +82,8 @@ export default function AIChat() {
 
     const userMessageContent = input;
     setInput('');
+    setIsBankPopoverOpen(false);
+
 
     addDocumentNonBlocking(chatHistoryRef, {
       role: 'user',
@@ -233,18 +235,18 @@ export default function AIChat() {
             <span className="sr-only">Attach file</span>
           </Button>
           <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
-            <PopoverTrigger asChild>
-                <Input
-                    value={input}
-                    onChange={handleInputChange}
-                    placeholder="Type your message..."
-                    disabled={isLoading || isMessagesLoading}
-                    autoComplete='off'
-                    className="flex-1 rounded-full bg-background"
-                />
-            </PopoverTrigger>
+            <PopoverAnchor asChild>
+              <Input
+                  value={input}
+                  onChange={handleInputChange}
+                  placeholder="Type your message..."
+                  disabled={isLoading || isMessagesLoading}
+                  autoComplete='off'
+                  className="flex-1 rounded-full bg-background"
+              />
+            </PopoverAnchor>
              {bankAccounts.length > 0 && (
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                     <Command>
                     <CommandList>
                         <CommandGroup heading="Your Bank Accounts">
