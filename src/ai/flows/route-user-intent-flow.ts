@@ -6,8 +6,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { logFinancialData, type LogFinancialDataOutput } from './log-financial-data-with-ai-chat';
-import { answerFinancialQuestion, type AnswerFinancialQuestionOutput } from './answer-financial-question';
+import { logFinancialData, type LogFinancialDataOutput, LogFinancialDataOutputSchema } from './log-financial-data-with-ai-chat';
+import { answerFinancialQuestion, type AnswerFinancialQuestionOutput, AnswerFinancialQuestionOutputSchema } from './answer-financial-question';
 
 const RouteUserIntentInputSchema = z.object({
   chatInput: z.string().describe('The user input in natural language.'),
