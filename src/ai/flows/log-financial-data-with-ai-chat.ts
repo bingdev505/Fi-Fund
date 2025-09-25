@@ -19,6 +19,7 @@ const LogFinancialDataInputSchema = z.object({
     .describe(
       'The user input in natural language describing the financial transaction.'
     ),
+  chatHistory: z.string().optional().describe('The last few messages in the conversation for context.'),
 });
 export type LogFinancialDataInput = z.infer<typeof LogFinancialDataInputSchema>;
 
@@ -46,8 +47,12 @@ const logFinancialDataPrompt = ai.definePrompt({
 - If the user mentions a specific bank or account name (e.g., 'in savings', 'from my checking account', 'at Federal bank', 'to gramin', 'Federal salary'), extract it as 'accountName'. 
 - Only extract the name of the account, like 'savings', 'checking', 'federal', or 'gramin'. Do not include the account name in the category or description.
 - A bank name can sometimes appear at the very beginning of the input.
+- If the user does *not* specify a bank account in their latest message, look at the chat history to see if a bank account was mentioned recently. If so, use that account name.
 
 User Input: {{{chatInput}}}
+
+Chat History:
+{{{chatHistory}}}
 
 Ensure that the amount is a number. If a description is not explicitly provided, provide a short summary of the input.
 

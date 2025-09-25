@@ -79,7 +79,7 @@ export default function AIChat() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !chatHistoryRef) return;
+    if (!input.trim() || isLoading || !chatHistoryRef || !messages) return;
 
     const userMessageContent = input;
     setInput('');
@@ -96,7 +96,18 @@ export default function AIChat() {
 
     try {
       const financialData = JSON.stringify({ transactions, debts, bankAccounts });
-      const result = await routeUserIntent({ chatInput: userMessageContent, financialData });
+      
+      // Get the last 4 messages for context
+      const chatHistoryForContext = messages
+        .slice(-4)
+        .map(msg => `${msg.role}: ${msg.content}`)
+        .join('\n');
+
+      const result = await routeUserIntent({ 
+        chatInput: userMessageContent, 
+        financialData,
+        chatHistory: chatHistoryForContext
+      });
 
       let assistantResponse = '';
       if (result.intent === 'logData') {

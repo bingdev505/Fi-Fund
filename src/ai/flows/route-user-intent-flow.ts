@@ -12,6 +12,7 @@ import { answerFinancialQuestion, type AnswerFinancialQuestionOutput } from './a
 const RouteUserIntentInputSchema = z.object({
   chatInput: z.string().describe('The user input in natural language.'),
   financialData: z.string().describe('A JSON string of the user\'s current financial data.'),
+  chatHistory: z.string().optional().describe('The last few messages in the conversation for context.'),
 });
 export type RouteUserIntentInput = z.infer<typeof RouteUserIntentInputSchema>;
 
@@ -60,7 +61,7 @@ const routeUserIntentFlow = ai.defineFlow(
     const intent = output!.intent;
 
     if (intent === 'logData') {
-        const result = await logFinancialData({ chatInput: input.chatInput });
+        const result = await logFinancialData({ chatInput: input.chatInput, chatHistory: input.chatHistory });
         return { intent: 'logData', result };
     } else { // intent === 'question'
         const result = await answerFinancialQuestion({
