@@ -10,6 +10,7 @@ import {
   LogOut,
   Loader2,
   CircleUserRound,
+  User,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,15 @@ import { signOut } from 'firebase/auth';
 import { useUser } from '@/firebase';
 import { useEffect } from 'react';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -37,7 +47,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/entries', icon: BookUser, label: 'Entries' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
-    { href: '/settings', icon: Cog, label: 'Settings' },
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },
   ];
 
@@ -88,12 +97,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
           </div>
-          <div className="mt-auto p-4">
-            <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-muted-foreground">
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          </div>
         </div>
       </div>
       <div className="flex flex-col">
@@ -132,6 +135,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
               <div className="mt-auto p-4 border-t">
+                  <Button variant="ghost" onClick={() => router.push('/settings')} className="w-full justify-start text-muted-foreground">
+                      <Cog className="mr-2 h-4 w-4" />
+                      Settings
+                  </Button>
                   <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-muted-foreground">
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout
@@ -142,9 +149,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="w-full flex-1">
             {/* Can add a search bar here if needed */}
           </div>
-          <Avatar>
-              <AvatarFallback><CircleUserRound /></AvatarFallback>
-          </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Avatar>
+                  <AvatarFallback><User /></AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
+                <Cog className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
         <div className="flex-1 relative bg-muted/40">
             {children}
