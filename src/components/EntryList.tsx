@@ -14,15 +14,14 @@ import {
 } from 'lucide-react';
 import type { Transaction, Debt } from '@/lib/types';
 import { useMemo } from 'react';
-import { WithId } from '@/firebase/firestore/use-collection';
 
 export default function EntryList() {
   const { transactions, debts, currency, bankAccounts, isLoading } = useFinancials();
 
   const allEntries = useMemo(() => {
     const combined = [
-      ...transactions.map(t => ({...t, date: new Date(t.date as string)})),
-      ...debts.map(d => ({...d, date: new Date(d.date as string), dueDate: d.dueDate ? new Date(d.dueDate as string) : undefined })),
+      ...transactions.map(t => ({...t, date: new Date(t.date)})),
+      ...debts.map(d => ({...d, date: new Date(d.date), dueDate: d.dueDate ? new Date(d.dueDate) : undefined })),
     ];
     return combined.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 20);
   }, [transactions, debts]);
@@ -57,7 +56,7 @@ export default function EntryList() {
     );
   }
 
-  const renderIcon = (entry: WithId<Transaction> | WithId<Debt>) => {
+  const renderIcon = (entry: Transaction | Debt) => {
     switch (entry.type) {
       case 'income':
         return <TrendingUp className="h-6 w-6 text-primary" />;
@@ -72,7 +71,7 @@ export default function EntryList() {
     }
   };
 
-  const renderEntry = (entry: WithId<Transaction> | WithId<Debt>) => {
+  const renderEntry = (entry: Transaction | Debt) => {
     const isTransaction = 'category' in entry;
     const color = entry.type === 'income' || entry.type === 'debtor' ? 'text-primary' : entry.type === 'transfer' ? '' : 'text-destructive';
     
@@ -82,18 +81,18 @@ export default function EntryList() {
                 {renderIcon(entry)}
                 <div>
                     <p className="text-sm font-medium leading-none">
-                        {isTransaction ? (entry as WithId<Transaction>).description : (entry as WithId<Debt>).name}
+                        {isTransaction ? (entry as Transaction).description : (entry as Debt).name}
                     </p>
                     <p className="text-sm text-muted-foreground">
                         {isTransaction ? 
-                          ((entry as WithId<Transaction>).type === 'transfer' ? 
-                            `${getAccountName((entry as WithId<Transaction>).fromAccountId)} → ${getAccountName((entry as WithId<Transaction>).toAccountId)}` :
-                            `${(entry as WithId<Transaction>).category} (${getAccountName((entry as WithId<Transaction>).accountId)})`)
-                          : (entry as WithId<Debt>).description}
+                          ((entry as Transaction).type === 'transfer' ? 
+                            `${getAccountName((entry as Transaction).fromAccountId)} → ${getAccountName((entry as Transaction).toAccountId)}` :
+                            `${(entry as Transaction).category} (${getAccountName((entry as Transaction).accountId)})`)
+                          : (entry as Debt).description}
                         &bull; {(entry.date as Date).toLocaleDateString()}
                     </p>
-                    {!isTransaction && (entry as WithId<Debt>).dueDate && (
-                        <p className="text-xs text-muted-foreground">Due: {((entry as WithId<Debt>).dueDate as Date).toLocaleDateString()}</p>
+                    {!isTransaction && (entry as Debt).dueDate && (
+                        <p className="text-xs text-muted-foreground">Due: {((entry as Debt).dueDate as Date).toLocaleDateString()}</p>
                     )}
                 </div>
             </div>

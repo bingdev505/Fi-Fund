@@ -1,6 +1,5 @@
 export type Transaction = {
   id: string;
-  userId: string;
   type: 'income' | 'expense' | 'transfer';
   category: string;
   amount: number;
@@ -13,7 +12,6 @@ export type Transaction = {
 
 export type Debt = {
   id:string;
-  userId: string;
   type: 'creditor' | 'debtor';
   name: string;
   amount: number;
@@ -24,7 +22,6 @@ export type Debt = {
 
 export type BankAccount = {
   id: string;
-  userId: string;
   name: string;
   balance: number;
 };

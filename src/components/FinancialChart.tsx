@@ -18,11 +18,10 @@ import {
   startOfYear,
 } from 'date-fns';
 import { useFinancials } from '@/hooks/useFinancials';
-import { WithId } from '@/firebase/firestore/use-collection';
 
 
 type FinancialChartProps = {
-  transactions: WithId<Transaction>[];
+  transactions: Transaction[];
   period: 'weekly' | 'monthly' | 'annual';
 };
 
@@ -84,7 +83,7 @@ export default function FinancialChart({ transactions, period }: FinancialChartP
         return intervals.map((intervalStart, index) => {
             const intervalEnd = getIntervalEnd(intervalStart);
             const periodTransactions = transactions.filter(t => {
-                const tDate = new Date(t.date as string);
+                const tDate = new Date(t.date);
                 return tDate >= intervalStart && tDate <= intervalEnd;
             });
     
