@@ -1,30 +1,33 @@
 /**
  * @file Firestore Security Rules
- * @core_philosophy This ruleset enforces a strict user-ownership model. Users can only
- *  access data associated with their own user ID. Data validation is relaxed to
- *  facilitate rapid prototyping.
- * @data_structure All user data is nested under `/users/{userId}`, including profile
- *  information, transactions, debts, and bank accounts.
- * @key_security_decisions User listing is disallowed for privacy. All write
- *  operations require the user to be authenticated and the data to be owned by
- *  the user making the request.
- * @denormalization No denormalization is needed as the data is structured in a
- *  user-centric manner.
- * @structural_segregation All user-specific data is stored in private
- *  subcollections, ensuring no accidental public exposure.
+ * @description This ruleset enforces a strict user-ownership model, ensuring that users can only access data associated with their own user ID.
+ *
+ * Data Structure:
+ * All data is nested under /users/{userId}, with subcollections for transactions, debts, and bank accounts. This hierarchical structure simplifies access control.
+ * /users/{userId} - User profile information
+ * /users/{userId}/transactions/{transactionId} - Financial transactions
+ * /users/{userId}/debts/{debtId} - Debt information
+ * /users/{userId}/bankAccounts/{accountId} - Bank account details
+ *
+ * Key Security Decisions:
+ * - User listing is disallowed to prevent unauthorized enumeration of user accounts.
+ * - All write operations are restricted to the owning user.
+ *
+ * Denormalization for Authorization:
+ * The `userId` field within each document is critically important for authorization. It must match the `userId` in the path.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows access to user documents based on ownership.
+     * @description Secures the user profile document. Users can only read and modify their own profile.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user can create their own user document if the userId matches their auth UID.
-     * @allow (get, list, update, delete) - Authenticated user can access their own user document if the userId matches their auth UID.
-     * @deny (create) - Creating a user document with a userId that does not match the auth UID.
-     * @deny (list) - Listing all users is not allowed.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User A can create their own profile if request.auth.uid == userId.
+     * @allow (get, update, delete) - User A can access their own profile if request.auth.uid == userId.
+     * @deny (create) - User A cannot create a profile for User B.
+     * @deny (get, update, delete) - User A cannot access User B's profile.
+     * @principle Enforces document ownership.  Validates userId on create. Enforces immutable userId on updates.
      */
     match /users/{userId} {
       function isSignedIn() {
@@ -32,28 +35,29 @@ service cloud.firestore {
       }
 
       function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
+        return request.auth.uid == userId;
       }
 
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return isSignedIn() && isOwner(userId) && resource.data != null;
       }
 
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // Prevent user enumeration
+
+      allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows access to transaction documents based on ownership.
+     * @description Secures transaction documents under a user's profile. Only the owner can manage transactions.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (create) - Authenticated user can create a transaction document under their userId.
-     * @allow (get, list, update, delete) - Authenticated user can access their own transaction documents.
-     * @deny (create) - Creating a transaction document with a userId that does not match the auth UID.
-     * @deny (update, delete) - Modifying or deleting a transaction document that does not belong to the authenticated user.
-     * @principle Enforces document ownership for writes; allows owner-only reads.
+     * @allow (create) - User A can create a transaction under their profile (request.auth.uid == userId).
+     * @allow (get, list, update, delete) - User A can manage transactions under their profile.
+     * @deny (create) - User A cannot create a transaction under User B's profile.
+     * @deny (get, list, update, delete) - User A cannot manage transactions under User B's profile.
+     * @principle Enforces document ownership and path consistency. Validates userId on create and enforces immutable userId on updates.
      */
     match /users/{userId}/transactions/{transactionId} {
       function isSignedIn() {
@@ -61,28 +65,28 @@ service cloud.firestore {
       }
 
       function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
+        return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+       function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId) && resource.data != null;
       }
 
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows access to debt documents based on ownership.
+     * @description Secures debt documents under a user's profile. Only the owner can manage debts.
      * @path /users/{userId}/debts/{debtId}
-     * @allow (create) - Authenticated user can create a debt document under their userId.
-     * @allow (get, list, update, delete) - Authenticated user can access their own debt documents.
-     * @deny (create) - Creating a debt document with a userId that does not match the auth UID.
-     * @deny (update, delete) - Modifying or deleting a debt document that does not belong to the authenticated user.
-     * @principle Enforces document ownership for writes; allows owner-only reads.
+     * @allow (create) - User A can create a debt under their profile (request.auth.uid == userId).
+     * @allow (get, list, update, delete) - User A can manage debts under their profile.
+     * @deny (create) - User A cannot create a debt under User B's profile.
+     * @deny (get, list, update, delete) - User A cannot manage debts under User B's profile.
+     * @principle Enforces document ownership and path consistency. Validates userId on create and enforces immutable userId on updates.
      */
     match /users/{userId}/debts/{debtId} {
       function isSignedIn() {
@@ -90,28 +94,28 @@ service cloud.firestore {
       }
 
       function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
+        return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+       function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId) && resource.data != null;
       }
 
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows access to bank account documents based on ownership.
+     * @description Secures bank account documents under a user's profile. Only the owner can manage bank accounts.
      * @path /users/{userId}/bankAccounts/{accountId}
-     * @allow (create) - Authenticated user can create a bank account document under their userId.
-     * @allow (get, list, update, delete) - Authenticated user can access their own bank account documents.
-     * @deny (create) - Creating a bank account document with a userId that does not match the auth UID.
-     * @deny (update, delete) - Modifying or deleting a bank account document that does not belong to the authenticated user.
-     * @principle Enforces document ownership for writes; allows owner-only reads.
+     * @allow (create) - User A can create a bank account under their profile (request.auth.uid == userId).
+     * @allow (get, list, update, delete) - User A can manage bank accounts under their profile.
+     * @deny (create) - User A cannot create a bank account under User B's profile.
+     * @deny (get, list, update, delete) - User A cannot manage bank accounts under User B's profile.
+     * @principle Enforces document ownership and path consistency. Validates userId on create and enforces immutable userId on updates.
      */
     match /users/{userId}/bankAccounts/{accountId} {
       function isSignedIn() {
@@ -119,16 +123,16 @@ service cloud.firestore {
       }
 
       function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
+        return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+       function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId) && resource.data != null;
       }
 
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }

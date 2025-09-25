@@ -9,11 +9,12 @@ import {
   useFirestore,
   useUser,
   useCollection,
+  useDoc,
   useMemoFirebase,
   addDocumentNonBlocking,
   setDocumentNonBlocking,
 } from '@/firebase';
-import type { Transaction, Debt, BankAccount } from '@/lib/types';
+import type { Transaction, Debt, BankAccount, User } from '@/lib/types';
 import { WithId } from '@/firebase/firestore/use-collection';
 
 interface FinancialContextType {
@@ -52,12 +53,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const userSettingsRef = useMemoFirebase(() => 
     user ? doc(firestore, 'users', user.uid) : null
   , [firestore, user]);
+  const { data: userSettings, isLoading: userSettingsLoading } = useDoc<User>(userSettingsRef);
   
-  // For simplicity, we are not using useDoc for settings to avoid another loading state.
-  // We will manage currency locally and optimistically update it.
-  // In a real app, you would fetch and update this from the user's document.
-  // For now, we'll just optimistically update the user document.
-  const currency = 'INR'; // Default, would come from user settings
+  const currency = userSettings?.currency || 'INR'; 
 
   const setCurrency = useCallback((newCurrency: string) => {
     if (userSettingsRef) {
@@ -67,11 +65,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
 
   const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'userId'>) => {
-    if (!transactionsQuery) return;
+    if (!transactionsQuery || !user) return;
     
     const newTransaction = { 
       ...transaction, 
-      userId: user!.uid,
+      userId: user.uid,
       date: new Date().toISOString() 
     };
     addDocumentNonBlocking(transactionsQuery, newTransaction);
@@ -80,14 +78,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       if (transaction.type === 'income' && transaction.accountId) {
         const acc = bankAccounts.find(a => a.id === transaction.accountId);
         if (acc) {
-          const accountRef = doc(firestore, 'users', user!.uid, 'bankAccounts', acc.id);
+          const accountRef = doc(firestore, 'users', user.uid, 'bankAccounts', acc.id);
           setDocumentNonBlocking(accountRef, { balance: acc.balance + transaction.amount }, { merge: true });
         }
       }
       if (transaction.type === 'expense' && transaction.accountId) {
         const acc = bankAccounts.find(a => a.id === transaction.accountId);
         if (acc) {
-          const accountRef = doc(firestore, 'users', user!.uid, 'bankAccounts', acc.id);
+          const accountRef = doc(firestore, 'users', user.uid, 'bankAccounts', acc.id);
           setDocumentNonBlocking(accountRef, { balance: acc.balance - transaction.amount }, { merge: true });
         }
       }
@@ -95,11 +93,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         const fromAcc = bankAccounts.find(a => a.id === transaction.fromAccountId);
         const toAcc = bankAccounts.find(a => a.id === transaction.toAccountId);
         if(fromAcc) {
-          const fromAccountRef = doc(firestore, 'users', user!.uid, 'bankAccounts', fromAcc.id);
+          const fromAccountRef = doc(firestore, 'users', user.uid, 'bankAccounts', fromAcc.id);
           setDocumentNonBlocking(fromAccountRef, { balance: fromAcc.balance - transaction.amount }, { merge: true });
         }
         if(toAcc) {
-          const toAccountRef = doc(firestore, 'users', user!.uid, 'bankAccounts', toAcc.id);
+          const toAccountRef = doc(firestore, 'users', user.uid, 'bankAccounts', toAcc.id);
           setDocumentNonBlocking(toAccountRef, { balance: toAcc.balance + transaction.amount }, { merge: true });
         }
       }
@@ -107,10 +105,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [transactionsQuery, bankAccounts, firestore, user]);
 
   const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date' | 'userId'>) => {
-    if (!debtsQuery) return;
+    if (!debtsQuery || !user) return;
     const newDebt = { 
       ...debt, 
-      userId: user!.uid,
+      userId: user.uid,
       date: new Date().toISOString(),
       dueDate: debt.dueDate ? debt.dueDate.toISOString() : undefined
     };
@@ -118,12 +116,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [debtsQuery, user]);
 
   const addBankAccount = useCallback((account: Omit<BankAccount, 'id' | 'userId'>) => {
-    if (!bankAccountsQuery) return;
-    const newAccount = { ...account, userId: user!.uid };
+    if (!bankAccountsQuery || !user) return;
+    const newAccount = { ...account, userId: user.uid };
     addDocumentNonBlocking(bankAccountsQuery, newAccount);
   }, [bankAccountsQuery, user]);
 
-  const isLoading = isUserLoading || transactionsLoading || debtsLoading || bankAccountsLoading;
+  const isLoading = isUserLoading || transactionsLoading || debtsLoading || bankAccountsLoading || userSettingsLoading;
 
   const contextValue = useMemo(() => ({
     transactions: transactions || [],
