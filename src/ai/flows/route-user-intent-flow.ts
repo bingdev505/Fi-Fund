@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow for routing user intent.
- * It determines whether the user wants to log financial data or ask a question.
+ * It determines whether the user wants to log financial data, ask a question, or issue a command.
  */
 
 import {ai} from '@/ai/genkit';
@@ -29,10 +29,15 @@ const AnswerFinancialQuestionResultSchema = z.object({
   answer: z.string(),
 });
 
+const CommandResultSchema = z.object({
+    response: z.string(),
+});
+
 
 const RouteUserIntentOutputSchema = z.union([
     z.object({ intent: z.literal('logData'), result: LogFinancialDataResultSchema as z.ZodType<LogFinancialDataOutput> }),
     z.object({ intent: z.literal('question'), result: AnswerFinancialQuestionResultSchema as z.ZodType<AnswerFinancialQuestionOutput> }),
+    z.object({ intent: z.literal('command'), result: CommandResultSchema }),
 ]);
 export type RouteUserIntentOutput = z.infer<typeof RouteUserIntentOutputSchema>;
 
@@ -40,13 +45,21 @@ export type RouteUserIntentOutput = z.infer<typeof RouteUserIntentOutputSchema>;
 const intentPrompt = ai.definePrompt({
     name: 'intentPrompt',
     input: { schema: z.object({ chatInput: z.string() }) },
-    output: { schema: z.object({ intent: z.enum(["logData", "question"]).describe("The user's intent. Is the user asking a question or asking to log/record data?") }) },
-    prompt: `Analyze the user's input to determine their intent.
+    output: { schema: z.object({ intent: z.enum(["logData", "question", "command"]).describe("The user's intent: is the user logging data, asking a question, or giving a command?") }) },
+    prompt: `Analyze the user's input to determine the primary intent. Categorize it as 'logData', 'question', or 'command'.
+
+- 'logData': The user is stating a transaction or financial event that has occurred.
+  Examples: "spent 500 on groceries", "got my salary", "income 1000 from freelance", "John owes me 50".
+
+- 'question': The user is asking for information about their finances.
+  Examples: "what's my balance?", "how much did I spend on food?", "show me my debts".
+
+- 'command': The user is telling the system to perform an action like deleting or editing.
+  Examples: "delete the last entry", "remove that transaction", "edit the lunch expense".
 
 User Input: {{{chatInput}}}
 
-If the user is stating a transaction that happened (e.g., 'spent 500 on groceries', 'got my salary'), the intent is 'logData'.
-If the user is asking a question (e.g., 'what's my balance?', 'how much did I spend on food?'), the intent is 'question'.`,
+Based on the keywords and structure, determine the most likely intent.`,
 });
 
 
@@ -63,12 +76,19 @@ const routeUserIntentFlow = ai.defineFlow(
     if (intent === 'logData') {
         const result = await logFinancialData({ chatInput: input.chatInput, chatHistory: input.chatHistory });
         return { intent: 'logData', result };
-    } else { // intent === 'question'
+    } else if (intent === 'question') {
         const result = await answerFinancialQuestion({
             question: input.chatInput,
             financialData: input.financialData,
         });
         return { intent: 'question', result };
+    } else { // intent === 'command'
+        return {
+            intent: 'command',
+            result: {
+                response: "To edit or delete an entry, please hover over the message and use the pencil or trash can icons that appear."
+            }
+        };
     }
   }
 );

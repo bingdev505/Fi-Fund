@@ -271,8 +271,10 @@ export default function AIChat() {
                 });
             }
         }
-      } else { // intent is 'question'
+      } else if (result.intent === 'question') {
         assistantResponse = result.result.answer;
+      } else { // intent is 'command'
+        assistantResponse = result.result.response;
       }
 
       const assistantMessage: Partial<ChatMessageType> = {
