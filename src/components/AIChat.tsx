@@ -270,10 +270,10 @@ export default function AIChat() {
       default:
         return (
           <div className="p-2 flex flex-col justify-center items-center gap-2">
-            <Button variant="ghost" size="icon" className="w-16 h-16" onClick={() => setRepaymentStep('select_creditor')}>
+            <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full" onClick={() => setRepaymentStep('select_creditor')}>
               <ArrowUpCircle className="h-8 w-8 text-red-600" />
             </Button>
-            <Button variant="ghost" size="icon" className="w-16 h-16" onClick={() => setRepaymentStep('select_debtor')}>
+            <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full" onClick={() => setRepaymentStep('select_debtor')}>
               <ArrowDownCircle className="h-8 w-8 text-green-600" />
             </Button>
           </div>
@@ -327,12 +327,12 @@ export default function AIChat() {
           <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
             <Popover open={repaymentPopoverOpen} onOpenChange={setRepaymentPopoverOpen}>
               <PopoverTrigger asChild>
-                <Button type="button" variant="ghost" size="icon">
+                <Button type="button" variant="ghost" size="icon" className="rounded-full">
                   <Paperclip className="h-5 w-5 text-muted-foreground" />
                   <span className="sr-only">Log Repayment</span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 rounded-full" align="start">
                 {renderRepaymentContent()}
               </PopoverContent>
             </Popover>
