@@ -2,11 +2,11 @@
 import Link from 'next/link';
 import { Bot, BarChart2, LayoutDashboard, Menu, BookUser } from 'lucide-react';
 import { FinancialProvider } from '@/context/FinancialContext';
-import Reports from '@/components/Reports';
+import Entries from '@/components/Entries';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
-export default function ReportsPage() {
+export default function EntriesPage() {
   const navItems = [
     { href: '/', icon: Bot, label: 'AI Chat' },
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -53,8 +53,8 @@ export default function ReportsPage() {
               ))}
             </nav>
           </aside>
-          <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 overflow-y-auto">
-            <Reports />
+          <main className="flex flex-1 flex-col overflow-y-auto">
+            <Entries />
           </main>
         </div>
       </div>
