@@ -8,7 +8,8 @@ import {
   BookUser,
   Cog,
   LogOut,
-  Loader2
+  Loader2,
+  CircleUserRound,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useUser } from '@/firebase';
 import { useEffect } from 'react';
+import { Avatar, AvatarFallback } from './ui/avatar';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -57,20 +59,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
   
   if (!user) {
-    // This can be a brief flash while redirect happens, or you can return null
     return null;
   }
 
   return (
     <div className="flex h-screen w-full flex-col bg-background">
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-primary px-4 md:px-6">
+      <header className="sticky top-0 z-10 flex h-20 items-center justify-between gap-4 border-b bg-card px-4 md:px-6">
         <div className="flex items-center gap-4">
           <Sheet>
             <SheetTrigger asChild>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
-                className="md:hidden text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                className="md:hidden text-foreground"
               >
                 <Menu className="h-6 w-6" />
                 <span className="sr-only">Toggle Navigation</span>
@@ -78,15 +79,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="p-0">
               <div className="flex h-full flex-col">
-                <div className="flex h-16 items-center border-b px-6">
-                    <h1 className="text-2xl font-headline font-bold text-primary">FinanceFlow AI</h1>
+                <div className="flex h-20 items-center border-b px-6">
+                    <h1 className="text-2xl font-headline font-bold text-foreground">FinanceFlow</h1>
                 </div>
                 <nav className="grid gap-2 text-lg font-medium p-4">
                   {navItems.map((item) => (
                     <SheetClose asChild key={item.label}>
                       <Link
                         href={item.href}
-                        className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", { "bg-muted text-primary": pathname === item.href })}
+                        className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", { "bg-sidebar-accent text-primary": pathname === item.href })}
                       >
                         <item.icon className="h-5 w-5" />
                         {item.label}
@@ -95,7 +96,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   ))}
                 </nav>
                  <div className="mt-auto p-4 border-t">
-                    <Button variant="ghost" onClick={handleLogout} className="w-full justify-start">
+                    <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-muted-foreground">
                         <LogOut className="mr-2 h-4 w-4" />
                         Logout
                     </Button>
@@ -103,33 +104,49 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </SheetContent>
           </Sheet>
-          <h1 className="text-2xl font-headline font-bold text-primary-foreground">
-            FinanceFlow AI
-          </h1>
+          <div className="hidden md:flex items-center gap-2">
+            <div className="w-8 h-8 bg-foreground text-background flex items-center justify-center rounded-md font-bold text-lg">
+                F
+            </div>
+            <h1 className="text-xl font-headline font-bold text-foreground">
+              Financial Dashboard
+            </h1>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+            <Avatar>
+                <AvatarFallback><CircleUserRound /></AvatarFallback>
+            </Avatar>
+            <div>
+                <p className="font-semibold text-sm">{user.email}</p>
+                <p className="text-xs text-muted-foreground">User</p>
+            </div>
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="hidden w-72 flex-col border-r bg-card p-4 md:flex">
+        <aside className="hidden w-64 flex-col border-r bg-card p-4 md:flex">
           <nav className="flex flex-col gap-2">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:bg-muted/50 hover:text-primary", { "bg-muted text-primary": pathname === item.href })}
+                className={cn("flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="h-5 w-5" />
                 {item.label}
               </Link>
             ))}
           </nav>
           <div className="mt-auto">
-             <Button variant="ghost" onClick={handleLogout} className="w-full justify-start">
+             <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-muted-foreground">
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
             </Button>
           </div>
         </aside>
-        {children}
+        <div className='flex-1 overflow-y-auto'>
+            {children}
+        </div>
       </div>
     </div>
   );
