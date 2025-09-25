@@ -2,11 +2,11 @@
 import Link from 'next/link';
 import { Bot, BarChart2, LayoutDashboard, ArrowRightLeft, Users, Menu } from 'lucide-react';
 import { FinancialProvider } from '@/context/FinancialContext';
-import AIChat from '@/components/AIChat';
+import Dashboard from '@/components/Dashboard';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
-export default function Home() {
+export default function DashboardPage() {
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/transactions', icon: ArrowRightLeft, label: 'Transactions' },
@@ -52,8 +52,8 @@ export default function Home() {
               ))}
             </nav>
           </aside>
-          <main className="flex flex-1 flex-col">
-            <AIChat />
+          <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <Dashboard />
           </main>
         </div>
       </div>

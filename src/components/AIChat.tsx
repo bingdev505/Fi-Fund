@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bot, Loader2, Send, User } from 'lucide-react';
+import { Bot, Loader2, Send, User, Paperclip } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { logFinancialData } from '@/app/actions';
@@ -19,7 +19,7 @@ type Message = {
 
 export default function AIChat() {
   const [messages, setMessages] = useState<Message[]>([
-    { id: crypto.randomUUID(), role: 'assistant', content: "Hello! How can I help you manage your finances today?" }
+    { id: crypto.randomUUID(), role: 'assistant', content: "Hello! How can I help you manage your finances today? Try 'Paid 500 for groceries' or 'Got my salary of 50000'." }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +57,7 @@ export default function AIChat() {
             category: result.category,
             description: result.description || 'AI Logged Transaction'
         });
-        toastDescription = `${result.transactionType} of ₹${result.amount} in ${result.category} logged.`
+        toastDescription = `${result.transactionType} of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(result.amount)} in ${result.category} logged.`
       } else {
         addDebt({
             type: result.transactionType,
@@ -93,25 +93,18 @@ export default function AIChat() {
   };
 
   return (
-    <Card className="h-full md:h-[75vh] flex flex-col">
-      <CardHeader>
-        <CardTitle>AI Chat Input</CardTitle>
-        <CardDescription>
-          Log your finances using natural language. Try 'Paid 500 for groceries' or 'Got my salary of 50000'.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4" ref={scrollAreaRef}>
-          <div className="space-y-4">
+    <div className="flex flex-col h-full bg-muted/40">
+        <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+          <div className="space-y-4 pr-4">
             {messages.map(message => (
-              <div key={message.id} className={`flex items-start gap-4 ${message.role === 'user' ? 'justify-end' : ''}`}>
+              <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
                 {message.role === 'assistant' && (
-                  <Avatar className="h-8 w-8 border bg-accent">
-                    <AvatarFallback className="bg-transparent text-accent-foreground"><Bot /></AvatarFallback>
-                  </Avatar>
+                   <Avatar className="h-8 w-8 border bg-white">
+                     <AvatarFallback className="bg-transparent"><Bot className="text-primary"/></AvatarFallback>
+                   </Avatar>
                 )}
-                <div className={`rounded-lg px-4 py-2 max-w-[75%] shadow-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                  <p className="text-sm">{message.content}</p>
+                <div className={`rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground'}`}>
+                  <p>{message.content}</p>
                 </div>
                 {message.role === 'user' && (
                   <Avatar className="h-8 w-8 border">
@@ -121,33 +114,37 @@ export default function AIChat() {
               </div>
             ))}
              {isLoading && (
-              <div className="flex items-start gap-4">
-                  <Avatar className="h-8 w-8 border bg-accent">
-                    <AvatarFallback className="bg-transparent text-accent-foreground"><Bot /></AvatarFallback>
+              <div className="flex items-start gap-3">
+                  <Avatar className="h-8 w-8 border bg-white">
+                    <AvatarFallback className="bg-transparent"><Bot className="text-primary"/></AvatarFallback>
                   </Avatar>
-                  <div className="rounded-lg px-4 py-2 bg-muted flex items-center shadow-sm">
+                  <div className="rounded-lg px-4 py-2 bg-white flex items-center shadow-sm">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
               </div>
             )}
           </div>
         </ScrollArea>
-      </CardContent>
-      <CardFooter className="pt-4 border-t">
+      <div className="p-4 border-t bg-card">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
+           <Button type="button" variant="ghost" size="icon">
+            <Paperclip className="h-5 w-5 text-muted-foreground" />
+            <span className="sr-only">Attach file</span>
+          </Button>
           <Input
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Type your transaction here..."
+            placeholder="Type your message..."
             disabled={isLoading}
             autoComplete='off'
+            className="flex-1 rounded-full bg-background"
           />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+          <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="rounded-full">
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>
         </form>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }
