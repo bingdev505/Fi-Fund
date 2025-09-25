@@ -98,12 +98,11 @@ export default function AIChat() {
     document.getElementById('chat-input')?.focus();
   };
   
-  const handleQuickAction = (action: string) => {
-    if (action === '@') {
-      setInput(prev => prev + '@');
-      setIsBankPopoverOpen(true);
+  const handleQuickAction = (action: string, type: 'bank' | 'prefix') => {
+    if (type === 'bank') {
+        setInput(prev => `${prev} in ${action}`);
     } else {
-      setInput(prev => `${action} ${prev}`);
+        setInput(prev => `${action} ${prev}`);
     }
     document.getElementById('chat-input')?.focus();
   };
@@ -294,11 +293,11 @@ export default function AIChat() {
   };
 
   const quickActions = [
-    { label: '@', action: '@' },
-    { label: 'Income', action: 'income' },
-    { label: 'Expense', action: 'expense' },
-    { label: 'Creditor', action: 'creditor' },
-    { label: 'Debtor', action: 'debtor' },
+    ...bankAccounts.map(acc => ({ label: acc.name, action: acc.name, type: 'bank' as const })),
+    { label: 'Creditor', action: 'creditor', type: 'prefix' as const },
+    { label: 'Debtor', action: 'debtor', type: 'prefix' as const },
+    { label: 'Income', action: 'income', type: 'prefix' as const },
+    { label: 'Expense', action: 'expense', type: 'prefix' as const },
   ];
 
   return (
@@ -345,13 +344,13 @@ export default function AIChat() {
         </ScrollArea>
         <div className="p-4 border-t bg-card">
            <div className="mb-2 flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
-            {quickActions.map(({ label, action }) => (
+            {quickActions.map(({ label, action, type }) => (
               <Button
                 key={action}
                 variant="outline"
                 size="sm"
                 className="rounded-full text-xs h-7 px-3 flex-shrink-0"
-                onClick={() => handleQuickAction(action)}
+                onClick={() => handleQuickAction(action, type)}
               >
                 {label}
               </Button>
@@ -427,3 +426,5 @@ export default function AIChat() {
     </Dialog>
   );
 }
+
+    
