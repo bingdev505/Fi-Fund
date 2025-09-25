@@ -1,12 +1,16 @@
 'use client';
 import Link from 'next/link';
-import { Bot, BarChart2, LayoutDashboard, Menu, BookUser, Cog } from 'lucide-react';
-import { FinancialProvider } from '@/context/FinancialContext';
+import { Bot, BarChart2, LayoutDashboard, Menu, BookUser, Cog, User } from 'lucide-react';
 import AIChat from '@/components/AIChat';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { useUser } from '@/firebase';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { useAuth } from '@/firebase';
 
 export default function Home() {
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
   const navItems = [
     { href: '/', icon: Bot, label: 'AI Chat' },
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -15,8 +19,26 @@ export default function Home() {
     { href: '/settings', icon: Cog, label: 'Settings' },
   ];
 
+  if (isUserLoading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-4">Welcome to FinanceFlow AI</h1>
+          <p className="text-muted-foreground mb-8">Sign in to continue</p>
+          <Button onClick={() => initiateAnonymousSignIn(auth)}>
+            <User className="mr-2 h-4 w-4" />
+            Sign In Anonymously
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <FinancialProvider>
       <div className="flex h-screen w-full flex-col bg-background">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-primary px-4 md:px-6">
           <div className="flex items-center gap-4">
@@ -59,6 +81,5 @@ export default function Home() {
           </main>
         </div>
       </div>
-    </FinancialProvider>
   );
 }
