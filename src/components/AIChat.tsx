@@ -78,45 +78,66 @@ export default function AIChat() {
       let assistantResponse = '';
       if (result.intent === 'logData') {
         const logResult = result.result;
-        const primaryAccount = bankAccounts.find(acc => acc.isPrimary);
         
+        let accountIdToUse: string | undefined;
+        let accountNameToUse: string | undefined;
         let toastDescription = '';
-        if (logResult.transactionType === 'income' || logResult.transactionType === 'expense') {
-          if (!primaryAccount) {
-            toast({
-              variant: 'destructive',
-              title: 'No Primary Account',
-              description: 'Please set a primary bank account in settings to log transactions via chat.',
-            });
-            assistantResponse = "I couldn't log that because you don't have a primary bank account set. Please go to settings to select one.";
-          } else {
-            addTransaction({
-              type: logResult.transactionType,
-              amount: logResult.amount,
-              category: logResult.category,
-              description: logResult.description || 'AI Logged Transaction',
-              accountId: primaryAccount.id,
-            });
-            toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${primaryAccount.name}.`;
-            assistantResponse = `I've logged that for you! ${toastDescription}`;
-            toast({
-              title: 'Logged via AI Chat',
-              description: toastDescription,
-            });
-          }
+        let wasAccountFound = true;
+
+        if (logResult.accountName) {
+            const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(logResult.accountName!.toLowerCase()));
+            if (foundAccount) {
+                accountIdToUse = foundAccount.id;
+                accountNameToUse = foundAccount.name;
+            } else {
+                wasAccountFound = false;
+                assistantResponse = `I couldn't find an account named '${logResult.accountName}'. Please check your account settings or try again.`;
+            }
         } else {
-          addDebt({
-            type: logResult.transactionType,
-            amount: logResult.amount,
-            name: logResult.category,
-            description: logResult.description || 'AI Logged Debt',
-          });
-          toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged.`;
-          assistantResponse = `I've logged that for you! ${toastDescription}`;
-          toast({
-            title: 'Logged via AI Chat',
-            description: toastDescription,
-          });
+            const primaryAccount = bankAccounts.find(acc => acc.isPrimary);
+            if (primaryAccount) {
+                accountIdToUse = primaryAccount.id;
+                accountNameToUse = primaryAccount.name;
+            }
+        }
+
+        if (wasAccountFound) {
+            if (!accountIdToUse) {
+                toast({
+                  variant: 'destructive',
+                  title: 'No Account Available',
+                  description: 'Please set a primary bank account in settings, or specify an account in your message.',
+                });
+                assistantResponse = "I couldn't log that because there's no primary account set. Please go to settings to select one, or tell me which account to use.";
+            } else if (logResult.transactionType === 'income' || logResult.transactionType === 'expense') {
+                addTransaction({
+                    type: logResult.transactionType,
+                    amount: logResult.amount,
+                    category: logResult.category,
+                    description: logResult.description || 'AI Logged Transaction',
+                    accountId: accountIdToUse,
+                });
+                toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
+                assistantResponse = `I've logged that for you! ${toastDescription}`;
+                toast({
+                    title: 'Logged via AI Chat',
+                    description: toastDescription,
+                });
+            } else { // creditor or debtor
+                addDebt({
+                    type: logResult.transactionType,
+                    amount: logResult.amount,
+                    name: logResult.category,
+                    description: logResult.description || 'AI Logged Debt',
+                    accountId: accountIdToUse
+                });
+                toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
+                assistantResponse = `I've logged that for you! ${toastDescription}`;
+                toast({
+                    title: 'Logged via AI Chat',
+                    description: toastDescription,
+                });
+            }
         }
       } else { // intent is 'question'
         assistantResponse = result.result.answer;
@@ -148,7 +169,7 @@ export default function AIChat() {
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                 <Bot className="h-12 w-12 mb-4" />
                 <h2 className="text-xl font-semibold mb-2">Welcome to FinanceFlow AI</h2>
-                <p>You can start by logging a transaction like 'Spent 500 on groceries'</p>
+                <p>You can start by logging a transaction like 'Spent 500 on groceries in savings'</p>
                 <p>or ask a question like 'What's my total income this month?'</p>
             </div>
           )}

@@ -29,6 +29,7 @@ const LogFinancialDataOutputSchema = z.object({
   category: z.string().describe('The category of the transaction for income/expense, or the name of the person/entity for creditor/debtor.'),
   amount: z.number().describe('The amount of the transaction.'),
   description: z.string().optional().describe('A description of the transaction.'),
+  accountName: z.string().optional().describe('The name of the bank account if mentioned by the user.'),
 });
 export type LogFinancialDataOutput = z.infer<typeof LogFinancialDataOutputSchema>;
 
@@ -40,8 +41,9 @@ const logFinancialDataPrompt = ai.definePrompt({
   name: 'logFinancialDataPrompt',
   input: {schema: LogFinancialDataInputSchema},
   output: {schema: LogFinancialDataOutputSchema},
-  prompt: `You are a financial assistant. Extract the transaction type (income, expense, creditor, debtor), category, amount, and description from the following user input.
+  prompt: `You are a financial assistant. Extract the transaction type (income, expense, creditor, debtor), category, amount, description, and bank account name from the following user input.
 For 'creditor' or 'debtor' types, the 'category' field should contain the name of the person or entity. For 'income' or 'expense' types, it should be a general category.
+If the user mentions a specific bank or account name (like 'in savings', 'from my checking account', 'at HDFC bank'), extract it as 'accountName'.
 
 User Input: {{{chatInput}}}
 

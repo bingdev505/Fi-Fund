@@ -21,6 +21,7 @@ const LogFinancialDataResultSchema = z.object({
   category: z.string(),
   amount: z.number(),
   description: z.string().optional(),
+  accountName: z.string().optional(),
 });
 
 const AnswerFinancialQuestionResultSchema = z.object({
