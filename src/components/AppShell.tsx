@@ -134,16 +134,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     </SheetClose>
                 ))}
               </nav>
-              <div className="mt-auto p-4 border-t">
-                  <Button variant="ghost" onClick={() => router.push('/settings')} className="w-full justify-start text-muted-foreground">
-                      <Cog className="mr-2 h-4 w-4" />
-                      Settings
-                  </Button>
-                  <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-muted-foreground">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
-                  </Button>
-              </div>
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1">
