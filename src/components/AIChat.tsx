@@ -269,7 +269,7 @@ export default function AIChat() {
       case 'select_type':
       default:
         return (
-          <div className="p-2 flex flex-col justify-center items-center gap-2">
+          <div className="flex flex-col justify-center items-center">
             <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full" onClick={() => setRepaymentStep('select_creditor')}>
               <ArrowUpCircle className="h-8 w-8 text-red-600" />
             </Button>
@@ -327,12 +327,16 @@ export default function AIChat() {
           <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
             <Popover open={repaymentPopoverOpen} onOpenChange={setRepaymentPopoverOpen}>
               <PopoverTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" className="rounded-full">
+                <Button type="button" variant="ghost" size="icon" className="flex-shrink-0 rounded-full">
                   <Paperclip className="h-5 w-5 text-muted-foreground" />
                   <span className="sr-only">Log Repayment</span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 rounded-full" align="start">
+              <PopoverContent 
+                side="top" 
+                align="center"
+                className="w-auto p-0 rounded-b-none shadow-none border-none bg-card data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=top]:slide-in-from-bottom-2"
+                >
                 {renderRepaymentContent()}
               </PopoverContent>
             </Popover>
@@ -367,7 +371,7 @@ export default function AIChat() {
                   </PopoverContent>
               )}
             </Popover>
-            <Button type="submit" size="icon" disabled={isLoading || isMessagesLoading || !input.trim()} className="rounded-full">
+            <Button type="submit" size="icon" disabled={isLoading || isMessagesLoading || !input.trim()} className="rounded-full flex-shrink-0">
               <Send className="h-4 w-4" />
               <span className="sr-only">Send</span>
             </Button>
