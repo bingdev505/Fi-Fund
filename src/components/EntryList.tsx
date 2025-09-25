@@ -9,12 +9,13 @@ import {
   TrendingDown,
   Landmark,
   User,
+  ArrowRightLeft,
 } from 'lucide-react';
 import type { Transaction, Debt } from '@/lib/types';
 import { useMemo } from 'react';
 
 export default function EntryList() {
-  const { transactions, debts, currency } = useFinancials();
+  const { transactions, debts, currency, bankAccounts } = useFinancials();
 
   const allEntries = useMemo(() => {
     const combined = [
@@ -26,6 +27,11 @@ export default function EntryList() {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  }
+
+  const getAccountName = (accountId?: string) => {
+    if (!accountId) return '';
+    return bankAccounts.find(acc => acc.id === accountId)?.name || '';
   }
 
   if (allEntries.length === 0) {
@@ -44,6 +50,8 @@ export default function EntryList() {
         return <TrendingUp className="h-6 w-6 text-primary" />;
       case 'expense':
         return <TrendingDown className="h-6 w-6 text-destructive" />;
+      case 'transfer':
+        return <ArrowRightLeft className="h-6 w-6 text-muted-foreground" />;
       case 'creditor':
         return <Landmark className="h-6 w-6 text-destructive" />;
       case 'debtor':
@@ -53,7 +61,7 @@ export default function EntryList() {
 
   const renderEntry = (entry: Transaction | Debt) => {
     const isTransaction = 'category' in entry;
-    const color = entry.type === 'income' || entry.type === 'debtor' ? 'text-primary' : 'text-destructive';
+    const color = entry.type === 'income' || entry.type === 'debtor' ? 'text-primary' : entry.type === 'transfer' ? '' : 'text-destructive';
     
     return (
         <div className="flex items-start justify-between py-3">
@@ -61,10 +69,15 @@ export default function EntryList() {
                 {renderIcon(entry)}
                 <div>
                     <p className="text-sm font-medium leading-none">
-                        {isTransaction ? entry.description : entry.name}
+                        {isTransaction ? (entry as Transaction).description : (entry as Debt).name}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {isTransaction ? entry.category : entry.description} &bull; {entry.date.toLocaleDateString()}
+                        {isTransaction ? 
+                          ((entry as Transaction).type === 'transfer' ? 
+                            `${getAccountName((entry as Transaction).fromAccountId)} → ${getAccountName((entry as Transaction).toAccountId)}` :
+                            `${(entry as Transaction).category} (${getAccountName((entry as Transaction).accountId)})`)
+                          : (entry as Debt).description}
+                        &bull; {entry.date.toLocaleDateString()}
                     </p>
                     {!isTransaction && (entry as Debt).dueDate && (
                         <p className="text-xs text-muted-foreground">Due: {(entry as Debt).dueDate!.toLocaleDateString()}</p>

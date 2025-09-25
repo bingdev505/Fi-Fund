@@ -1,10 +1,13 @@
 export type Transaction = {
   id: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer';
   category: string;
   amount: number;
   description: string;
   date: Date;
+  accountId?: string; // For income/expense
+  fromAccountId?: string; // For transfer
+  toAccountId?: string; // For transfer
 };
 
 export type Debt = {

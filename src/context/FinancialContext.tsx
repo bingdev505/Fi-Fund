@@ -24,10 +24,28 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrency] = useState<string>('INR');
 
   const addTransaction = (transaction: Omit<Transaction, 'id' | 'date'>) => {
-    setTransactions(prev => [
-      { ...transaction, id: crypto.randomUUID(), date: new Date() },
-      ...prev
-    ]);
+    const newTransaction = { ...transaction, id: crypto.randomUUID(), date: new Date() };
+    setTransactions(prev => [newTransaction, ...prev]);
+
+    setBankAccounts(prev => 
+      prev.map(account => {
+        if (transaction.type === 'income' && account.id === transaction.accountId) {
+          return { ...account, balance: account.balance + transaction.amount };
+        }
+        if (transaction.type === 'expense' && account.id === transaction.accountId) {
+          return { ...account, balance: account.balance - transaction.amount };
+        }
+        if (transaction.type === 'transfer') {
+            if(account.id === transaction.fromAccountId) {
+                return { ...account, balance: account.balance - transaction.amount };
+            }
+            if(account.id === transaction.toAccountId) {
+                return { ...account, balance: account.balance + transaction.amount };
+            }
+        }
+        return account;
+      })
+    );
   };
   
   const addDebt = (debt: Omit<Debt, 'id' | 'date'>) => {
