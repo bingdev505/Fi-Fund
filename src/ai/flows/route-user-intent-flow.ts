@@ -49,18 +49,30 @@ If the user is asking a question (e.g., 'what's my balance?', 'how much did I sp
 });
 
 
-export async function routeUserIntent(input: RouteUserIntentInput): Promise<RouteUserIntentOutput> {
-  const {output} = await intentPrompt({ chatInput: input.chatInput });
-  const intent = output!.intent;
+const routeUserIntentFlow = ai.defineFlow(
+  {
+    name: 'routeUserIntentFlow',
+    inputSchema: RouteUserIntentInputSchema,
+    outputSchema: RouteUserIntentOutputSchema,
+  },
+  async (input) => {
+    const {output} = await intentPrompt({ chatInput: input.chatInput });
+    const intent = output!.intent;
 
-  if (intent === 'logData') {
-    const result = await logFinancialData({ chatInput: input.chatInput });
-    return { intent: 'logData', result };
-  } else { // intent === 'question'
-    const result = await answerFinancialQuestion({
-        question: input.chatInput,
-        financialData: input.financialData,
-    });
-    return { intent: 'question', result };
+    if (intent === 'logData') {
+        const result = await logFinancialData({ chatInput: input.chatInput });
+        return { intent: 'logData', result };
+    } else { // intent === 'question'
+        const result = await answerFinancialQuestion({
+            question: input.chatInput,
+            financialData: input.financialData,
+        });
+        return { intent: 'question', result };
+    }
   }
+);
+
+
+export async function routeUserIntent(input: RouteUserIntentInput): Promise<RouteUserIntentOutput> {
+    return routeUserIntentFlow(input);
 }

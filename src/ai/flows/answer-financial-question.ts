@@ -34,6 +34,7 @@ const prompt = ai.definePrompt({
 - If the user asks a question about their finances, answer it using the data provided.
 - If the answer cannot be found in the data, politely say that you don't have enough information to answer. 
 - Do not make up information.
+- When referencing amounts, be sure to mention the currency.
 
 User's Question: {{{question}}}
 
