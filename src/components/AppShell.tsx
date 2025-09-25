@@ -11,13 +11,10 @@ import {
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const auth = useAuth();
   const pathname = usePathname();
 
   const navItems = [
@@ -29,7 +26,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   ];
 
   const handleLogout = () => {
-    signOut(auth);
+    // No-op for now
+    console.log("Logout clicked");
   };
 
   return (
