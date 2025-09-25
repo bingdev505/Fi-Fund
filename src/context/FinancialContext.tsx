@@ -61,14 +61,36 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const { data: bankAccounts, isLoading: isBankAccountsLoading } = useCollection<BankAccount>(bankAccountsColRef);
 
   const addTransaction = useCallback((transactionData: Omit<Transaction, 'id' | 'date' | 'userId'>) => {
-    if (!user || !transactionsColRef || !bankAccountsColRef) return;
+    if (!user || !transactionsColRef || !firestore) return;
 
-    const newTransaction = {
+    // Base transaction object
+    const baseTransaction: Omit<Transaction, 'id'> = {
       ...transactionData,
       userId: user.uid,
       date: serverTimestamp() as Timestamp,
     };
-    addDocumentNonBlocking(transactionsColRef, newTransaction);
+    
+    // Conditionally add account fields to avoid 'undefined'
+    let finalTransaction: any = baseTransaction;
+    if (transactionData.type === 'income' || transactionData.type === 'expense') {
+        finalTransaction = {
+            ...baseTransaction,
+            accountId: transactionData.accountId,
+        }
+        // remove transfer fields
+        delete finalTransaction.fromAccountId;
+        delete finalTransaction.toAccountId;
+    } else if (transactionData.type === 'transfer') {
+        finalTransaction = {
+            ...baseTransaction,
+            fromAccountId: transactionData.fromAccountId,
+            toAccountId: transactionData.toAccountId,
+        }
+        // remove income/expense field
+        delete finalTransaction.accountId;
+    }
+    
+    addDocumentNonBlocking(transactionsColRef, finalTransaction);
 
     // Update account balances
     if (transactionData.type === 'income' && transactionData.accountId) {
@@ -79,7 +101,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       updateAccountBalance(firestore, user.uid, transactionData.fromAccountId, transactionData.amount, 'subtract');
       updateAccountBalance(firestore, user.uid, transactionData.toAccountId, transactionData.amount, 'add');
     }
-  }, [user, firestore, transactionsColRef, bankAccountsColRef]);
+  }, [user, firestore, transactionsColRef]);
 
 
   const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date' | 'userId'>) => {
@@ -110,7 +132,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [userDocRef]);
 
   const setPrimaryBankAccount = useCallback((accountId: string) => {
-    if (!user || !bankAccountsColRef || !bankAccounts) return;
+    if (!user || !bankAccountsColRef || !bankAccounts || !firestore) return;
   
     const batch = writeBatch(firestore);
   
