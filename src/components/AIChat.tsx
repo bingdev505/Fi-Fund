@@ -55,17 +55,6 @@ export default function AIChat() {
       });
     }
   }, [messages]);
-  
-  // Add welcome message if chat history is empty and not loading
-  useEffect(() => {
-    if (!isMessagesLoading && messages && messages.length === 0 && chatHistoryRef) {
-        addDocumentNonBlocking(chatHistoryRef, {
-            role: 'assistant',
-            content: "Hello! How can I help you manage your finances today? You can log transactions like 'Paid 500 for groceries' or ask questions like 'What is my total income?'.",
-            timestamp: serverTimestamp() as Timestamp,
-        });
-    }
-  }, [isMessagesLoading, messages, chatHistoryRef]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,9 +130,12 @@ export default function AIChat() {
     <div className="flex flex-col h-full bg-muted/40">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4 pr-4">
-          {(isMessagesLoading || !messages) && (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-6 w-6 animate-spin" />
+          {(isMessagesLoading || !messages) && messages?.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                <Bot className="h-12 w-12 mb-4" />
+                <h2 className="text-xl font-semibold mb-2">Welcome to FinanceFlow AI</h2>
+                <p>You can start by logging a transaction like 'Spent 500 on groceries'</p>
+                <p>or ask a question like 'What's my total income this month?'</p>
             </div>
           )}
           {messages && messages.map(message => (
