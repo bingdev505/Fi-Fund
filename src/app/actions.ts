@@ -1,14 +1,15 @@
 'use server';
 
 import { generateFinancialInsights as generateFinancialInsightsFlow } from '@/ai/flows/generate-financial-insights-with-ai';
-import { logFinancialData as logFinancialDataFlow } from '@/ai/flows/log-financial-data-with-ai-chat';
+import { routeUserIntent as routeUserIntentFlow } from '@/ai/flows/route-user-intent-flow';
 import type { GenerateFinancialInsightsInput, GenerateFinancialInsightsOutput } from '@/ai/flows/generate-financial-insights-with-ai';
-import type { LogFinancialDataInput, LogFinancialDataOutput } from '@/ai/flows/log-financial-data-with-ai-chat';
+import type { RouteUserIntentInput, RouteUserIntentOutput } from '@/ai/flows/route-user-intent-flow';
+
 
 export async function generateFinancialInsights(input: GenerateFinancialInsightsInput): Promise<GenerateFinancialInsightsOutput> {
   return await generateFinancialInsightsFlow(input);
 }
 
-export async function logFinancialData(input: LogFinancialDataInput): Promise<LogFinancialDataOutput> {
-  return await logFinancialDataFlow(input);
+export async function routeUserIntent(input: RouteUserIntentInput): Promise<RouteUserIntentOutput> {
+  return await routeUserIntentFlow(input);
 }

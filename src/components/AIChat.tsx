@@ -4,10 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Bot, Loader2, Send, User, Paperclip } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { logFinancialData } from '@/app/actions';
+import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,11 +18,11 @@ type Message = {
 
 export default function AIChat() {
   const [messages, setMessages] = useState<Message[]>([
-    { id: crypto.randomUUID(), role: 'assistant', content: "Hello! How can I help you manage your finances today? Try 'Paid 500 for groceries' or 'Got my salary of 50000'." }
+    { id: crypto.randomUUID(), role: 'assistant', content: "Hello! How can I help you manage your finances today? You can log transactions like 'Paid 500 for groceries' or ask questions like 'What is my total income?'." }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { addTransaction, addDebt, currency } = useFinancials();
+  const { addTransaction, addDebt, currency, transactions, debts, bankAccounts } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -51,44 +50,53 @@ export default function AIChat() {
     setInput('');
 
     try {
-      const result = await logFinancialData({ chatInput: input });
+      const financialData = JSON.stringify({ transactions, debts, bankAccounts });
+      const result = await routeUserIntent({ chatInput: input, financialData });
       
-      let toastDescription = '';
-      if(result.transactionType === 'income' || result.transactionType === 'expense') {
-        addTransaction({
-            type: result.transactionType,
-            amount: result.amount,
-            category: result.category,
-            description: result.description || 'AI Logged Transaction'
+      let assistantResponse = '';
+      if(result.intent === 'logData') {
+        const logResult = result.result;
+        let toastDescription = '';
+        if(logResult.transactionType === 'income' || logResult.transactionType === 'expense') {
+          addTransaction({
+              type: logResult.transactionType,
+              amount: logResult.amount,
+              category: logResult.category,
+              description: logResult.description || 'AI Logged Transaction'
+          });
+          toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged.`
+        } else {
+          addDebt({
+              type: logResult.transactionType,
+              amount: logResult.amount,
+              name: logResult.category, // AI might put name in category for debts
+              description: logResult.description || 'AI Logged Debt'
+          });
+          toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged.`
+        }
+        assistantResponse = `I've logged that for you! ${toastDescription}`;
+        toast({
+          title: "Logged via AI Chat",
+          description: toastDescription,
         });
-        toastDescription = `${result.transactionType} of ${formatCurrency(result.amount)} in ${result.category} logged.`
-      } else {
-        addDebt({
-            type: result.transactionType,
-            amount: result.amount,
-            name: result.category, // AI might put name in category for debts
-            description: result.description || 'AI Logged Debt'
-        });
-        toastDescription = `${result.transactionType} of ${formatCurrency(result.amount)} for ${result.category} logged.`
+      } else { // intent is 'question'
+        assistantResponse = result.result.answer;
       }
+
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `I've logged that for you! ${toastDescription}`,
+        content: assistantResponse,
       };
       setMessages(prev => [...prev, assistantMessage]);
-      toast({
-        title: "Logged via AI Chat",
-        description: toastDescription,
-      });
 
     } catch (error) {
       console.error("AI Chat Error:", error);
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: "Sorry, I couldn't understand that. Please try rephrasing, for example: 'Lunch for 250 rupees' or 'Received 5000 from freelance work'.",
+        content: "Sorry, I couldn't understand that. Please try rephrasing, for example: 'Lunch for 250 rupees' or 'What is my total income?'.",
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
