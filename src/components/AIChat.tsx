@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bot, Loader2, Send, User, Paperclip } from 'lucide-react';
+import { Bot, Loader2, Send, User, Paperclip, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,10 +18,12 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import type { ChatMessage as ChatMessageType } from '@/lib/types';
+import type { ChatMessage as ChatMessageType, Debt } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
-import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
+import RepaymentForm from './RepaymentForm';
 
 export default function AIChat() {
   const { user } = useUser();
@@ -32,6 +34,11 @@ export default function AIChat() {
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
+
+  const [repaymentPopoverOpen, setRepaymentPopoverOpen] = useState(false);
+  const [repaymentStep, setRepaymentStep] = useState<'select_type' | 'select_debtor' | 'select_creditor'>('select_type');
+  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const [repaymentDialogOpen, setRepaymentDialogOpen] = useState(false);
 
   const chatHistoryRef = useMemoFirebase(
     () => (user ? collection(firestore, 'users', user.uid, 'chatHistory') : null),
@@ -44,6 +51,13 @@ export default function AIChat() {
   );
   
   const { data: messages, isLoading: isMessagesLoading } = useCollection<ChatMessageType>(chatHistoryQuery);
+
+  const { debtors, creditors } = useMemo(() => {
+    return {
+      debtors: debts.filter(d => d.type === 'debtor' && d.amount > 0),
+      creditors: debts.filter(d => d.type === 'creditor' && d.amount > 0),
+    }
+  }, [debts]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -60,10 +74,16 @@ export default function AIChat() {
     }
   }, [messages, isLoading]);
 
+  useEffect(() => {
+    if (!repaymentPopoverOpen) {
+      // Reset state when the main popover is closed
+      setTimeout(() => setRepaymentStep('select_type'), 150);
+    }
+  }, [repaymentPopoverOpen]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInput(value);
-    // Show popover if the last character is '@' and there's no space after it
     if (value.endsWith('@') && !value.endsWith(' @')) {
       setIsBankPopoverOpen(true);
     } else {
@@ -72,9 +92,19 @@ export default function AIChat() {
   };
 
   const handleBankSelect = (bankName: string) => {
-    // Replace the '@' with the bank name and add a space
     setInput(input.slice(0, -1) + bankName + ' ');
     setIsBankPopoverOpen(false);
+  };
+
+  const handleRepaymentSelect = (debt: Debt) => {
+    setSelectedDebt(debt);
+    setRepaymentDialogOpen(true);
+    setRepaymentPopoverOpen(false); // Close the selection popover
+  };
+  
+  const handleRepaymentFinished = () => {
+    setRepaymentDialogOpen(false);
+    setSelectedDebt(null);
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -97,7 +127,6 @@ export default function AIChat() {
     try {
       const financialData = JSON.stringify({ transactions, debts, bankAccounts });
       
-      // Get the last 4 messages for context
       const chatHistoryForContext = messages
         .slice(-4)
         .map(msg => `${msg.role}: ${msg.content}`)
@@ -118,7 +147,6 @@ export default function AIChat() {
         let wasAccountFound = false;
 
         if (logResult.accountName) {
-            // Find the best match for the account name
             const searchName = logResult.accountName.toLowerCase();
             const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(searchName));
             
@@ -130,7 +158,6 @@ export default function AIChat() {
                 assistantResponse = `I couldn't find an account named '${logResult.accountName}'. Please check your account settings or try again.`;
             }
         } else {
-            // If no account name is mentioned, use the primary account
             const primaryAccount = bankAccounts.find(acc => acc.isPrimary);
             if (primaryAccount) {
                 accountIdToUse = primaryAccount.id;
@@ -198,90 +225,168 @@ export default function AIChat() {
       setIsLoading(false);
     }
   };
+  
+  const renderRepaymentContent = () => {
+    switch(repaymentStep) {
+      case 'select_creditor':
+        return (
+          <Command>
+            <CommandInput placeholder="Search creditors..." />
+            <CommandList>
+              {creditors.length === 0 && <div className="p-4 text-sm text-muted-foreground">No creditors found.</div>}
+              <CommandGroup heading="You Owe (Creditors)">
+                {creditors.map((debt) => (
+                  <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
+                    <div className="flex justify-between w-full">
+                      <span>{debt.name}</span>
+                      <span className="text-red-600">{formatCurrency(debt.amount)}</span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        );
+      case 'select_debtor':
+        return (
+          <Command>
+            <CommandInput placeholder="Search debtors..." />
+            <CommandList>
+              {debtors.length === 0 && <div className="p-4 text-sm text-muted-foreground">No debtors found.</div>}
+              <CommandGroup heading="They Owe You (Debtors)">
+                {debtors.map((debt) => (
+                  <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
+                    <div className="flex justify-between w-full">
+                      <span>{debt.name}</span>
+                      <span className="text-green-600">{formatCurrency(debt.amount)}</span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        );
+      case 'select_type':
+      default:
+        return (
+          <div className="p-2 space-y-2">
+             <Button variant="ghost" className="w-full justify-start" onClick={() => setRepaymentStep('select_creditor')}>
+              <ArrowUpCircle className="mr-2 text-red-600" />
+              Pay Someone Back (Creditor)
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => setRepaymentStep('select_debtor')}>
+              <ArrowDownCircle className="mr-2 text-green-600" />
+              Receive a Payment (Debtor)
+            </Button>
+          </div>
+        )
+    }
+  };
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-muted/40">
-      <ScrollArea className="flex-1 p-4 no-scrollbar" ref={scrollAreaRef}>
-        <div className="space-y-4 pr-4">
-          {(isMessagesLoading || !messages) && messages?.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                <Bot className="h-12 w-12 mb-4" />
-                <h2 className="text-xl font-semibold mb-2">Welcome to FinanceFlow AI</h2>
-                <p>You can start by logging a transaction like 'Spent 500 on groceries in savings'</p>
-                <p>or ask a question like 'What's my total income this month?'</p>
-            </div>
-          )}
-          {messages && messages.map(message => (
-            <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
-              {message.role === 'assistant' && (
+    <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
+      <div className="absolute inset-0 flex flex-col bg-muted/40">
+        <ScrollArea className="flex-1 p-4 no-scrollbar" ref={scrollAreaRef}>
+          <div className="space-y-4 pr-4">
+            {(isMessagesLoading || !messages) && messages?.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                  <Bot className="h-12 w-12 mb-4" />
+                  <h2 className="text-xl font-semibold mb-2">Welcome to FinanceFlow AI</h2>
+                  <p>You can start by logging a transaction like 'Spent 500 on groceries in savings'</p>
+                  <p>or ask a question like 'What's my total income this month?'</p>
+              </div>
+            )}
+            {messages && messages.map(message => (
+              <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+                {message.role === 'assistant' && (
+                  <Avatar className="h-8 w-8 border bg-white">
+                    <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
+                  </Avatar>
+                )}
+                <div className={`rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground'}`}>
+                  <p>{message.content}</p>
+                </div>
+                {message.role === 'user' && (
+                  <Avatar className="h-8 w-8 border">
+                    <AvatarFallback><User /></AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            ))}
+            {isLoading && (
+              <div className="flex items-start gap-3">
                 <Avatar className="h-8 w-8 border bg-white">
                   <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
                 </Avatar>
-              )}
-              <div className={`rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground'}`}>
-                <p>{message.content}</p>
+                <div className="rounded-lg px-4 py-2 bg-white flex items-center shadow-sm">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
               </div>
-              {message.role === 'user' && (
-                <Avatar className="h-8 w-8 border">
-                  <AvatarFallback><User /></AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex items-start gap-3">
-              <Avatar className="h-8 w-8 border bg-white">
-                <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
-              </Avatar>
-              <div className="rounded-lg px-4 py-2 bg-white flex items-center shadow-sm">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-      <div className="p-4 border-t bg-card">
-        <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
-          <Button type="button" variant="ghost" size="icon">
-            <Paperclip className="h-5 w-5 text-muted-foreground" />
-            <span className="sr-only">Attach file</span>
-          </Button>
-          <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
-            <PopoverAnchor asChild>
-              <Input
-                  value={input}
-                  onChange={handleInputChange}
-                  placeholder="Type your message..."
-                  disabled={isLoading || isMessagesLoading}
-                  autoComplete='off'
-                  className="flex-1 rounded-full bg-background"
-              />
-            </PopoverAnchor>
-             {bankAccounts.length > 0 && (
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command>
-                    <CommandList>
-                        <CommandGroup heading="Your Bank Accounts">
-                        {bankAccounts.map((account) => (
-                            <CommandItem
-                            key={account.id}
-                            onSelect={() => handleBankSelect(account.name)}
-                            >
-                            {account.name}
-                            </CommandItem>
-                        ))}
-                        </CommandGroup>
-                    </CommandList>
-                    </Command>
-                </PopoverContent>
             )}
-          </Popover>
-          <Button type="submit" size="icon" disabled={isLoading || isMessagesLoading || !input.trim()} className="rounded-full">
-            <Send className="h-4 w-4" />
-            <span className="sr-only">Send</span>
-          </Button>
-        </form>
+          </div>
+        </ScrollArea>
+        <div className="p-4 border-t bg-card">
+          <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
+            <Popover open={repaymentPopoverOpen} onOpenChange={setRepaymentPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="icon">
+                  <Paperclip className="h-5 w-5 text-muted-foreground" />
+                  <span className="sr-only">Log Repayment</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="start">
+                {renderRepaymentContent()}
+              </PopoverContent>
+            </Popover>
+
+            <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
+              <PopoverAnchor asChild>
+                <Input
+                    value={input}
+                    onChange={handleInputChange}
+                    placeholder="Type your message..."
+                    disabled={isLoading || isMessagesLoading}
+                    autoComplete='off'
+                    className="flex-1 rounded-full bg-background"
+                />
+              </PopoverAnchor>
+              {bankAccounts.length > 0 && (
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                      <CommandList>
+                          <CommandGroup heading="Your Bank Accounts">
+                          {bankAccounts.map((account) => (
+                              <CommandItem
+                              key={account.id}
+                              onSelect={() => handleBankSelect(account.name)}
+                              >
+                              {account.name}
+                              </CommandItem>
+                          ))}
+                          </CommandGroup>
+                      </CommandList>
+                      </Command>
+                  </PopoverContent>
+              )}
+            </Popover>
+            <Button type="submit" size="icon" disabled={isLoading || isMessagesLoading || !input.trim()} className="rounded-full">
+              <Send className="h-4 w-4" />
+              <span className="sr-only">Send</span>
+            </Button>
+          </form>
+        </div>
       </div>
-    </div>
+      {selectedDebt && (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Log a Repayment</DialogTitle>
+                <DialogDescription>
+                    Log a full or partial payment for this debt. This will update the outstanding balance.
+                </DialogDescription>
+            </DialogHeader>
+            <RepaymentForm debt={selectedDebt} onFinished={handleRepaymentFinished} />
+        </DialogContent>
+      )}
+    </Dialog>
   );
 }
