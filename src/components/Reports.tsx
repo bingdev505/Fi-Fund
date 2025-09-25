@@ -57,7 +57,7 @@ export default function Reports() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {debtSummary.map(({ title, value, icon: Icon, color }) => (
           <Card key={title}>
