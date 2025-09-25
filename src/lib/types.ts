@@ -36,3 +36,10 @@ export type UserSettings = {
   email: string;
   currency: string;
 }
+
+export type ChatMessage = {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Timestamp;
+};

@@ -1,5 +1,44 @@
 {
   "entities": {
+    "ChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Chat Message",
+      "description": "Represents a single message in a user's chat history.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the chat message."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this message."
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "user",
+            "assistant"
+          ]
+        },
+        "content": {
+          "type": "string",
+          "description": "The text content of the message."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time the message was sent."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "role",
+        "content",
+        "timestamp"
+      ]
+    },
     "Income": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Income",
@@ -265,6 +304,26 @@
             {
               "name": "accountId",
               "description": "The unique identifier of the bank account."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/chatHistory/{messageId}",
+        "definition": {
+          "entityName": "ChatMessage",
+          "schema": {
+            "$ref": "#/backend/entities/ChatMessage"
+          },
+          "description": "Stores the chat message history for a specific user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique identifier of the chat message."
             }
           ]
         }

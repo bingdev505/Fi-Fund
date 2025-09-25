@@ -9,96 +9,129 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-
-type Message = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-};
+import { useCollection, useFirestore, useUser } from '@/firebase';
+import {
+  collection,
+  serverTimestamp,
+  Timestamp,
+  query,
+  orderBy,
+} from 'firebase/firestore';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import type { ChatMessage as ChatMessageType } from '@/lib/types';
+import { useMemoFirebase } from '@/firebase/provider';
 
 export default function AIChat() {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: crypto.randomUUID(), role: 'assistant', content: "Hello! How can I help you manage your finances today? You can log transactions like 'Paid 500 for groceries' or ask questions like 'What is my total income?'." }
-  ]);
+  const { user } = useUser();
+  const firestore = useFirestore();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { addTransaction, addDebt, currency, transactions, debts, bankAccounts } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  const chatHistoryRef = useMemoFirebase(
+    () => (user ? collection(firestore, 'users', user.uid, 'chatHistory') : null),
+    [firestore, user]
+  );
+
+  const chatHistoryQuery = useMemoFirebase(
+    () => (chatHistoryRef ? query(chatHistoryRef, orderBy('timestamp', 'asc')) : null),
+    [chatHistoryRef]
+  );
+  
+  const { data: messages, isLoading: isMessagesLoading } = useCollection<ChatMessageType>(chatHistoryQuery);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
-  }
+  };
 
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('div[data-radix-scroll-area-viewport]');
     if (viewport) {
-        viewport.scrollTo({
+      viewport.scrollTo({
         top: viewport.scrollHeight,
         behavior: 'smooth',
       });
     }
   }, [messages]);
+  
+  // Add welcome message if chat history is empty and not loading
+  useEffect(() => {
+    if (!isMessagesLoading && messages && messages.length === 0 && chatHistoryRef) {
+        addDocumentNonBlocking(chatHistoryRef, {
+            role: 'assistant',
+            content: "Hello! How can I help you manage your finances today? You can log transactions like 'Paid 500 for groceries' or ask questions like 'What is my total income?'.",
+            timestamp: serverTimestamp() as Timestamp,
+        });
+    }
+  }, [isMessagesLoading, messages, chatHistoryRef]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !chatHistoryRef) return;
 
-    const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
+    const userMessageContent = input;
     setInput('');
+
+    // Save user message to Firestore
+    addDocumentNonBlocking(chatHistoryRef, {
+      role: 'user',
+      content: userMessageContent,
+      timestamp: serverTimestamp() as Timestamp,
+    });
+
+    setIsLoading(true);
 
     try {
       const financialData = JSON.stringify({ transactions, debts, bankAccounts });
-      const result = await routeUserIntent({ chatInput: input, financialData });
-      
+      const result = await routeUserIntent({ chatInput: userMessageContent, financialData });
+
       let assistantResponse = '';
-      if(result.intent === 'logData') {
+      if (result.intent === 'logData') {
         const logResult = result.result;
         let toastDescription = '';
-        if(logResult.transactionType === 'income' || logResult.transactionType === 'expense') {
+        if (logResult.transactionType === 'income' || logResult.transactionType === 'expense') {
           addTransaction({
-              type: logResult.transactionType,
-              amount: logResult.amount,
-              category: logResult.category,
-              description: logResult.description || 'AI Logged Transaction'
+            type: logResult.transactionType,
+            amount: logResult.amount,
+            category: logResult.category,
+            description: logResult.description || 'AI Logged Transaction',
           });
-          toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged.`
+          toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged.`;
         } else {
           addDebt({
-              type: logResult.transactionType,
-              amount: logResult.amount,
-              name: logResult.category, // AI might put name in category for debts
-              description: logResult.description || 'AI Logged Debt'
+            type: logResult.transactionType,
+            amount: logResult.amount,
+            name: logResult.category, // AI might put name in category for debts
+            description: logResult.description || 'AI Logged Debt',
           });
-          toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged.`
+          toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged.`;
         }
         assistantResponse = `I've logged that for you! ${toastDescription}`;
         toast({
-          title: "Logged via AI Chat",
+          title: 'Logged via AI Chat',
           description: toastDescription,
         });
       } else { // intent is 'question'
         assistantResponse = result.result.answer;
       }
 
-
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
+      // Save assistant message to Firestore
+      addDocumentNonBlocking(chatHistoryRef, {
         role: 'assistant',
         content: assistantResponse,
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+        timestamp: serverTimestamp() as Timestamp,
+      });
 
     } catch (error) {
-      console.error("AI Chat Error:", error);
-      const errorMessage: Message = {
-        id: crypto.randomUUID(),
+      console.error('AI Chat Error:', error);
+      // Save error message to Firestore
+      addDocumentNonBlocking(chatHistoryRef, {
         role: 'assistant',
         content: "Sorry, I couldn't understand that. Please try rephrasing, for example: 'Lunch for 250 rupees' or 'What is my total income?'.",
-      };
-      setMessages(prev => [...prev, errorMessage]);
+        timestamp: serverTimestamp() as Timestamp,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -106,40 +139,45 @@ export default function AIChat() {
 
   return (
     <div className="flex flex-col h-full bg-muted/40">
-        <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-          <div className="space-y-4 pr-4">
-            {messages.map(message => (
-              <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
-                {message.role === 'assistant' && (
-                   <Avatar className="h-8 w-8 border bg-white">
-                     <AvatarFallback className="bg-transparent"><Bot className="text-primary"/></AvatarFallback>
-                   </Avatar>
-                )}
-                <div className={`rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground'}`}>
-                  <p>{message.content}</p>
-                </div>
-                {message.role === 'user' && (
-                  <Avatar className="h-8 w-8 border">
-                    <AvatarFallback><User /></AvatarFallback>
-                  </Avatar>
-                )}
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <div className="space-y-4 pr-4">
+          {(isMessagesLoading || !messages) && (
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          )}
+          {messages && messages.map(message => (
+            <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+              {message.role === 'assistant' && (
+                <Avatar className="h-8 w-8 border bg-white">
+                  <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
+                </Avatar>
+              )}
+              <div className={`rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground'}`}>
+                <p>{message.content}</p>
               </div>
-            ))}
-             {isLoading && (
-              <div className="flex items-start gap-3">
-                  <Avatar className="h-8 w-8 border bg-white">
-                    <AvatarFallback className="bg-transparent"><Bot className="text-primary"/></AvatarFallback>
-                  </Avatar>
-                  <div className="rounded-lg px-4 py-2 bg-white flex items-center shadow-sm">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
+              {message.role === 'user' && (
+                <Avatar className="h-8 w-8 border">
+                  <AvatarFallback><User /></AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex items-start gap-3">
+              <Avatar className="h-8 w-8 border bg-white">
+                <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
+              </Avatar>
+              <div className="rounded-lg px-4 py-2 bg-white flex items-center shadow-sm">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            )}
-          </div>
-        </ScrollArea>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
       <div className="p-4 border-t bg-card">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
-           <Button type="button" variant="ghost" size="icon">
+          <Button type="button" variant="ghost" size="icon">
             <Paperclip className="h-5 w-5 text-muted-foreground" />
             <span className="sr-only">Attach file</span>
           </Button>
@@ -147,11 +185,11 @@ export default function AIChat() {
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder="Type your message..."
-            disabled={isLoading}
+            disabled={isLoading || isMessagesLoading}
             autoComplete='off'
             className="flex-1 rounded-full bg-background"
           />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="rounded-full">
+          <Button type="submit" size="icon" disabled={isLoading || isMessagesLoading || !input.trim()} className="rounded-full">
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>

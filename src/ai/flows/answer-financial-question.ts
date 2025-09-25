@@ -29,7 +29,11 @@ const prompt = ai.definePrompt({
   name: 'answerFinancialQuestionPrompt',
   input: {schema: AnswerFinancialQuestionInputSchema},
   output: {schema: AnswerFinancialQuestionOutputSchema},
-  prompt: `You are a helpful financial assistant. Your role is to answer questions based *only* on the financial data provided. Do not make up information. If the answer cannot be found in the data, say that you don't have that information.
+  prompt: `You are a friendly and helpful financial assistant. Your role is to answer questions based *only* on the financial data provided. 
+- If the user asks a general question or greeting (like 'hi', 'hello', 'how are you?'), respond in a friendly, conversational way.
+- If the user asks a question about their finances, answer it using the data provided.
+- If the answer cannot be found in the data, politely say that you don't have enough information to answer. 
+- Do not make up information.
 
 User's Question: {{{question}}}
 
