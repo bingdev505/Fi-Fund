@@ -1,0 +1,56 @@
+'use server';
+/**
+ * @fileOverview This file defines a Genkit flow for logging financial data using natural language input.
+ *
+ * The flow takes a user's chat input, extracts relevant financial information (income, expenses, creditors, debtors),
+ * and returns a structured object containing the extracted data.
+ *
+ * @interface LogFinancialDataInput - The input type for the logFinancialData function.
+ * @interface LogFinancialDataOutput - The output type for the logFinancialData function.
+ * @function logFinancialData - The main function that processes the user input and calls the Genkit flow.
+ */
+
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+
+const LogFinancialDataInputSchema = z.object({
+  chatInput: z
+    .string()
+    .describe(
+      'The user input in natural language describing the financial transaction.'
+    ),
+});
+export type LogFinancialDataInput = z.infer<typeof LogFinancialDataInputSchema>;
+
+const LogFinancialDataOutputSchema = z.object({
+  transactionType: z
+    .enum(['income', 'expense', 'creditor', 'debtor'])
+    .describe('The type of financial transaction.'),
+  category: z.string().describe('The category of the transaction.'),
+  amount: z.number().describe('The amount of the transaction.'),
+  description: z.string().optional().describe('A description of the transaction.'),
+});
+export type LogFinancialDataOutput = z.infer<typeof LogFinancialDataOutputSchema>;
+
+export async function logFinancialData(input: LogFinancialDataInput): Promise<LogFinancialDataOutput> {
+  return logFinancialDataFlow(input);
+}
+
+const logFinancialDataPrompt = ai.definePrompt({
+  name: 'logFinancialDataPrompt',
+  input: {schema: LogFinancialDataInputSchema},
+  output: {schema: LogFinancialDataOutputSchema},
+  prompt: `You are a financial assistant. Extract the transaction type (income, expense, creditor, debtor), category, amount, and description from the following user input:\n\nUser Input: {{{chatInput}}}\n\nEnsure that the amount is a number. If a description is not explicitly provided, provide a short summary of the input.\n\nReturn the extracted information in JSON format.`,
+});
+
+const logFinancialDataFlow = ai.defineFlow(
+  {
+    name: 'logFinancialDataFlow',
+    inputSchema: LogFinancialDataInputSchema,
+    outputSchema: LogFinancialDataOutputSchema,
+  },
+  async input => {
+    const {output} = await logFinancialDataPrompt(input);
+    return output!;
+  }
+);
