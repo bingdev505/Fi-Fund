@@ -52,8 +52,8 @@ export default function Reports() {
   };
 
   const debtSummary = [
-    { title: 'Total Owed to You', value: totalDebtors, icon: TrendingUp, color: 'text-green-600' },
-    { title: 'Total You Owe', value: totalCreditors, icon: TrendingDown, color: 'text-red-600' },
+    { title: 'Total Owed to You', value: totalDebtors, icon: TrendingDown, color: 'text-red-600' },
+    { title: 'Total You Owe', value: totalCreditors, icon: TrendingUp, color: 'text-green-600' },
   ];
 
   return (
