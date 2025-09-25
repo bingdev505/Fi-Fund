@@ -1,0 +1,16 @@
+'use client';
+import { FinancialProvider } from '@/context/FinancialContext';
+import AIChat from '@/components/AIChat';
+import AppShell from '@/components/AppShell';
+
+export default function AIChatPage() {
+  return (
+    <FinancialProvider>
+      <AppShell>
+        <main className="flex flex-1 flex-col overflow-y-auto">
+          <AIChat />
+        </main>
+      </AppShell>
+    </FinancialProvider>
+  );
+}
