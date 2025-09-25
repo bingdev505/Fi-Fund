@@ -3,8 +3,8 @@
 import { createContext, useCallback, ReactNode, useMemo } from 'react';
 import type { Transaction, Debt, BankAccount, UserSettings } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface FinancialContextType {
   transactions: Transaction[];
@@ -15,6 +15,7 @@ interface FinancialContextType {
   addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId'>) => void;
   addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
   setCurrency: (currency: string) => void;
+  setPrimaryBankAccount: (accountId: string) => void;
   isLoading: boolean;
 }
 
@@ -70,17 +71,45 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addBankAccount = useCallback((account: Omit<BankAccount, 'id'| 'userId'>) => {
     if (!user || !bankAccountsColRef) return;
+    // If this is the first bank account, make it primary
+    const isFirstAccount = !bankAccounts || bankAccounts.length === 0;
     const newAccount = {
       ...account,
       userId: user.uid,
+      isPrimary: isFirstAccount,
     }
     addDocumentNonBlocking(bankAccountsColRef, newAccount);
-  }, [user, bankAccountsColRef]);
+  }, [user, bankAccountsColRef, bankAccounts]);
 
   const setCurrency = useCallback((currency: string) => {
     if (!userDocRef) return;
     setDocumentNonBlocking(userDocRef, { currency }, { merge: true });
   }, [userDocRef]);
+
+  const setPrimaryBankAccount = useCallback((accountId: string) => {
+    if (!user || !bankAccountsColRef || !bankAccounts) return;
+  
+    // Use Firestore batch to update all documents atomically
+    const batch = writeBatch(firestore);
+  
+    bankAccounts.forEach(account => {
+      const accountRef = doc(bankAccountsColRef, account.id);
+      if (account.id === accountId) {
+        // Set the selected account as primary
+        batch.update(accountRef, { isPrimary: true });
+      } else if (account.isPrimary) {
+        // Unset any other primary account
+        batch.update(accountRef, { isPrimary: false });
+      }
+    });
+  
+    // Commit the batch
+    batch.commit().catch(error => {
+      console.error("Failed to set primary bank account:", error);
+      // Optionally handle error with a toast or other notification
+    });
+  
+  }, [user, firestore, bankAccountsColRef, bankAccounts]);
 
 
   const isLoading = isUserLoading || isUserSettingsLoading || isTransactionsLoading || isDebtsLoading || isBankAccountsLoading;
@@ -94,8 +123,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     addDebt,
     addBankAccount,
     setCurrency,
+    setPrimaryBankAccount,
     isLoading,
-  }), [transactions, debts, bankAccounts, userSettings, addTransaction, addDebt, addBankAccount, setCurrency, isLoading]);
+  }), [transactions, debts, bankAccounts, userSettings, addTransaction, addDebt, addBankAccount, setCurrency, setPrimaryBankAccount, isLoading]);
 
   return (
     <FinancialContext.Provider value={contextValue}>

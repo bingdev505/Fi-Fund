@@ -1,3 +1,4 @@
+'use client';
 import { Timestamp } from 'firebase/firestore';
 
 export type Transaction = {
@@ -29,6 +30,7 @@ export type BankAccount = {
   userId: string;
   name: string;
   balance: number;
+  isPrimary?: boolean;
 };
 
 export type UserSettings = {

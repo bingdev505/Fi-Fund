@@ -11,7 +11,8 @@ import { Separator } from '@/components/ui/separator';
 import { useFinancials } from '@/hooks/useFinancials';
 import { CURRENCIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Landmark, Loader2 } from 'lucide-react';
+import { PlusCircle, Landmark, Loader2, Star } from 'lucide-react';
+import { Badge } from './ui/badge';
 
 const bankAccountSchema = z.object({
   name: z.string().min(2, 'Bank name must be at least 2 characters'),
@@ -19,7 +20,7 @@ const bankAccountSchema = z.object({
 });
 
 export default function Settings() {
-  const { currency, setCurrency, bankAccounts, addBankAccount, isLoading } = useFinancials();
+  const { currency, setCurrency, bankAccounts, addBankAccount, setPrimaryBankAccount, isLoading } = useFinancials();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof bankAccountSchema>>({
@@ -49,6 +50,14 @@ export default function Settings() {
       description: `${values.name} with a balance of ${formatCurrency(values.balance)} has been added.`,
     });
     form.reset();
+  }
+
+  function handleSetPrimary(accountId: string) {
+    setPrimaryBankAccount(accountId);
+    toast({
+      title: 'Primary Account Updated',
+      description: 'Your primary bank account has been changed.',
+    });
   }
 
   return (
@@ -83,34 +92,36 @@ export default function Settings() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onAddBankAccount)} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Bank Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. My Savings Account" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="balance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Initial Balance ({currency})</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g. 50000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="self-end">
+            <form onSubmit={form.handleSubmit(onAddBankAccount)} className="space-y-4 max-w-2xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. My Savings Account" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="balance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current Balance ({currency})</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g. 50000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <Button type="submit" className="w-full md:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Account
               </Button>
@@ -126,19 +137,37 @@ export default function Settings() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : bankAccounts.length > 0 ? (
-              <ul className="space-y-4">
-                {bankAccounts.map(account => (
-                  <li key={account.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
-                    <div className="flex items-center gap-3">
-                        <Landmark className="h-5 w-5 text-muted-foreground" />
-                        <span className="font-medium">{account.name}</span>
-                    </div>
-                    <span className="font-semibold">{formatCurrency(account.balance)}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="border rounded-md">
+                <ul className="divide-y divide-border">
+                  {bankAccounts.map(account => (
+                    <li key={account.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
+                      <div className="flex items-center gap-4">
+                          <Landmark className="h-6 w-6 text-muted-foreground" />
+                          <div>
+                            <span className="font-medium">{account.name}</span>
+                            <div className="text-sm text-muted-foreground">{formatCurrency(account.balance)}</div>
+                          </div>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        {account.isPrimary ? (
+                            <Badge variant="outline" className='text-primary border-primary'>
+                                <Star className='mr-1 h-3 w-3' />
+                                Primary
+                            </Badge>
+                        ) : (
+                            <Button variant="ghost" size="sm" onClick={() => handleSetPrimary(account.id)}>
+                                Set as Primary
+                            </Button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : (
-              <p className="text-muted-foreground text-sm text-center py-4">You haven't added any bank accounts yet.</p>
+              <div className="text-center py-10 border-dashed border-2 rounded-md">
+                <p className="text-muted-foreground text-sm">You haven't added any bank accounts yet.</p>
+              </div>
             )}
           </div>
         </CardContent>

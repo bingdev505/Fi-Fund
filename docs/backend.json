@@ -223,6 +223,40 @@
         "id",
         "email"
       ]
+    },
+    "BankAccount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Bank Account",
+      "type": "object",
+      "description": "Represents a bank account for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the bank account."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this account."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the bank account (e.g., 'Savings', 'Checking')."
+        },
+        "balance": {
+          "type": "number",
+          "description": "The current balance of the account."
+        },
+        "isPrimary": {
+          "type": "boolean",
+          "description": "Indicates if this is the user's primary bank account."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "balance"
+      ]
     }
   },
   "auth": {
