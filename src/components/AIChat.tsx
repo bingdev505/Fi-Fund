@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Bot, Loader2, Send, User, Paperclip, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Bot, Loader2, Send, User, Paperclip, ArrowUpCircle, ArrowDownCircle, PlusCircle } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,7 @@ export default function AIChat() {
   const [repaymentStep, setRepaymentStep] = useState<'select_type' | 'select_debtor' | 'select_creditor'>('select_type');
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [repaymentDialogOpen, setRepaymentDialogOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
   const chatHistoryRef = useMemoFirebase(
     () => (user ? collection(firestore, 'users', user.uid, 'chatHistory') : null),
@@ -104,6 +105,7 @@ export default function AIChat() {
     } else {
         setInput(prev => `${action} ${prev}`);
     }
+    setQuickActionsOpen(false);
     document.getElementById('chat-input')?.focus();
   };
 
@@ -343,21 +345,31 @@ export default function AIChat() {
           </div>
         </ScrollArea>
         <div className="p-4 border-t bg-card">
-           <div className="mb-2 flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
-            {quickActions.map(({ label, action, type }) => (
-              <Button
-                key={action}
-                variant="outline"
-                size="sm"
-                className="rounded-full text-xs h-7 px-3 flex-shrink-0"
-                onClick={() => handleQuickAction(action, type)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-
           <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
+             <Popover open={quickActionsOpen} onOpenChange={setQuickActionsOpen}>
+                <PopoverTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" className="flex-shrink-0 rounded-full">
+                        <PlusCircle className="h-5 w-5 text-muted-foreground" />
+                        <span className="sr-only">Quick Actions</span>
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-auto p-2">
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                        {quickActions.map(({ label, action, type }) => (
+                        <Button
+                            key={action}
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                            onClick={() => handleQuickAction(action, type)}
+                        >
+                            {label}
+                        </Button>
+                        ))}
+                    </div>
+                </PopoverContent>
+            </Popover>
+
             <Popover open={repaymentPopoverOpen} onOpenChange={setRepaymentPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button type="button" variant="ghost" size="icon" className="flex-shrink-0 rounded-full">
