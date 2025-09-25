@@ -4,8 +4,8 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
-  Landmark,
-  User,
+  ArrowDownCircle,
+  ArrowUpCircle,
   Loader2,
 } from 'lucide-react';
 import type { Debt } from '@/lib/types';
@@ -77,9 +77,9 @@ export default function DebtList({ type, limit }: DebtListProps) {
 
     switch (entry.type) {
       case 'creditor':
-        return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><Landmark className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
+        return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><ArrowDownCircle className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
       case 'debtor':
-        return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><User className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
+        return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><ArrowUpCircle className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
     }
   };
 
@@ -108,7 +108,10 @@ export default function DebtList({ type, limit }: DebtListProps) {
                 {formatCurrency(entry.amount)}
               </div>
                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">Pay Off</Button>
+                  <Button variant="ghost" size="icon">
+                    <ArrowUpCircle className="h-5 w-5" />
+                    <span className="sr-only">Pay Off</span>
+                  </Button>
                </DialogTrigger>
             </div>
         </div>
