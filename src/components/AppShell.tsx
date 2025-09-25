@@ -146,7 +146,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <AvatarFallback><CircleUserRound /></AvatarFallback>
           </Avatar>
         </header>
-        <div className="flex flex-1 flex-col bg-muted/40">
+        <div className="flex flex-1 flex-col bg-muted/40 overflow-hidden">
             {children}
         </div>
       </div>

@@ -7,7 +7,7 @@ export default function AIChatPage() {
   return (
     <FinancialProvider>
       <AppShell>
-        <main className="flex flex-1 flex-col">
+        <main className="h-full">
           <AIChat />
         </main>
       </AppShell>
