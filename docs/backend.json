@@ -1,0 +1,292 @@
+{
+  "entities": {
+    "Income": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Income",
+      "type": "object",
+      "description": "Represents a source of income for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the income entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this income entry. (Relationship: User 1:N Income)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of income received."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of income (e.g., salary, investment)."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date the income was received.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description or notes about the income."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "amount",
+        "category",
+        "date"
+      ]
+    },
+    "Expense": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Expense",
+      "type": "object",
+      "description": "Represents an expense incurred by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the expense entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this expense entry. (Relationship: User 1:N Expense)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the expense."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of expense (e.g., food, rent)."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date the expense was incurred.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description or notes about the expense."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "amount",
+        "category",
+        "date"
+      ]
+    },
+    "Creditor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Creditor",
+      "type": "object",
+      "description": "Represents a person or entity to whom the user owes money.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the creditor."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owes this debt. (Relationship: User 1:N Creditor)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the creditor."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount owed to the creditor."
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "The date the debt is due.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description or notes about the debt."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "amount",
+        "dueDate"
+      ]
+    },
+    "Debtor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Debtor",
+      "type": "object",
+      "description": "Represents a person or entity who owes money to the user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the debtor."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who is owed this debt. (Relationship: User 1:N Debtor)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the debtor."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount owed by the debtor."
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "The date the debt is due.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description or notes about the debt."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "amount",
+        "dueDate"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information. Only the user can read/write their own profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/incomes/{incomeId}",
+        "definition": {
+          "entityName": "Income",
+          "schema": {
+            "$ref": "#/backend/entities/Income"
+          },
+          "description": "Stores income entries for a specific user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "incomeId",
+              "description": "The unique identifier of the income entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/expenses/{expenseId}",
+        "definition": {
+          "entityName": "Expense",
+          "schema": {
+            "$ref": "#/backend/entities/Expense"
+          },
+          "description": "Stores expense entries for a specific user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "expenseId",
+              "description": "The unique identifier of the expense entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/creditors/{creditorId}",
+        "definition": {
+          "entityName": "Creditor",
+          "schema": {
+            "$ref": "#/backend/entities/Creditor"
+          },
+          "description": "Stores creditor information for a specific user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "creditorId",
+              "description": "The unique identifier of the creditor."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/debtors/{debtorId}",
+        "definition": {
+          "entityName": "Debtor",
+          "schema": {
+            "$ref": "#/backend/entities/Debtor"
+          },
+          "description": "Stores debtor information for a specific user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "debtorId",
+              "description": "The unique identifier of the debtor."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to provide a secure and scalable solution for the FinanceFlow AI application. It leverages path-based ownership for user-specific data like income, expenses, creditors, and debtors, ensuring that only the authenticated user can access their own data. This approach simplifies security rules and enhances data isolation.\n\n**Authorization Independence:** Each subcollection (incomes, expenses, creditors, debtors) resides under the `/users/{userId}` path. This design ensures authorization independence because access control is based solely on the user's `uid` derived from `request.auth.uid` and compared against the `userId` in the document, without needing to `get()` any parent document. The `userId` field is denormalized into each document within these subcollections.\n\n**QAPs Support:** The structure supports secure `list` operations (QAPs) by segregating user data into dedicated subcollections. List operations on `/users/{userId}/incomes` only return incomes belonging to the authenticated user.  The path-based ownership model ensures that rules like `allow list: if request.auth.uid == userId;` are sufficient and secure. Because all the documents in the subcollections share the same security requirements, there is no need for complex filtering rules.\n\n**Additional Considerations:**\n\n*   No custom claims are used (DBAC), adhering to the principle of role storage in the database. This simplifies authorization logic and debugging.\n*   The structure models relationships explicitly, clarifying the intent and improving maintainability."
+  }
+}
