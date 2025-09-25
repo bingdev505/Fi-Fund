@@ -174,6 +174,10 @@
           "type": "string",
           "description": "The email address of the user.",
           "format": "email"
+        },
+        "currency": {
+          "type": "string",
+          "description": "The user's preferred currency."
         }
       },
       "required": [
@@ -184,8 +188,7 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
@@ -197,96 +200,75 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile information. Only the user can read/write their own profile.",
+          "description": "Stores user profile information, including settings. The user can read/write their own profile.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier of the user, matching the auth UID."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/incomes/{incomeId}",
+        "path": "/users/{userId}/transactions/{transactionId}",
         "definition": {
-          "entityName": "Income",
+          "entityName": "Transaction",
           "schema": {
             "$ref": "#/backend/entities/Income"
           },
-          "description": "Stores income entries for a specific user. Includes denormalized 'userId' for authorization independence.",
+          "description": "Stores transaction entries (income and expenses) for a specific user.",
           "params": [
             {
               "name": "userId",
               "description": "The unique identifier of the user."
             },
             {
-              "name": "incomeId",
-              "description": "The unique identifier of the income entry."
+              "name": "transactionId",
+              "description": "The unique identifier of the transaction entry."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/expenses/{expenseId}",
+        "path": "/users/{userId}/debts/{debtId}",
         "definition": {
-          "entityName": "Expense",
-          "schema": {
-            "$ref": "#/backend/entities/Expense"
-          },
-          "description": "Stores expense entries for a specific user. Includes denormalized 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "expenseId",
-              "description": "The unique identifier of the expense entry."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/creditors/{creditorId}",
-        "definition": {
-          "entityName": "Creditor",
+          "entityName": "Debt",
           "schema": {
             "$ref": "#/backend/entities/Creditor"
           },
-          "description": "Stores creditor information for a specific user. Includes denormalized 'userId' for authorization independence.",
+          "description": "Stores debt entries (creditors and debtors) for a specific user.",
           "params": [
             {
               "name": "userId",
               "description": "The unique identifier of the user."
             },
             {
-              "name": "creditorId",
-              "description": "The unique identifier of the creditor."
+              "name": "debtId",
+              "description": "The unique identifier of the debt entry."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/debtors/{debtorId}",
+        "path": "/users/{userId}/bankAccounts/{accountId}",
         "definition": {
-          "entityName": "Debtor",
+          "entityName": "BankAccount",
           "schema": {
-            "$ref": "#/backend/entities/Debtor"
+            "$ref": "#/backend/entities/BankAccount"
           },
-          "description": "Stores debtor information for a specific user. Includes denormalized 'userId' for authorization independence.",
+          "description": "Stores bank account information for a specific user.",
           "params": [
             {
               "name": "userId",
               "description": "The unique identifier of the user."
             },
             {
-              "name": "debtorId",
-              "description": "The unique identifier of the debtor."
+              "name": "accountId",
+              "description": "The unique identifier of the bank account."
             }
           ]
         }
       }
-    ],
-    "reasoning": "The Firestore structure is designed to provide a secure and scalable solution for the FinanceFlow AI application. It leverages path-based ownership for user-specific data like income, expenses, creditors, and debtors, ensuring that only the authenticated user can access their own data. This approach simplifies security rules and enhances data isolation.\n\n**Authorization Independence:** Each subcollection (incomes, expenses, creditors, debtors) resides under the `/users/{userId}` path. This design ensures authorization independence because access control is based solely on the user's `uid` derived from `request.auth.uid` and compared against the `userId` in the document, without needing to `get()` any parent document. The `userId` field is denormalized into each document within these subcollections.\n\n**QAPs Support:** The structure supports secure `list` operations (QAPs) by segregating user data into dedicated subcollections. List operations on `/users/{userId}/incomes` only return incomes belonging to the authenticated user.  The path-based ownership model ensures that rules like `allow list: if request.auth.uid == userId;` are sufficient and secure. Because all the documents in the subcollections share the same security requirements, there is no need for complex filtering rules.\n\n**Additional Considerations:**\n\n*   No custom claims are used (DBAC), adhering to the principle of role storage in the database. This simplifies authorization logic and debugging.\n*   The structure models relationships explicitly, clarifying the intent and improving maintainability."
+    ]
   }
 }

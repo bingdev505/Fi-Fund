@@ -1,16 +1,26 @@
 'use client';
-import AIChat from '@/components/AIChat';
-import AppShell from '@/components/AppShell';
-import { FinancialProvider } from '@/context/FinancialContext';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@/firebase';
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 export default function Home() {
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading) {
+      if (user) {
+        router.push('/dashboard');
+      } else {
+        router.push('/login');
+      }
+    }
+  }, [user, isUserLoading, router]);
+
   return (
-    <FinancialProvider>
-      <AppShell>
-        <main className="flex flex-1 flex-col">
-          <AIChat />
-        </main>
-      </AppShell>
-    </FinancialProvider>
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+    </div>
   );
 }

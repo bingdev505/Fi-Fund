@@ -8,27 +8,58 @@ import {
   BookUser,
   Cog,
   LogOut,
+  Loader2
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useUser } from '@/firebase';
+import { useEffect } from 'react';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
 
   const navItems = [
-    { href: '/', icon: Bot, label: 'AI Chat' },
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/entries', icon: BookUser, label: 'Entries' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
     { href: '/settings', icon: Cog, label: 'Settings' },
+    { href: '/ai-chat', icon: Bot, label: 'AI Chat' },
   ];
 
-  const handleLogout = () => {
-    // No-op for now
-    console.log("Logout clicked");
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
+
+  if (isUserLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    )
+  }
+  
+  if (!user) {
+    // This can be a brief flash while redirect happens, or you can return null
+    return null;
+  }
 
   return (
     <div className="flex h-screen w-full flex-col bg-background">

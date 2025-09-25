@@ -14,14 +14,23 @@ import {
 } from 'lucide-react';
 import type { Transaction, Debt } from '@/lib/types';
 import { useMemo } from 'react';
+import { Timestamp } from 'firebase/firestore';
 
 export default function EntryList() {
   const { transactions, debts, currency, bankAccounts, isLoading } = useFinancials();
 
   const allEntries = useMemo(() => {
+    const toDate = (date: any) => {
+        if (date instanceof Timestamp) {
+            return date.toDate();
+        }
+        // Handle ISO strings or other formats if necessary
+        return new Date(date);
+    }
+
     const combined = [
-      ...transactions.map(t => ({...t, date: new Date(t.date)})),
-      ...debts.map(d => ({...d, date: new Date(d.date), dueDate: d.dueDate ? new Date(d.dueDate) : undefined })),
+      ...transactions.map(t => ({...t, date: toDate(t.date)})),
+      ...debts.map(d => ({...d, date: toDate(d.date), dueDate: d.dueDate ? toDate(d.dueDate) : undefined })),
     ];
     return combined.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 20);
   }, [transactions, debts]);

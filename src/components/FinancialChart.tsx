@@ -18,6 +18,7 @@ import {
   startOfYear,
 } from 'date-fns';
 import { useFinancials } from '@/hooks/useFinancials';
+import { Timestamp } from 'firebase/firestore';
 
 
 type FinancialChartProps = {
@@ -83,7 +84,7 @@ export default function FinancialChart({ transactions, period }: FinancialChartP
         return intervals.map((intervalStart, index) => {
             const intervalEnd = getIntervalEnd(intervalStart);
             const periodTransactions = transactions.filter(t => {
-                const tDate = new Date(t.date);
+                const tDate = t.date instanceof Timestamp ? t.date.toDate() : new Date(t.date);
                 return tDate >= intervalStart && tDate <= intervalEnd;
             });
     

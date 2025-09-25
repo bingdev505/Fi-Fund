@@ -1,16 +1,19 @@
 'use client';
 
-import { createContext, useState, useCallback, ReactNode, useMemo } from 'react';
-import type { Transaction, Debt, BankAccount } from '@/lib/types';
+import { createContext, useCallback, ReactNode, useMemo } from 'react';
+import type { Transaction, Debt, BankAccount, UserSettings } from '@/lib/types';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface FinancialContextType {
   transactions: Transaction[];
   debts: Debt[];
   bankAccounts: BankAccount[];
   currency: string;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
-  addDebt: (debt: Omit<Debt, 'id' | 'date'>) => void;
-  addBankAccount: (account: Omit<BankAccount, 'id'>) => void;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId'>) => void;
+  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId'>) => void;
+  addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
   setCurrency: (currency: string) => void;
   isLoading: boolean;
 }
@@ -18,65 +21,70 @@ interface FinancialContextType {
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [debts, setDebts] = useState<Debt[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [currency, setCurrency] = useState<string>('INR');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
 
-  const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date'>) => {
+  const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userSettings, isLoading: isUserSettingsLoading } = useDoc<UserSettings>(userDocRef);
+
+  const transactionsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'transactions') : null, [firestore, user]);
+  const { data: transactions, isLoading: isTransactionsLoading } = useCollection<Transaction>(transactionsColRef);
+
+  const debtsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'debts') : null, [firestore, user]);
+  const { data: debts, isLoading: isDebtsLoading } = useCollection<Debt>(debtsColRef);
+
+  const bankAccountsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'bankAccounts') : null, [firestore, user]);
+  const { data: bankAccounts, isLoading: isBankAccountsLoading } = useCollection<BankAccount>(bankAccountsColRef);
+
+  const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'userId'>) => {
+    if (!user || !transactionsColRef) return;
     const newTransaction = {
       ...transaction,
-      id: crypto.randomUUID(),
-      date: new Date().toISOString(),
+      userId: user.uid,
+      date: serverTimestamp() as Timestamp,
     };
-    setTransactions(prev => [newTransaction, ...prev]);
+    addDocumentNonBlocking(transactionsColRef, newTransaction);
+  }, [user, transactionsColRef]);
 
-    // Handle balance updates for bank accounts
-    if (transaction.type === 'income' && transaction.accountId) {
-        setBankAccounts(prev => prev.map(acc => acc.id === transaction.accountId ? { ...acc, balance: acc.balance + transaction.amount } : acc));
-    }
-    if (transaction.type === 'expense' && transaction.accountId) {
-        setBankAccounts(prev => prev.map(acc => acc.id === transaction.accountId ? { ...acc, balance: acc.balance - transaction.amount } : acc));
-    }
-    if (transaction.type === 'transfer' && transaction.fromAccountId && transaction.toAccountId) {
-        setBankAccounts(prev => prev.map(acc => {
-            if (acc.id === transaction.fromAccountId) return { ...acc, balance: acc.balance - transaction.amount };
-            if (acc.id === transaction.toAccountId) return { ...acc, balance: acc.balance + transaction.amount };
-            return acc;
-        }));
-    }
-  }, []);
-
-  const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date'>) => {
+  const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date' | 'userId'>) => {
+    if (!user || !debtsColRef) return;
     const newDebt = {
       ...debt,
-      id: crypto.randomUUID(),
-      date: new Date().toISOString(),
-      dueDate: debt.dueDate ? new Date(debt.dueDate).toISOString() : undefined,
+      userId: user.uid,
+      date: serverTimestamp() as Timestamp,
+      dueDate: debt.dueDate ? Timestamp.fromDate(new Date(debt.dueDate)) : undefined,
     };
-    setDebts(prev => [newDebt, ...prev]);
-  }, []);
+    addDocumentNonBlocking(debtsColRef, newDebt);
+  }, [user, debtsColRef]);
 
-  const addBankAccount = useCallback((account: Omit<BankAccount, 'id'>) => {
+  const addBankAccount = useCallback((account: Omit<BankAccount, 'id'| 'userId'>) => {
+    if (!user || !bankAccountsColRef) return;
     const newAccount = {
       ...account,
-      id: crypto.randomUUID(),
+      userId: user.uid,
     }
-    setBankAccounts(prev => [newAccount, ...prev]);
-  }, []);
+    addDocumentNonBlocking(bankAccountsColRef, newAccount);
+  }, [user, bankAccountsColRef]);
+
+  const setCurrency = useCallback((currency: string) => {
+    if (!userDocRef) return;
+    setDocumentNonBlocking(userDocRef, { currency }, { merge: true });
+  }, [userDocRef]);
+
+
+  const isLoading = isUserLoading || isUserSettingsLoading || isTransactionsLoading || isDebtsLoading || isBankAccountsLoading;
 
   const contextValue = useMemo(() => ({
-    transactions,
-    debts,
-    bankAccounts,
-    currency,
+    transactions: transactions || [],
+    debts: debts || [],
+    bankAccounts: bankAccounts || [],
+    currency: userSettings?.currency || 'INR',
     addTransaction,
     addDebt,
     addBankAccount,
     setCurrency,
     isLoading,
-  }), [transactions, debts, bankAccounts, currency, addTransaction, addDebt, addBankAccount, setCurrency, isLoading]);
+  }), [transactions, debts, bankAccounts, userSettings, addTransaction, addDebt, addBankAccount, setCurrency, isLoading]);
 
   return (
     <FinancialContext.Provider value={contextValue}>
