@@ -7,7 +7,9 @@ export default function DashboardPage() {
   return (
     <FinancialProvider>
       <AppShell>
-        <Dashboard />
+        <main className="flex flex-1 flex-col">
+          <Dashboard />
+        </main>
       </AppShell>
     </FinancialProvider>
   );
