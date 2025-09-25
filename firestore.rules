@@ -1,103 +1,118 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for all data.
+ * @fileoverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Users can only access data
+ * associated with their own user ID.
  *
  * Data Structure:
- * All data is nested under /users/{userId}, with subcollections for transactions, debts, and bank accounts.
+ * All data is nested under /users/{userId}, including profile information,
+ * transactions, debts, and bank accounts. This hierarchical structure simplifies
+ * security rules and ensures data isolation.
  *
  * Key Security Decisions:
- * - Users can only access their own data. Listing all users is disallowed.
- * - Data consistency is enforced between the path and the document's internal userId field.
- * - For all `update` and `delete` operations, existence of document must be verified before proceeding.
+ * - Users can only create, read, update, and delete their own documents.
+ * - List operations are allowed for all user-owned subcollections.
+ *
+ * Denormalization for Authorization:
+ * - The userId field is present in all subcollections under /users/{userId}
+ *   This allows for easy validation of ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile information.
+     * @description Allows users to manage their own profile information.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user_abc' can create their own profile if request.auth.uid == 'user_abc'.
-     * @allow (get, update, delete) - User with UID 'user_abc' can read, update, and delete their own profile.
-     * @deny (create) - User with UID 'user_xyz' cannot create a profile for user 'user_abc'.
-     * @deny (get, update, delete) - User with UID 'user_xyz' cannot read, update, or delete user 'user_abc's profile.
-     * @principle Enforces document ownership and prevents unauthorized profile access.
+     * @allow (create) User with matching UID can create their profile.
+     * @allow (get, update, delete) User with matching UID can access and modify their profile.
+     * @deny (create) User cannot create a profile with a mismatched UID.
+     * @principle Enforces document ownership based on the user ID.
      */
     match /users/{userId} {
-      // Verify that the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
       allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      // Allow the user to create their own user document, enforcing that the userId in the document
-      // matches their auth UID.
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == request.auth.uid;
-      // On update, the id (userId) field MUST NOT be changed.  This enforces immutability of the
-      // ownership link.
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.id == userId;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Controls access to a user's financial transactions.
+     * @description Allows users to manage their own transactions.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (create) - User with UID 'user_abc' can create a new transaction under their user ID.
-     * @allow (get, list, update, delete) - User with UID 'user_abc' can read, list, update, and delete transactions under their user ID.
-     * @deny (create) - User with UID 'user_xyz' cannot create transactions for user 'user_abc'.
-     * @deny (get, list, update, delete) - User with UID 'user_xyz' cannot read, list, update, or delete transactions belonging to user 'user_abc'.
-     * @principle Enforces document ownership and prevents unauthorized access to transaction data.
+     * @allow (create, get, list, update, delete) User with matching UID can manage their transactions.
+     * @deny (create, get, list, update, delete) User cannot manage transactions with a mismatched UID.
+     * @principle Enforces document ownership based on the user ID.
      */
     match /users/{userId}/transactions/{transactionId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
       allow get: if isSignedIn() && isOwner(userId);
       allow list: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.userId == userId && resource != null;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Controls access to a user's debt records.
+     * @description Allows users to manage their own debts.
      * @path /users/{userId}/debts/{debtId}
-     * @allow (create) - User with UID 'user_abc' can create a new debt record under their user ID.
-     * @allow (get, list, update, delete) - User with UID 'user_abc' can read, list, update, and delete debts under their user ID.
-     * @deny (create) - User with UID 'user_xyz' cannot create debt records for user 'user_abc'.
-     * @deny (get, list, update, delete) - User with UID 'user_xyz' cannot read, list, update, or delete debts belonging to user 'user_abc'.
-     * @principle Enforces document ownership and prevents unauthorized access to debt data.
+     * @allow (create, get, list, update, delete) User with matching UID can manage their debts.
+     * @deny (create, get, list, update, delete) User cannot manage debts with a mismatched UID.
+     * @principle Enforces document ownership based on the user ID.
      */
     match /users/{userId}/debts/{debtId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
       allow get: if isSignedIn() && isOwner(userId);
       allow list: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.userId == userId && resource != null;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Controls access to a user's bank account information.
+     * @description Allows users to manage their own bank accounts.
      * @path /users/{userId}/bankAccounts/{accountId}
-     * @allow (create) - User with UID 'user_abc' can create a new bank account under their user ID.
-     * @allow (get, list, update, delete) - User with UID 'user_abc' can read, list, update, and delete bank accounts under their user ID.
-     * @deny (create) - User with UID 'user_xyz' cannot create bank accounts for user 'user_abc'.
-     * @deny (get, list, update, delete) - User with UID 'user_xyz' cannot read, list, update, or delete bank accounts belonging to user 'user_abc'.
-     * @principle Enforces document ownership and prevents unauthorized access to bank account data.
+     * @allow (create, get, list, update, delete) User with matching UID can manage their bank accounts.
+     * @deny (create, get, list, update, delete) User cannot manage bank accounts with a mismatched UID.
+     * @principle Enforces document ownership based on the user ID.
      */
     match /users/{userId}/bankAccounts/{accountId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
       allow get: if isSignedIn() && isOwner(userId);
       allow list: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.userId == userId && resource != null;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
     }
-  }
-
-  // Helper functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-  function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
   }
 }
