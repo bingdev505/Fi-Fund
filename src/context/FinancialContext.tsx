@@ -109,8 +109,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     addDocumentNonBlocking(debtsColRef, newDebt);
 
     // When a debt is created, the money moves.
-    // 'creditor' (I owe someone) implies money came INTO my account (e.g. a loan).
-    // 'debtor' (Someone owes me) implies money went OUT of my account (e.g. I loaned someone money).
+    // 'creditor' (I owe someone) implies money came INTO my account (e.g. taking a loan).
+    // 'debtor' (Someone owes me) implies money went OUT of my account (e.g. loaning someone money).
     if (debt.type === 'creditor') { 
       updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'add');
     } else if (debt.type === 'debtor') { 
