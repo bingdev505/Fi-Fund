@@ -63,7 +63,6 @@ export default function AIChat() {
     const userMessageContent = input;
     setInput('');
 
-    // Save user message to Firestore
     addDocumentNonBlocking(chatHistoryRef, {
       role: 'user',
       content: userMessageContent,
@@ -79,34 +78,50 @@ export default function AIChat() {
       let assistantResponse = '';
       if (result.intent === 'logData') {
         const logResult = result.result;
+        const primaryAccount = bankAccounts.find(acc => acc.isPrimary);
+        
         let toastDescription = '';
         if (logResult.transactionType === 'income' || logResult.transactionType === 'expense') {
-          addTransaction({
-            type: logResult.transactionType,
-            amount: logResult.amount,
-            category: logResult.category,
-            description: logResult.description || 'AI Logged Transaction',
-          });
-          toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged.`;
+          if (!primaryAccount) {
+            toast({
+              variant: 'destructive',
+              title: 'No Primary Account',
+              description: 'Please set a primary bank account in settings to log transactions via chat.',
+            });
+            assistantResponse = "I couldn't log that because you don't have a primary bank account set. Please go to settings to select one.";
+          } else {
+            addTransaction({
+              type: logResult.transactionType,
+              amount: logResult.amount,
+              category: logResult.category,
+              description: logResult.description || 'AI Logged Transaction',
+              accountId: primaryAccount.id,
+            });
+            toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${primaryAccount.name}.`;
+            assistantResponse = `I've logged that for you! ${toastDescription}`;
+            toast({
+              title: 'Logged via AI Chat',
+              description: toastDescription,
+            });
+          }
         } else {
           addDebt({
             type: logResult.transactionType,
             amount: logResult.amount,
-            name: logResult.category, // AI might put name in category for debts
+            name: logResult.category,
             description: logResult.description || 'AI Logged Debt',
           });
           toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged.`;
+          assistantResponse = `I've logged that for you! ${toastDescription}`;
+          toast({
+            title: 'Logged via AI Chat',
+            description: toastDescription,
+          });
         }
-        assistantResponse = `I've logged that for you! ${toastDescription}`;
-        toast({
-          title: 'Logged via AI Chat',
-          description: toastDescription,
-        });
       } else { // intent is 'question'
         assistantResponse = result.result.answer;
       }
 
-      // Save assistant message to Firestore
       addDocumentNonBlocking(chatHistoryRef, {
         role: 'assistant',
         content: assistantResponse,
@@ -115,7 +130,6 @@ export default function AIChat() {
 
     } catch (error) {
       console.error('AI Chat Error:', error);
-      // Save error message to Firestore
       addDocumentNonBlocking(chatHistoryRef, {
         role: 'assistant',
         content: "Sorry, I couldn't understand that. Please try rephrasing, for example: 'Lunch for 250 rupees' or 'What is my total income?'.",

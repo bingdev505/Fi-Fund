@@ -3,7 +3,7 @@
 import { createContext, useCallback, ReactNode, useMemo } from 'react';
 import type { Transaction, Debt, BankAccount, UserSettings } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, Timestamp, writeBatch, runTransaction, Firestore } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface FinancialContextType {
@@ -21,6 +21,29 @@ interface FinancialContextType {
 
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
+async function updateAccountBalance(
+  firestore: Firestore,
+  userId: string,
+  accountId: string,
+  amount: number,
+  operation: 'add' | 'subtract'
+) {
+  const accountRef = doc(firestore, 'users', userId, 'bankAccounts', accountId);
+  try {
+    await runTransaction(firestore, async (transaction) => {
+      const accountDoc = await transaction.get(accountRef);
+      if (!accountDoc.exists()) {
+        throw "Bank account not found!";
+      }
+      const currentBalance = accountDoc.data().balance;
+      const newBalance = operation === 'add' ? currentBalance + amount : currentBalance - amount;
+      transaction.update(accountRef, { balance: newBalance });
+    });
+  } catch (e) {
+    console.error("Transaction failed: ", e);
+  }
+}
+
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -37,26 +60,27 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const bankAccountsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'bankAccounts') : null, [firestore, user]);
   const { data: bankAccounts, isLoading: isBankAccountsLoading } = useCollection<BankAccount>(bankAccountsColRef);
 
-  const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'userId'>) => {
-    if (!user || !transactionsColRef) return;
-    
-    // Create a new object for the transaction to be saved
-    const newTransactionData: Partial<Transaction> = {
-      ...transaction,
+  const addTransaction = useCallback((transactionData: Omit<Transaction, 'id' | 'date' | 'userId'>) => {
+    if (!user || !transactionsColRef || !bankAccountsColRef) return;
+
+    const newTransaction = {
+      ...transactionData,
       userId: user.uid,
       date: serverTimestamp() as Timestamp,
     };
-    
-    // Remove properties with undefined values before sending to Firestore
-    Object.keys(newTransactionData).forEach(key => {
-      const typedKey = key as keyof typeof newTransactionData;
-      if (newTransactionData[typedKey] === undefined) {
-        delete newTransactionData[typedKey];
-      }
-    });
+    addDocumentNonBlocking(transactionsColRef, newTransaction);
 
-    addDocumentNonBlocking(transactionsColRef, newTransactionData);
-  }, [user, transactionsColRef]);
+    // Update account balances
+    if (transactionData.type === 'income' && transactionData.accountId) {
+      updateAccountBalance(firestore, user.uid, transactionData.accountId, transactionData.amount, 'add');
+    } else if (transactionData.type === 'expense' && transactionData.accountId) {
+      updateAccountBalance(firestore, user.uid, transactionData.accountId, transactionData.amount, 'subtract');
+    } else if (transactionData.type === 'transfer' && transactionData.fromAccountId && transactionData.toAccountId) {
+      updateAccountBalance(firestore, user.uid, transactionData.fromAccountId, transactionData.amount, 'subtract');
+      updateAccountBalance(firestore, user.uid, transactionData.toAccountId, transactionData.amount, 'add');
+    }
+  }, [user, firestore, transactionsColRef, bankAccountsColRef]);
+
 
   const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date' | 'userId'>) => {
     if (!user || !debtsColRef) return;
@@ -71,7 +95,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addBankAccount = useCallback((account: Omit<BankAccount, 'id'| 'userId'>) => {
     if (!user || !bankAccountsColRef) return;
-    // If this is the first bank account, make it primary
     const isFirstAccount = !bankAccounts || bankAccounts.length === 0;
     const newAccount = {
       ...account,
@@ -89,24 +112,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const setPrimaryBankAccount = useCallback((accountId: string) => {
     if (!user || !bankAccountsColRef || !bankAccounts) return;
   
-    // Use Firestore batch to update all documents atomically
     const batch = writeBatch(firestore);
   
     bankAccounts.forEach(account => {
       const accountRef = doc(bankAccountsColRef, account.id);
       if (account.id === accountId) {
-        // Set the selected account as primary
         batch.update(accountRef, { isPrimary: true });
       } else if (account.isPrimary) {
-        // Unset any other primary account
         batch.update(accountRef, { isPrimary: false });
       }
     });
   
-    // Commit the batch
     batch.commit().catch(error => {
       console.error("Failed to set primary bank account:", error);
-      // Optionally handle error with a toast or other notification
     });
   
   }, [user, firestore, bankAccountsColRef, bankAccounts]);
