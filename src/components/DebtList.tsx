@@ -79,13 +79,13 @@ export default function DebtList({ type, limit }: DebtListProps) {
       case 'creditor':
         return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><ArrowDownCircle className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
       case 'debtor':
-        return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><ArrowUpCircle className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
+        return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><ArrowDownCircle className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
     }
   };
 
   const renderEntry = (entry: Debt) => {
-    const color = entry.type === 'creditor' ? 'text-green-600' : 'text-red-600';
-    const RepaymentIcon = entry.type === 'creditor' ? ArrowDownCircle : ArrowUpCircle;
+    const color = entry.type === 'creditor' ? 'text-green-600' : 'text-green-600';
+    const RepaymentIcon = entry.type === 'debtor' ? ArrowUpCircle : ArrowDownCircle;
     
     return (
       <Dialog open={openDialogId === entry.id} onOpenChange={(isOpen) => setOpenDialogId(isOpen ? entry.id : null)}>
