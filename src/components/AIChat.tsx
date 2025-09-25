@@ -20,6 +20,8 @@ import {
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { ChatMessage as ChatMessageType } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 
 export default function AIChat() {
   const { user } = useUser();
@@ -29,6 +31,7 @@ export default function AIChat() {
   const { addTransaction, addDebt, currency, transactions, debts, bankAccounts } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
 
   const chatHistoryRef = useMemoFirebase(
     () => (user ? collection(firestore, 'users', user.uid, 'chatHistory') : null),
@@ -55,6 +58,23 @@ export default function AIChat() {
       });
     }
   }, [messages]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInput(value);
+    // Show popover if the last character is '@'
+    if (value.endsWith('@')) {
+      setIsBankPopoverOpen(true);
+    } else {
+      setIsBankPopoverOpen(false);
+    }
+  };
+
+  const handleBankSelect = (bankName: string) => {
+    // Replace the '@' with the bank name
+    setInput(input.slice(0, -1) + bankName + ' ');
+    setIsBankPopoverOpen(false);
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,14 +232,36 @@ export default function AIChat() {
             <Paperclip className="h-5 w-5 text-muted-foreground" />
             <span className="sr-only">Attach file</span>
           </Button>
-          <Input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Type your message..."
-            disabled={isLoading || isMessagesLoading}
-            autoComplete='off'
-            className="flex-1 rounded-full bg-background"
-          />
+          <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
+            <PopoverTrigger asChild>
+                <Input
+                    value={input}
+                    onChange={handleInputChange}
+                    placeholder="Type your message..."
+                    disabled={isLoading || isMessagesLoading}
+                    autoComplete='off'
+                    className="flex-1 rounded-full bg-background"
+                />
+            </PopoverTrigger>
+             {bankAccounts.length > 0 && (
+                <PopoverContent className="w-auto p-0" align="start">
+                    <Command>
+                    <CommandList>
+                        <CommandGroup heading="Your Bank Accounts">
+                        {bankAccounts.map((account) => (
+                            <CommandItem
+                            key={account.id}
+                            onSelect={() => handleBankSelect(account.name)}
+                            >
+                            {account.name}
+                            </CommandItem>
+                        ))}
+                        </CommandGroup>
+                    </CommandList>
+                    </Command>
+                </PopoverContent>
+            )}
+          </Popover>
           <Button type="submit" size="icon" disabled={isLoading || isMessagesLoading || !input.trim()} className="rounded-full">
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
