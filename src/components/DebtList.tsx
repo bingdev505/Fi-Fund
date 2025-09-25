@@ -77,7 +77,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
 
     switch (entry.type) {
       case 'creditor':
-        return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><ArrowDownCircle className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
+        return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><ArrowUpCircle className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
       case 'debtor':
         return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><ArrowDownCircle className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
     }
