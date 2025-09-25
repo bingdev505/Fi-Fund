@@ -12,7 +12,11 @@ interface FinancialContextType {
   bankAccounts: BankAccount[];
   currency: string;
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId'>) => void;
+  updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => void;
+  deleteTransaction: (transaction: Transaction) => void;
   addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId'>) => void;
+  updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => void;
+  deleteDebt: (debt: Debt) => void;
   addRepayment: (debt: Debt, amount: number, accountId: string) => void;
   addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
   setCurrency: (currency: string) => void;
@@ -92,6 +96,82 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [user, firestore, transactionsColRef]);
 
+  const updateTransaction = useCallback(async (originalTransaction: Transaction, updatedData: Partial<Transaction>) => {
+    if (!user || !firestore || !transactionsColRef) return;
+
+    const transactionRef = doc(transactionsColRef, originalTransaction.id);
+
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            // 1. Revert original transaction's effect on balance
+            if (originalTransaction.type === 'income' && originalTransaction.accountId) {
+                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', originalTransaction.accountId);
+                const accDoc = await transaction.get(accRef);
+                const newBalance = (accDoc.data()?.balance || 0) - originalTransaction.amount;
+                transaction.update(accRef, { balance: newBalance });
+            } else if (originalTransaction.type === 'expense' && originalTransaction.accountId) {
+                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', originalTransaction.accountId);
+                const accDoc = await transaction.get(accRef);
+                const newBalance = (accDoc.data()?.balance || 0) + originalTransaction.amount;
+                transaction.update(accRef, { balance: newBalance });
+            }
+
+            // 2. Apply new transaction's effect on balance
+            const newAmount = updatedData.amount ?? originalTransaction.amount;
+            const newType = updatedData.type ?? originalTransaction.type;
+            const newAccountId = updatedData.accountId ?? originalTransaction.accountId;
+
+            if (newType === 'income' && newAccountId) {
+                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', newAccountId);
+                const accDoc = await transaction.get(accRef);
+                const newBalance = (accDoc.data()?.balance || 0) + newAmount;
+                transaction.update(accRef, { balance: newBalance });
+            } else if (newType === 'expense' && newAccountId) {
+                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', newAccountId);
+                const accDoc = await transaction.get(accRef);
+                const newBalance = (accDoc.data()?.balance || 0) - newAmount;
+                transaction.update(accRef, { balance: newBalance });
+            }
+
+            // 3. Update the transaction document itself
+            transaction.update(transactionRef, updatedData);
+        });
+    } catch (e) {
+        console.error("Update transaction failed:", e);
+    }
+}, [user, firestore, transactionsColRef]);
+
+const deleteTransaction = useCallback(async (transactionToDelete: Transaction) => {
+    if (!user || !firestore || !transactionsColRef) return;
+
+    const transactionRef = doc(transactionsColRef, transactionToDelete.id);
+
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            // Revert balance change
+             if (transactionToDelete.type === 'income' && transactionToDelete.accountId) {
+                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', transactionToDelete.accountId);
+                const accDoc = await transaction.get(accRef);
+                if(accDoc.exists()) {
+                    const newBalance = accDoc.data().balance - transactionToDelete.amount;
+                    transaction.update(accRef, { balance: newBalance });
+                }
+            } else if (transactionToDelete.type === 'expense' && transactionToDelete.accountId) {
+                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', transactionToDelete.accountId);
+                const accDoc = await transaction.get(accRef);
+                if(accDoc.exists()) {
+                    const newBalance = accDoc.data().balance + transactionToDelete.amount;
+                    transaction.update(accRef, { balance: newBalance });
+                }
+            }
+            // Delete the transaction doc
+            transaction.delete(transactionRef);
+        });
+    } catch (e) {
+        console.error("Delete transaction failed:", e);
+    }
+}, [user, firestore, transactionsColRef]);
+
 
   const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date' | 'userId'>) => {
     if (!user || !debtsColRef || !firestore || !debt.accountId) return;
@@ -119,6 +199,77 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   }, [user, firestore, debtsColRef]);
 
+  const updateDebt = useCallback(async (originalDebt: Debt, updatedData: Partial<Debt>) => {
+    if (!user || !firestore || !debtsColRef) return;
+    
+    const debtRef = doc(debtsColRef, originalDebt.id);
+
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const newAmount = updatedData.amount ?? originalDebt.amount;
+            const amountDifference = newAmount - originalDebt.amount;
+            
+            // If amount has changed, update the associated bank account balance
+            if (amountDifference !== 0 && originalDebt.accountId) {
+                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', originalDebt.accountId);
+                const accDoc = await transaction.get(accRef);
+
+                if(accDoc.exists()) {
+                    let newBalance;
+                    // For creditor, an increase in debt means more money received.
+                    // For debtor, an increase in debt means more money given out.
+                    if (originalDebt.type === 'creditor') {
+                        newBalance = accDoc.data().balance + amountDifference;
+                    } else { // debtor
+                        newBalance = accDoc.data().balance - amountDifference;
+                    }
+                    transaction.update(accRef, { balance: newBalance });
+                }
+            }
+
+            // Update the debt document
+            const finalUpdateData = { ...updatedData };
+            if (finalUpdateData.dueDate && !(finalUpdateData.dueDate instanceof Timestamp)) {
+                finalUpdateData.dueDate = Timestamp.fromDate(new Date(finalUpdateData.dueDate));
+            }
+            transaction.update(debtRef, finalUpdateData);
+        });
+    } catch(e) {
+        console.error("Update debt failed:", e);
+    }
+  }, [user, firestore, debtsColRef]);
+
+  const deleteDebt = useCallback(async (debtToDelete: Debt) => {
+      if (!user || !firestore || !debtsColRef) return;
+
+      const debtRef = doc(debtsColRef, debtToDelete.id);
+      
+      try {
+        await runTransaction(firestore, async (transaction) => {
+            // Revert the initial balance change from creating the debt
+            if (debtToDelete.accountId) {
+                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', debtToDelete.accountId);
+                const accDoc = await transaction.get(accRef);
+
+                if (accDoc.exists()) {
+                    let newBalance;
+                    // To delete a creditor debt, revert the money you received.
+                    if (debtToDelete.type === 'creditor') {
+                        newBalance = accDoc.data().balance - debtToDelete.amount;
+                    } else { // To delete a debtor debt, revert the money you gave out.
+                        newBalance = accDoc.data().balance + debtToDelete.amount;
+                    }
+                    transaction.update(accRef, { balance: newBalance });
+                }
+            }
+            // Delete the debt document
+            transaction.delete(debtRef);
+        });
+      } catch(e) {
+        console.error("Delete debt failed:", e);
+      }
+  }, [user, firestore, debtsColRef]);
+
   const addRepayment = useCallback((debt: Debt, amount: number, accountId: string) => {
     if (!user || !debtsColRef || !firestore || !transactionsColRef) return;
     
@@ -142,7 +293,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     addDocumentNonBlocking(transactionsColRef, repaymentTransaction);
     
     // Update the bank account balance based on the debt type
-    // CORRECTED LOGIC:
     // If it's a creditor (I owe them), I am paying them back, so money SUBTRACTS from my account.
     // If it's a debtor (they owe me), they are paying me back, so money ADDS to my account.
     if (debt.type === 'creditor') {
@@ -197,13 +347,33 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     bankAccounts: bankAccounts || [],
     currency: userSettings?.currency || 'INR',
     addTransaction,
+    updateTransaction,
+    deleteTransaction,
     addDebt,
+    updateDebt,
+    deleteDebt,
     addRepayment,
     addBankAccount,
     setCurrency,
     setPrimaryBankAccount,
     isLoading,
-  }), [transactions, debts, bankAccounts, userSettings, addTransaction, addDebt, addRepayment, addBankAccount, setCurrency, setPrimaryBankAccount, isLoading]);
+  }), [
+      transactions, 
+      debts, 
+      bankAccounts, 
+      userSettings, 
+      addTransaction, 
+      updateTransaction, 
+      deleteTransaction, 
+      addDebt, 
+      updateDebt, 
+      deleteDebt, 
+      addRepayment, 
+      addBankAccount, 
+      setCurrency, 
+      setPrimaryBankAccount, 
+      isLoading
+    ]);
 
   return (
     <FinancialContext.Provider value={contextValue}>

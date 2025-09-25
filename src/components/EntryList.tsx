@@ -11,10 +11,17 @@ import {
   User,
   ArrowRightLeft,
   Loader2,
+  Trash2,
+  Pencil,
 } from 'lucide-react';
 import type { Transaction, Debt } from '@/lib/types';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
+import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import EditEntryForm from './EditEntryForm';
+import { useToast } from '@/hooks/use-toast';
 
 type EntryListProps = {
   limit?: number;
@@ -22,18 +29,20 @@ type EntryListProps = {
 }
 
 export default function EntryList({ limit, showHeader = true }: EntryListProps) {
-  const { transactions, debts, currency, bankAccounts, isLoading } = useFinancials();
+  const { transactions, debts, currency, bankAccounts, isLoading, deleteTransaction, deleteDebt } = useFinancials();
+  const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
+  const { toast } = useToast();
 
   const allEntries = useMemo(() => {
     const toDate = (date: any) => {
         if (date instanceof Timestamp) {
             return date.toDate();
         }
-        // Handle ISO strings or other formats if necessary
         return new Date(date);
     }
 
-    const combined = [
+    const combined: (Transaction | Debt)[] = [
       ...transactions.map(t => ({...t, date: toDate(t.date)})),
       ...debts.map(d => ({...d, date: toDate(d.date), dueDate: d.dueDate ? toDate(d.dueDate) : undefined })),
     ];
@@ -55,6 +64,19 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     if (!accountId) return '';
     return bankAccounts.find(acc => acc.id === accountId)?.name || '';
   }
+
+  const handleDelete = () => {
+    if (!deletingEntry) return;
+
+    if ('category' in deletingEntry) {
+      deleteTransaction(deletingEntry as Transaction);
+      toast({ title: "Transaction Deleted" });
+    } else {
+      deleteDebt(deletingEntry as Debt);
+      toast({ title: "Debt Deleted" });
+    }
+    setDeletingEntry(null);
+  };
 
   if (isLoading) {
     return (
@@ -100,7 +122,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     const color = entry.type === 'income' || entry.type === 'debtor' ? 'text-green-600' : entry.type === 'transfer' ? '' : 'text-red-600';
     
     return (
-        <div className="flex items-start justify-between py-3">
+        <div className="flex items-start justify-between py-3 group">
             <div className="flex items-center gap-4">
                 {renderIcon(entry)}
                 <div>
@@ -120,8 +142,22 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
                     )}
                 </div>
             </div>
-            <div className={`font-semibold text-right shrink-0 ${color}`}>
-            {formatCurrency(entry.amount)}
+            <div className='flex items-center gap-1'>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => setEditingEntry(entry)}>
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                    </DialogTrigger>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingEntry(entry)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    </AlertDialogTrigger>
+                </div>
+                <div className={`font-semibold text-right shrink-0 w-[90px] ${color}`}>
+                    {formatCurrency(entry.amount)}
+                </div>
             </div>
         </div>
     );
@@ -131,15 +167,43 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
   const wrapperProps = showHeader ? { className: "h-full max-h-[500px] rounded-md border" } : {};
 
   return (
-    <Wrapper {...wrapperProps}>
-      <div className={showHeader ? 'p-4' : ''}>
-        {allEntries.map((entry, index) => (
-          <div key={entry.id}>
-            {renderEntry(entry)}
-            {index < allEntries.length - 1 && <Separator />}
-          </div>
-        ))}
-      </div>
-    </Wrapper>
+    <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
+        <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
+            <Wrapper {...wrapperProps}>
+            <div className={showHeader ? 'p-4' : ''}>
+                {allEntries.map((entry, index) => (
+                <div key={entry.id}>
+                    {renderEntry(entry)}
+                    {index < allEntries.length - 1 && <Separator />}
+                </div>
+                ))}
+            </div>
+            </Wrapper>
+            
+            {editingEntry && (
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Entry</DialogTitle>
+                    </DialogHeader>
+                    <EditEntryForm entry={editingEntry} onFinished={() => setEditingEntry(null)} />
+                </DialogContent>
+            )}
+
+            {deletingEntry && (
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete this entry and update your account balances.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            )}
+        </AlertDialog>
+    </Dialog>
   );
 }
