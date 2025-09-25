@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useFinancials } from '@/hooks/useFinancials';
 import { CURRENCIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Landmark } from 'lucide-react';
+import { PlusCircle, Landmark, Loader2 } from 'lucide-react';
 
 const bankAccountSchema = z.object({
   name: z.string().min(2, 'Bank name must be at least 2 characters'),
@@ -19,7 +19,7 @@ const bankAccountSchema = z.object({
 });
 
 export default function Settings() {
-  const { currency, setCurrency, bankAccounts, addBankAccount } = useFinancials();
+  const { currency, setCurrency, bankAccounts, addBankAccount, isLoading } = useFinancials();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof bankAccountSchema>>({
@@ -121,7 +121,11 @@ export default function Settings() {
 
           <div>
             <h3 className="text-lg font-medium mb-4">Your Accounts</h3>
-            {bankAccounts.length > 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center items-center h-24">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : bankAccounts.length > 0 ? (
               <ul className="space-y-4">
                 {bankAccounts.map(account => (
                   <li key={account.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/50">

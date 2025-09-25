@@ -1,0 +1,56 @@
+{
+  "fieldOverrides": [],
+  "indexes": [],
+  "swagger": "2.0",
+  "info": {
+    "version": "v1beta1",
+    "title": "Firestore Indexes"
+  },
+  "paths": {},
+  "definitions": {
+    "GoogleCloudFirestoreAdminV1Index": {
+      "type": "object",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GoogleCloudFirestoreAdminV1IndexField"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "queryScope": {
+          "type": "string",
+          "enum": [
+            "COLLECTION",
+            "COLLECTION_GROUP"
+          ]
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "CREATING",
+            "READY",
+            "ERROR"
+          ]
+        }
+      }
+    },
+    "GoogleCloudFirestoreAdminV1IndexField": {
+      "type": "object",
+      "properties": {
+        "fieldPath": {
+          "type": "string"
+        },
+        "order": {
+          "type": "string",
+          "enum": [
+            "ASCENDING",
+            "DESCENDING"
+          ]
+        }
+      }
+    }
+  }
+}

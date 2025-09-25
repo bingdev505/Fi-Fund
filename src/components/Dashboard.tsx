@@ -2,11 +2,11 @@
 
 import { useFinancials } from '@/hooks/useFinancials';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, TrendingUp, TrendingDown, Landmark, Users } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Landmark, Users, Loader2 } from 'lucide-react';
 import { useMemo } from 'react';
 
 export default function Dashboard() {
-  const { transactions, debts, currency } = useFinancials();
+  const { transactions, debts, currency, isLoading } = useFinancials();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -33,6 +33,23 @@ export default function Dashboard() {
     { title: 'Money You Owe', value: totalCreditors, icon: Landmark, color: 'text-destructive' },
     { title: 'Money Owed to You', value: totalDebtors, icon: Users, color: 'text-primary' },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, index) => (
+            <Card key={index}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div className="h-4 w-2/3 bg-muted rounded animate-pulse" />
+                </CardHeader>
+                <CardContent>
+                    <div className="h-8 w-1/2 bg-muted rounded animate-pulse" />
+                </CardContent>
+            </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
