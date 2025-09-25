@@ -16,7 +16,7 @@ const AnswerFinancialQuestionInputSchema = z.object({
 });
 export type AnswerFinancialQuestionInput = z.infer<typeof AnswerFinancialQuestionInputSchema>;
 
-export const AnswerFinancialQuestionOutputSchema = z.object({
+const AnswerFinancialQuestionOutputSchema = z.object({
   answer: z.string().describe('The answer to the user\'s question.'),
 });
 export type AnswerFinancialQuestionOutput = z.infer<typeof AnswerFinancialQuestionOutputSchema>;

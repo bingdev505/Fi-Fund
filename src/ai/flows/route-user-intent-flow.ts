@@ -6,8 +6,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { logFinancialData, type LogFinancialDataOutput, LogFinancialDataOutputSchema } from './log-financial-data-with-ai-chat';
-import { answerFinancialQuestion, type AnswerFinancialQuestionOutput, AnswerFinancialQuestionOutputSchema } from './answer-financial-question';
+import { logFinancialData, type LogFinancialDataOutput } from './log-financial-data-with-ai-chat';
+import { answerFinancialQuestion, type AnswerFinancialQuestionOutput } from './answer-financial-question';
 
 const RouteUserIntentInputSchema = z.object({
   chatInput: z.string().describe('The user input in natural language.'),
@@ -15,9 +15,22 @@ const RouteUserIntentInputSchema = z.object({
 });
 export type RouteUserIntentInput = z.infer<typeof RouteUserIntentInputSchema>;
 
+// Re-define the schemas here since we can't import them from 'use server' files.
+const LogFinancialDataResultSchema = z.object({
+  transactionType: z.enum(['income', 'expense', 'creditor', 'debtor']),
+  category: z.string(),
+  amount: z.number(),
+  description: z.string().optional(),
+});
+
+const AnswerFinancialQuestionResultSchema = z.object({
+  answer: z.string(),
+});
+
+
 const RouteUserIntentOutputSchema = z.union([
-    z.object({ intent: z.literal('logData'), result: LogFinancialDataOutputSchema }),
-    z.object({ intent: z.literal('question'), result: AnswerFinancialQuestionOutputSchema }),
+    z.object({ intent: z.literal('logData'), result: LogFinancialDataResultSchema as z.ZodType<LogFinancialDataOutput> }),
+    z.object({ intent: z.literal('question'), result: AnswerFinancialQuestionResultSchema as z.ZodType<AnswerFinancialQuestionOutput> }),
 ]);
 export type RouteUserIntentOutput = z.infer<typeof RouteUserIntentOutputSchema>;
 
