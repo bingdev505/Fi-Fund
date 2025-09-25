@@ -38,12 +38,23 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'userId'>) => {
     if (!user || !transactionsColRef) return;
-    const newTransaction = {
+    
+    // Create a new object for the transaction to be saved
+    const newTransactionData: Partial<Transaction> = {
       ...transaction,
       userId: user.uid,
       date: serverTimestamp() as Timestamp,
     };
-    addDocumentNonBlocking(transactionsColRef, newTransaction);
+    
+    // Remove properties with undefined values before sending to Firestore
+    Object.keys(newTransactionData).forEach(key => {
+      const typedKey = key as keyof typeof newTransactionData;
+      if (newTransactionData[typedKey] === undefined) {
+        delete newTransactionData[typedKey];
+      }
+    });
+
+    addDocumentNonBlocking(transactionsColRef, newTransactionData);
   }, [user, transactionsColRef]);
 
   const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date' | 'userId'>) => {
