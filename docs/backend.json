@@ -1,23 +1,94 @@
 {
   "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user (matches Firebase Auth UID)."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The email address of the user."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the user."
+        },
+        "currency": {
+          "type": "string",
+          "description": "The user's preferred currency code (e.g., 'USD')."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
     "Transaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Transaction",
       "type": "object",
       "description": "Represents a single financial transaction, which can be an income, expense, or transfer.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the transaction." },
-        "userId": { "type": "string", "description": "Reference to the User who owns this transaction." },
-        "type": { "type": "string", "enum": ["income", "expense", "transfer"], "description": "The type of transaction." },
-        "amount": { "type": "number", "description": "The amount of the transaction." },
-        "category": { "type": "string", "description": "The category of the transaction." },
-        "description": { "type": "string", "description": "A description of the transaction." },
-        "date": { "type": "string", "format": "date-time", "description": "The date the transaction occurred." },
-        "accountId": { "type": "string", "description": "The ID of the bank account for income/expense." },
-        "fromAccountId": { "type": "string", "description": "The ID of the source bank account for transfers." },
-        "toAccountId": { "type": "string", "description": "The ID of the destination bank account for transfers." }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the transaction."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this transaction."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "income",
+            "expense",
+            "transfer"
+          ],
+          "description": "The type of transaction."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the transaction."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the transaction."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the transaction."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date the transaction occurred."
+        },
+        "accountId": {
+          "type": "string",
+          "description": "The ID of the bank account for income/expense."
+        },
+        "fromAccountId": {
+          "type": "string",
+          "description": "The ID of the source bank account for transfers."
+        },
+        "toAccountId": {
+          "type": "string",
+          "description": "The ID of the destination bank account for transfers."
+        }
       },
-      "required": ["id", "userId", "type", "amount", "category", "date"]
+      "required": [
+        "id",
+        "userId",
+        "type",
+        "amount",
+        "category",
+        "date"
+      ]
     },
     "Debt": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -25,16 +96,53 @@
       "type": "object",
       "description": "Represents money owed to the user (debtor) or by the user (creditor).",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the debt entry." },
-        "userId": { "type": "string", "description": "Reference to the User associated with this debt." },
-        "type": { "type": "string", "enum": ["creditor", "debtor"], "description": "The type of debt." },
-        "name": { "type": "string", "description": "The name of the person/entity involved." },
-        "amount": { "type": "number", "description": "The amount of money owed." },
-        "description": { "type": "string", "description": "A description of the debt." },
-        "dueDate": { "type": "string", "format": "date-time", "description": "The date the debt is due." },
-        "date": { "type": "string", "format": "date-time", "description": "The date the debt was recorded." }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the debt entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User associated with this debt."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "creditor",
+            "debtor"
+          ],
+          "description": "The type of debt."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the person/entity involved."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of money owed."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the debt."
+        },
+        "dueDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date the debt is due."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date the debt was recorded."
+        }
       },
-      "required": ["id", "userId", "type", "name", "amount", "date"]
+      "required": [
+        "id",
+        "userId",
+        "type",
+        "name",
+        "amount",
+        "date"
+      ]
     },
     "BankAccount": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -42,29 +150,35 @@
       "type": "object",
       "description": "Represents a user's bank account.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the bank account." },
-        "userId": { "type": "string", "description": "Reference to the User who owns this account." },
-        "name": { "type": "string", "description": "The name of the bank account (e.g., 'Savings')." },
-        "balance": { "type": "number", "description": "The current balance of the account." }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the bank account."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns this account."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the bank account (e.g., 'Savings')."
+        },
+        "balance": {
+          "type": "number",
+          "description": "The current balance of the account."
+        }
       },
-      "required": ["id", "userId", "name", "balance"]
-    },
-    "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
-      "type": "object",
-      "description": "Represents a user of the application.",
-      "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the user (matches Firebase Auth UID)." },
-        "email": { "type": "string", "format": "email", "description": "The email address of the user." },
-        "name": { "type": "string", "description": "The name of the user." },
-        "currency": { "type": "string", "description": "The user's preferred currency code (e.g., 'USD')." }
-      },
-      "required": ["id"]
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "balance"
+      ]
     }
   },
   "auth": {
-    "providers": ["password", "anonymous"]
+    "providers": [
+      "password"
+    ]
   },
   "firestore": {
     "structure": [
@@ -72,7 +186,9 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": { "$ref": "#/backend/entities/User" },
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
           "description": "Stores user profile information and settings."
         }
       },
@@ -80,7 +196,9 @@
         "path": "/users/{userId}/transactions/{transactionId}",
         "definition": {
           "entityName": "Transaction",
-          "schema": { "$ref": "#/backend/entities/Transaction" },
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
           "description": "Stores all financial transactions (income, expense, transfer) for a user."
         }
       },
@@ -88,7 +206,9 @@
         "path": "/users/{userId}/debts/{debtId}",
         "definition": {
           "entityName": "Debt",
-          "schema": { "$ref": "#/backend/entities/Debt" },
+          "schema": {
+            "$ref": "#/backend/entities/Debt"
+          },
           "description": "Stores all debts (creditors and debtors) for a user."
         }
       },
@@ -96,7 +216,9 @@
         "path": "/users/{userId}/bankAccounts/{accountId}",
         "definition": {
           "entityName": "BankAccount",
-          "schema": { "$ref": "#/backend/entities/BankAccount" },
+          "schema": {
+            "$ref": "#/backend/entities/BankAccount"
+          },
           "description": "Stores a user's bank accounts."
         }
       }
