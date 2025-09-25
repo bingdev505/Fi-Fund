@@ -50,14 +50,13 @@ export default function AIChat() {
   };
 
   useEffect(() => {
-    const viewport = scrollAreaRef.current?.querySelector('div[data-radix-scroll-area-viewport]');
-    if (viewport) {
-      setTimeout(() => {
-        viewport.scrollTo({
-            top: viewport.scrollHeight,
-            behavior: 'smooth',
-        });
-      }, 100);
+    if (scrollAreaRef.current) {
+      const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        setTimeout(() => {
+          viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+        }, 100);
+      }
     }
   }, [messages, isLoading]);
 
