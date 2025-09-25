@@ -52,12 +52,14 @@ export default function AIChat() {
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('div[data-radix-scroll-area-viewport]');
     if (viewport) {
-      viewport.scrollTo({
-        top: viewport.scrollHeight,
-        behavior: 'smooth',
-      });
+      setTimeout(() => {
+        viewport.scrollTo({
+            top: viewport.scrollHeight,
+            behavior: 'smooth',
+        });
+      }, 100);
     }
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
