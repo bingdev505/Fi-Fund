@@ -3,6 +3,7 @@ import { useUser } from '@/firebase';
 import AIChat from '@/components/AIChat';
 import AppShell from '@/components/AppShell';
 import LoginPage from '@/components/LoginPage';
+import { FinancialProvider } from '@/context/FinancialContext';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
@@ -16,10 +17,12 @@ export default function Home() {
   }
 
   return (
-    <AppShell>
-      <main className="flex flex-1 flex-col">
-        <AIChat />
-      </main>
-    </AppShell>
+    <FinancialProvider>
+      <AppShell>
+        <main className="flex flex-1 flex-col">
+          <AIChat />
+        </main>
+      </AppShell>
+    </FinancialProvider>
   );
 }
