@@ -1,22 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import FinancialChart from './FinancialChart';
 import { useFinancials } from '@/hooks/useFinancials';
 import { generateFinancialInsights } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Lightbulb, Loader2 } from 'lucide-react';
+import { Lightbulb, Loader2, TrendingUp, TrendingDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import DebtList from './DebtList';
 
 type ReportPeriod = 'weekly' | 'monthly' | 'annual';
 
 export default function Reports() {
-  const { transactions, debts } = useFinancials();
+  const { transactions, debts, currency } = useFinancials();
   const [insight, setInsight] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [period, setPeriod] = useState<ReportPeriod>('annual');
+
+  const { totalDebtors, totalCreditors } = useMemo(() => {
+    return {
+      totalDebtors: debts.filter(d => d.type === 'debtor').reduce((sum, d) => sum + d.amount, 0),
+      totalCreditors: debts.filter(d => d.type === 'creditor').reduce((sum, d) => sum + d.amount, 0),
+    };
+  }, [debts]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  }
 
   const handleGenerateInsights = async () => {
     setIsLoading(true);
@@ -39,8 +51,26 @@ export default function Reports() {
     }
   };
 
+  const debtSummary = [
+    { title: 'Total Owed to You', value: totalDebtors, icon: TrendingUp, color: 'text-green-600' },
+    { title: 'Total You Owe', value: totalCreditors, icon: TrendingDown, color: 'text-red-600' },
+  ];
+
   return (
     <div className="space-y-6">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {debtSummary.map(({ title, value, icon: Icon, color }) => (
+          <Card key={title}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{title}</CardTitle>
+              <Icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${color}`}>{formatCurrency(value)}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -64,6 +94,27 @@ export default function Reports() {
           <FinancialChart transactions={transactions} period={period} />
         </CardContent>
       </Card>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+            <CardHeader>
+                <CardTitle>Debtors (Owed to You)</CardTitle>
+                <CardDescription>List of individuals or entities that owe you money.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <DebtList type="debtor" />
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle>Creditors (You Owe)</CardTitle>
+                <CardDescription>List of individuals or entities you owe money to.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <DebtList type="creditor" />
+            </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -78,10 +129,10 @@ export default function Reports() {
           {transactions.length === 0 && <p className="text-sm text-muted-foreground mt-2">Add some transactions to generate insights.</p>}
           {isLoading && <p className="mt-4 text-muted-foreground">Analyzing your data...</p>}
           {insight && (
-            <Alert className="mt-4 border-accent bg-accent/10">
-              <Lightbulb className="h-4 w-4 text-accent-foreground" />
-              <AlertTitle className="font-headline text-accent-foreground">Your Financial Insight</AlertTitle>
-              <AlertDescription className="text-accent-foreground/90">
+            <Alert className="mt-4 border-primary/20 bg-primary/5 text-primary">
+              <Lightbulb className="h-4 w-4 text-primary" />
+              <AlertTitle className="font-headline text-primary">Your Financial Insight</AlertTitle>
+              <AlertDescription className="text-primary/90">
                 {insight}
               </AlertDescription>
             </Alert>
