@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Bot, BarChart2, LayoutDashboard, Menu, BookUser } from 'lucide-react';
+import { Bot, BarChart2, LayoutDashboard, Menu, BookUser, Cog } from 'lucide-react';
 import { FinancialProvider } from '@/context/FinancialContext';
 import Entries from '@/components/Entries';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
@@ -12,6 +12,7 @@ export default function EntriesPage() {
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/entries', icon: BookUser, label: 'Entries' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
+    { href: '/settings', icon: Cog, label: 'Settings' },
   ];
 
   return (

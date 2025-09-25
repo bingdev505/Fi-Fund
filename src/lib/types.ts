@@ -16,3 +16,9 @@ export type Debt = {
   dueDate?: Date;
   date: Date;
 };
+
+export type BankAccount = {
+  id: string;
+  name: string;
+  balance: number;
+};

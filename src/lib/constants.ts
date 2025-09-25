@@ -5,3 +5,7 @@ export const EXPENSE_CATEGORIES = [
 export const INCOME_CATEGORIES = [
   "Salary", "Freelance", "Investment", "Gift", "Other"
 ];
+
+export const CURRENCIES = [
+    "INR", "USD", "EUR", "GBP", "JPY"
+];

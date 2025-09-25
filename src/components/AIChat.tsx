@@ -23,9 +23,13 @@ export default function AIChat() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { addTransaction, addDebt } = useFinancials();
+  const { addTransaction, addDebt, currency } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  }
 
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('div[data-radix-scroll-area-viewport]');
@@ -57,7 +61,7 @@ export default function AIChat() {
             category: result.category,
             description: result.description || 'AI Logged Transaction'
         });
-        toastDescription = `${result.transactionType} of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(result.amount)} in ${result.category} logged.`
+        toastDescription = `${result.transactionType} of ${formatCurrency(result.amount)} in ${result.category} logged.`
       } else {
         addDebt({
             type: result.transactionType,
@@ -65,7 +69,7 @@ export default function AIChat() {
             name: result.category, // AI might put name in category for debts
             description: result.description || 'AI Logged Debt'
         });
-        toastDescription = `${result.transactionType} of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(result.amount)} for ${result.category} logged.`
+        toastDescription = `${result.transactionType} of ${formatCurrency(result.amount)} for ${result.category} logged.`
       }
 
       const assistantMessage: Message = {

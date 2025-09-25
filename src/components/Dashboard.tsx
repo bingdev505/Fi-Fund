@@ -6,7 +6,11 @@ import { DollarSign, TrendingUp, TrendingDown, Landmark, Users } from 'lucide-re
 import { useMemo } from 'react';
 
 export default function Dashboard() {
-  const { transactions, debts } = useFinancials();
+  const { transactions, debts, currency } = useFinancials();
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  }
 
   const { totalIncome, totalExpenses, netBalance, totalCreditors, totalDebtors } = useMemo(() => {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -40,7 +44,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${color}`}>
-              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value)}
+              {formatCurrency(value)}
             </div>
           </CardContent>
         </Card>

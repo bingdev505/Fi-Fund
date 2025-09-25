@@ -14,7 +14,7 @@ import type { Transaction, Debt } from '@/lib/types';
 import { useMemo } from 'react';
 
 export default function EntryList() {
-  const { transactions, debts } = useFinancials();
+  const { transactions, debts, currency } = useFinancials();
 
   const allEntries = useMemo(() => {
     const combined = [
@@ -24,6 +24,9 @@ export default function EntryList() {
     return combined.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 20);
   }, [transactions, debts]);
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  }
 
   if (allEntries.length === 0) {
     return (
@@ -69,7 +72,7 @@ export default function EntryList() {
                 </div>
             </div>
             <div className={`font-semibold text-right ${color}`}>
-            {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(entry.amount)}
+            {formatCurrency(entry.amount)}
             </div>
         </div>
     );

@@ -40,8 +40,12 @@ const formSchema = z.object({
 });
 
 export default function EntryForm() {
-  const { addTransaction, addDebt } = useFinancials();
+  const { addTransaction, addDebt, currency } = useFinancials();
   const { toast } = useToast();
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -73,7 +77,7 @@ export default function EntryForm() {
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
-        description: `₹${data.amount} for ${data.description} has been logged.`,
+        description: `${formatCurrency(data.amount)} for ${data.description} has been logged.`,
       });
     } else {
       addDebt({
@@ -85,7 +89,7 @@ export default function EntryForm() {
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
-        description: `Debt related to ${data.category} for ₹${data.amount} has been logged.`,
+        description: `Debt related to ${data.category} for ${formatCurrency(data.amount)} has been logged.`,
       });
     }
     form.reset({
@@ -135,7 +139,7 @@ export default function EntryForm() {
             name="amount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Amount (INR)</FormLabel>
+                <FormLabel>Amount ({currency})</FormLabel>
                 <FormControl>
                   <Input type="number" placeholder="e.g. 1500" {...field} />
                 </FormControl>

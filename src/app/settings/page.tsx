@@ -2,11 +2,11 @@
 import Link from 'next/link';
 import { Bot, BarChart2, LayoutDashboard, Menu, BookUser, Cog } from 'lucide-react';
 import { FinancialProvider } from '@/context/FinancialContext';
-import AIChat from '@/components/AIChat';
+import Settings from '@/components/Settings';
 import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
-export default function Home() {
+export default function SettingsPage() {
   const navItems = [
     { href: '/', icon: Bot, label: 'AI Chat' },
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -54,8 +54,8 @@ export default function Home() {
               ))}
             </nav>
           </aside>
-          <main className="flex flex-1 flex-col">
-            <AIChat />
+          <main className="flex flex-1 flex-col overflow-y-auto">
+            <Settings />
           </main>
         </div>
       </div>

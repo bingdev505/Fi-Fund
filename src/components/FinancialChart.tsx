@@ -17,6 +17,7 @@ import {
   startOfWeek,
   startOfYear,
 } from 'date-fns';
+import { useFinancials } from '@/hooks/useFinancials';
 
 
 type FinancialChartProps = {
@@ -36,6 +37,22 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function FinancialChart({ transactions, period }: FinancialChartProps) {
+    const { currency } = useFinancials();
+
+    const formatCurrency = (value: number) => {
+        const num = Number(value);
+        if (num === 0) return '₹0';
+        if (num >= 1000) {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency,
+                notation: 'compact',
+                compactDisplay: 'short'
+            }).format(num);
+        }
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+    }
+    
     const data = useMemo(() => {
         if (transactions.length === 0) return [];
     
@@ -95,7 +112,7 @@ export default function FinancialChart({ transactions, period }: FinancialChartP
             tickLine={false}
             axisLine={false}
             tickMargin={10}
-            tickFormatter={(value) => value > 0 ? `₹${Number(value) / 1000}k` : '₹0'}
+            tickFormatter={formatCurrency}
         />
         <ChartTooltip
             cursor={false}
@@ -104,6 +121,14 @@ export default function FinancialChart({ transactions, period }: FinancialChartP
                     return payload?.[0]?.payload.date
                 }}
                 indicator="dot" 
+                formatter={(value, name, item) => {
+                    return (
+                        <div className="flex flex-col">
+                            <span className="capitalize">{name}</span>
+                            <span>{formatCurrency(Number(value))}</span>
+                        </div>
+                    )
+                }}
             />}
         />
         <ChartLegend content={<ChartLegendContent />} />
