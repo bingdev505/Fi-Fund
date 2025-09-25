@@ -24,7 +24,6 @@ import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/compon
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import RepaymentForm from './RepaymentForm';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 export default function AIChat() {
   const { user } = useUser();
@@ -270,30 +269,14 @@ export default function AIChat() {
       case 'select_type':
       default:
         return (
-          <TooltipProvider>
-            <div className="p-2 flex justify-center items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-16 h-16" onClick={() => setRepaymentStep('select_creditor')}>
-                    <ArrowUpCircle className="h-8 w-8 text-red-600" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Pay Someone Back (Creditor)</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="w-16 h-16" onClick={() => setRepaymentStep('select_debtor')}>
-                    <ArrowDownCircle className="h-8 w-8 text-green-600" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Receive a Payment (Debtor)</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </TooltipProvider>
+          <div className="p-2 flex flex-col justify-center items-center gap-2">
+            <Button variant="ghost" size="icon" className="w-16 h-16" onClick={() => setRepaymentStep('select_creditor')}>
+              <ArrowUpCircle className="h-8 w-8 text-red-600" />
+            </Button>
+            <Button variant="ghost" size="icon" className="w-16 h-16" onClick={() => setRepaymentStep('select_debtor')}>
+              <ArrowDownCircle className="h-8 w-8 text-green-600" />
+            </Button>
+          </div>
         )
     }
   };
