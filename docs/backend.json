@@ -1,166 +1,53 @@
 {
   "entities": {
-    "Income": {
+    "Transaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Income",
+      "title": "Transaction",
       "type": "object",
-      "description": "Represents a source of income for the user.",
+      "description": "Represents a single financial transaction, which can be an income, expense, or transfer.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the income entry."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this income entry. (Relationship: User 1:N Income)"
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount of income received."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of income (e.g., salary, investment).",
-          "format": "string"
-        },
-        "date": {
-          "type": "string",
-          "description": "The date the income was received.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "A description of the income source."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the transaction." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this transaction." },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer"], "description": "The type of transaction." },
+        "amount": { "type": "number", "description": "The amount of the transaction." },
+        "category": { "type": "string", "description": "The category of the transaction." },
+        "description": { "type": "string", "description": "A description of the transaction." },
+        "date": { "type": "string", "format": "date-time", "description": "The date the transaction occurred." },
+        "accountId": { "type": "string", "description": "The ID of the bank account for income/expense." },
+        "fromAccountId": { "type": "string", "description": "The ID of the source bank account for transfers." },
+        "toAccountId": { "type": "string", "description": "The ID of the destination bank account for transfers." }
       },
-      "required": [
-        "id",
-        "userId",
-        "amount",
-        "category",
-        "date"
-      ]
+      "required": ["id", "userId", "type", "amount", "category", "date"]
     },
-    "Expense": {
+    "Debt": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Expense",
+      "title": "Debt",
       "type": "object",
-      "description": "Represents an expense incurred by the user.",
+      "description": "Represents money owed to the user (debtor) or by the user (creditor).",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the expense entry."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this expense entry. (Relationship: User 1:N Expense)"
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount of the expense."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of the expense (e.g., food, rent).",
-          "format": "string"
-        },
-        "date": {
-          "type": "string",
-          "description": "The date the expense was incurred.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "A description of the expense."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the debt entry." },
+        "userId": { "type": "string", "description": "Reference to the User associated with this debt." },
+        "type": { "type": "string", "enum": ["creditor", "debtor"], "description": "The type of debt." },
+        "name": { "type": "string", "description": "The name of the person/entity involved." },
+        "amount": { "type": "number", "description": "The amount of money owed." },
+        "description": { "type": "string", "description": "A description of the debt." },
+        "dueDate": { "type": "string", "format": "date-time", "description": "The date the debt is due." },
+        "date": { "type": "string", "format": "date-time", "description": "The date the debt was recorded." }
       },
-      "required": [
-        "id",
-        "userId",
-        "amount",
-        "category",
-        "date"
-      ]
+      "required": ["id", "userId", "type", "name", "amount", "date"]
     },
-    "Creditor": {
+    "BankAccount": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Creditor",
+      "title": "BankAccount",
       "type": "object",
-      "description": "Represents a person or entity to whom the user owes money.",
+      "description": "Represents a user's bank account.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the creditor."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owes this debt. (Relationship: User 1:N Creditor)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the creditor."
-        },
-        "amountOwed": {
-          "type": "number",
-          "description": "The amount of money owed to the creditor."
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "The date by which the debt is due.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "A description of the debt."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the bank account." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this account." },
+        "name": { "type": "string", "description": "The name of the bank account (e.g., 'Savings')." },
+        "balance": { "type": "number", "description": "The current balance of the account." }
       },
-      "required": [
-        "id",
-        "userId",
-        "name",
-        "amountOwed",
-        "dueDate"
-      ]
-    },
-    "Debtor": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Debtor",
-      "type": "object",
-      "description": "Represents a person or entity who owes money to the user.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the debtor."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who is owed this debt. (Relationship: User 1:N Debtor)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the debtor."
-        },
-        "amountOwed": {
-          "type": "number",
-          "description": "The amount of money owed by the debtor."
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "The date by which the debt is due.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "A description of the debt."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "name",
-        "amountOwed",
-        "dueDate"
-      ]
+      "required": ["id", "userId", "name", "balance"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -168,32 +55,16 @@
       "type": "object",
       "description": "Represents a user of the application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user."
-        },
-        "email": {
-          "type": "string",
-          "description": "The email address of the user.",
-          "format": "email"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the user."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the user (matches Firebase Auth UID)." },
+        "email": { "type": "string", "format": "email", "description": "The email address of the user." },
+        "name": { "type": "string", "description": "The name of the user." },
+        "currency": { "type": "string", "description": "The user's preferred currency code (e.g., 'USD')." }
       },
-      "required": [
-        "id",
-        "email",
-        "name"
-      ]
+      "required": ["id"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [
@@ -201,99 +72,35 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profile information. User ID is used for authentication and path-based authorization.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "Stores user profile information and settings."
         }
       },
       {
-        "path": "/users/{userId}/incomes/{incomeId}",
+        "path": "/users/{userId}/transactions/{transactionId}",
         "definition": {
-          "entityName": "Income",
-          "schema": {
-            "$ref": "#/backend/entities/Income"
-          },
-          "description": "Stores income records for each user. Path-based ownership ensures that only the user can access their income records.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "incomeId",
-              "description": "The unique identifier of the income record."
-            }
-          ]
+          "entityName": "Transaction",
+          "schema": { "$ref": "#/backend/entities/Transaction" },
+          "description": "Stores all financial transactions (income, expense, transfer) for a user."
         }
       },
       {
-        "path": "/users/{userId}/expenses/{expenseId}",
+        "path": "/users/{userId}/debts/{debtId}",
         "definition": {
-          "entityName": "Expense",
-          "schema": {
-            "$ref": "#/backend/entities/Expense"
-          },
-          "description": "Stores expense records for each user. Path-based ownership ensures that only the user can access their expense records.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "expenseId",
-              "description": "The unique identifier of the expense record."
-            }
-          ]
+          "entityName": "Debt",
+          "schema": { "$ref": "#/backend/entities/Debt" },
+          "description": "Stores all debts (creditors and debtors) for a user."
         }
       },
       {
-        "path": "/users/{userId}/creditors/{creditorId}",
+        "path": "/users/{userId}/bankAccounts/{accountId}",
         "definition": {
-          "entityName": "Creditor",
-          "schema": {
-            "$ref": "#/backend/entities/Creditor"
-          },
-          "description": "Stores creditor records (debts owed to others) for each user. Path-based ownership ensures that only the user can access their creditor records.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "creditorId",
-              "description": "The unique identifier of the creditor record."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/debtors/{debtorId}",
-        "definition": {
-          "entityName": "Debtor",
-          "schema": {
-            "$ref": "#/backend/entities/Debtor"
-          },
-          "description": "Stores debtor records (debts owed to the user) for each user. Path-based ownership ensures that only the user can access their debtor records.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "debtorId",
-              "description": "The unique identifier of the debtor record."
-            }
-          ]
+          "entityName": "BankAccount",
+          "schema": { "$ref": "#/backend/entities/BankAccount" },
+          "description": "Stores a user's bank accounts."
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to provide a secure and scalable solution for the FinanceFlow AI application. It leverages path-based ownership for user-specific data like income, expenses, creditors, and debtors, ensuring that only the authenticated user can access their own financial records. This approach greatly simplifies security rules.  Authorization Independence is achieved by avoiding `get()` calls in rules, as each entity is stored under the respective user's path. QAPs (Rules are not Filters) are supported by the path-based structure, which enables efficient list operations without needing to filter based on document content, enhancing security and performance.  The structure enforces invariants by clearly defining ownership through the user ID in the path."
+    "reasoning": "The Firestore structure uses path-based ownership to secure user data. All of a user's data (profile, transactions, debts, accounts) is stored in subcollections under their unique user ID (`/users/{userId}`). This simplifies security rules, as access can be granted at the `/users/{userId}` level, ensuring users can only access their own information."
   }
 }

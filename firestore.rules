@@ -1,118 +1,185 @@
+/**
+ * @fileoverview Firestore Security Rules for FinanceFlow AI.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Each user's data (incomes, expenses, creditors, debtors)
+ * is stored under their respective user ID, ensuring that only the authenticated user can access their own financial records.
+ *
+ * Data Structure:
+ * All data is nested under /users/{userId}, with subcollections for incomes, expenses, creditors, and debtors.
+ * - /users/{userId} (User profile information)
+ * - /users/{userId}/incomes/{incomeId} (Income records)
+ * - /users/{userId}/expenses/{expenseId} (Expense records)
+ * - /users/{userId}/creditors/{creditorId} (Creditor records)
+ * - /users/{userId}/debtors/{debtorId} (Debtor records)
+ *
+ * Key Security Decisions:
+ * - User listing is disallowed.
+ * - All write operations are restricted to the owner of the data.
+ * - The rules prioritize authorization independence by avoiding `get()` calls.
+ * - Path-based authorization is used extensively to simplify rules and enhance performance.
+ *
+ * Denormalization for Authorization:
+ *  The data structure is inherently denormalized for authorization, as each document is nested under the user's ID,
+ *  eliminating the need for additional lookups.
+ *
+ * Structural Segregation:
+ *  All private user data is stored under the /users/{userId} path, ensuring clear separation from any potentially public data.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Root match to prevent unauthorized access to the entire database.
+     * @path /databases/{database}/documents
+     * @allow (none) No one can read or write to the root of the database.
+     * @deny (none) This rule always denies access.
+     * @principle Prevents accidental open access to the database.
+     */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    /**
+     * @description Secure user profile data.
+     * @path /users/{userId}
+     * @allow (create) User 'testUID' can create their own profile: request.auth.uid == 'testUID' && request.resource.data.id == 'testUID'
+     * @allow (get) User 'testUID' can read their own profile.
+     * @allow (update) User 'testUID' can update their own profile.
+     * @allow (delete) User 'testUID' can delete their own profile.
+     * @deny (create) User 'otherUID' cannot create a profile for 'testUID'.
+     * @deny (get) User 'otherUID' cannot read user 'testUID' profile.
+     * @deny (update) User 'otherUID' cannot update user 'testUID' profile.
+     * @deny (delete) User 'otherUID' cannot delete user 'testUID' profile.
+     * @principle Enforces document ownership and prevents unauthorized profile access.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secure income records for each user.
+     * @path /users/{userId}/incomes/{incomeId}
+     * @allow (create) User 'testUID' can create an income record under their profile.
+     * @allow (get) User 'testUID' can read their income record.
+     * @allow (list) User 'testUID' can list their income records.
+     * @allow (update) User 'testUID' can update their income record.
+     * @allow (delete) User 'testUID' can delete their income record.
+     * @deny (create) User 'otherUID' cannot create an income record for 'testUID'.
+     * @deny (get) User 'otherUID' cannot read user 'testUID' income record.
+     * @deny (list) User 'otherUID' cannot list user 'testUID' income records.
+     * @deny (update) User 'otherUID' cannot update user 'testUID' income record.
+     * @deny (delete) User 'otherUID' cannot delete user 'testUID' income record.
+     * @principle Enforces path-based ownership for income records.
+     */
+    match /users/{userId}/incomes/{incomeId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secure expense records for each user.
+     * @path /users/{userId}/expenses/{expenseId}
+     * @allow (create) User 'testUID' can create an expense record under their profile.
+     * @allow (get) User 'testUID' can read their expense record.
+     * @allow (list) User 'testUID' can list their expense records.
+     * @allow (update) User 'testUID' can update their expense record.
+     * @allow (delete) User 'testUID' can delete their expense record.
+     * @deny (create) User 'otherUID' cannot create an expense record for 'testUID'.
+     * @deny (get) User 'otherUID' cannot read user 'testUID' expense record.
+     * @deny (list) User 'otherUID' cannot list user 'testUID' expense records.
+     * @deny (update) User 'otherUID' cannot update user 'testUID' expense record.
+     * @deny (delete) User 'otherUID' cannot delete user 'testUID' expense record.
+     * @principle Enforces path-based ownership for expense records.
+     */
+    match /users/{userId}/expenses/{expenseId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secure creditor records for each user.
+     * @path /users/{userId}/creditors/{creditorId}
+     * @allow (create) User 'testUID' can create a creditor record under their profile.
+     * @allow (get) User 'testUID' can read their creditor record.
+     * @allow (list) User 'testUID' can list their creditor records.
+     * @allow (update) User 'testUID' can update their creditor record.
+     * @allow (delete) User 'testUID' can delete their creditor record.
+     * @deny (create) User 'otherUID' cannot create a creditor record for 'testUID'.
+     * @deny (get) User 'otherUID' cannot read user 'testUID' creditor record.
+     * @deny (list) User 'otherUID' cannot list user 'testUID' creditor records.
+     * @deny (update) User 'otherUID' cannot update user 'testUID' creditor record.
+     * @deny (delete) User 'otherUID' cannot delete user 'testUID' creditor record.
+     * @principle Enforces path-based ownership for creditor records.
+     */
+    match /users/{userId}/creditors/{creditorId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secure debtor records for each user.
+     * @path /users/{userId}/debtors/{debtorId}
+     * @allow (create) User 'testUID' can create a debtor record under their profile.
+     * @allow (get) User 'testUID' can read their debtor record.
+     * @allow (list) User 'testUID' can list their debtor records.
+     * @allow (update) User 'testUID' can update their debtor record.
+     * @allow (delete) User 'testUID' can delete their debtor record.
+     * @deny (create) User 'otherUID' cannot create a debtor record for 'testUID'.
+     * @deny (get) User 'otherUID' cannot read user 'testUID' debtor record.
+     * @deny (list) User 'otherUID' cannot list user 'testUID' debtor records.
+     * @deny (update) User 'otherUID' cannot update user 'testUID' debtor record.
+     * @deny (delete) User 'otherUID' cannot delete user 'testUID' debtor record.
+     * @principle Enforces path-based ownership for debtor records.
+     */
+    match /users/{userId}/debtors/{debtorId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+     /**
+     * @description Secure transaction records for each user.
+     * @path /users/{userId}/transactions
+     * @allow (list) User 'testUID' can list their transaction records.
+     * @deny (list) User 'otherUID' cannot list user 'testUID' transaction records.
+     * @principle Enforces path-based ownership for transaction records.
+     */
+    match /users/{userId}/transactions/{transactionId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * @description Secures the /users/{userId} document.
-     * @path /users/{userId}
-     * @allow (create) - Authenticated user can create their own user document.
-     * @allow (get) - Authenticated user can get their own user document.
-     * @allow (update) - Authenticated user can update their own user document.
-     * @allow (delete) - Authenticated user can delete their own user document.
-     * @deny (create) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (get) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (update) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (delete) - If the user ID in the path does not match the authenticated user's ID.
-     * @principle Enforces document ownership.
-     */
-    match /users/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
-    }
-
-    /**
-     * @description Secures the /users/{userId}/incomes/{incomeId} collection.
-     * @path /users/{userId}/incomes/{incomeId}
-     * @allow (create) - Authenticated user can create an income document under their user ID.
-     * @allow (get) - Authenticated user can get their own income document.
-     * @allow (update) - Authenticated user can update their own income document.
-     * @allow (delete) - Authenticated user can delete their own income document.
-     * @deny (create) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (get) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (update) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (delete) - If the user ID in the path does not match the authenticated user's ID.
-     * @principle Enforces document ownership for writes.
-     */
-    match /users/{userId}/incomes/{incomeId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Secures the /users/{userId}/expenses/{expenseId} collection.
-     * @path /users/{userId}/expenses/{expenseId}
-     * @allow (create) - Authenticated user can create an expense document under their user ID.
-     * @allow (get) - Authenticated user can get their own expense document.
-     * @allow (update) - Authenticated user can update their own expense document.
-     * @allow (delete) - Authenticated user can delete their own expense document.
-     * @deny (create) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (get) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (update) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (delete) - If the user ID in the path does not match the authenticated user's ID.
-     * @principle Enforces document ownership for writes.
-     */
-    match /users/{userId}/expenses/{expenseId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Secures the /users/{userId}/creditors/{creditorId} collection.
-     * @path /users/{userId}/creditors/{creditorId}
-     * @allow (create) - Authenticated user can create a creditor document under their user ID.
-     * @allow (get) - Authenticated user can get their own creditor document.
-     * @allow (update) - Authenticated user can update their own creditor document.
-     * @allow (delete) - Authenticated user can delete their own creditor document.
-     * @deny (create) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (get) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (update) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (delete) - If the user ID in the path does not match the authenticated user's ID.
-     * @principle Enforces document ownership for writes.
-     */
-    match /users/{userId}/creditors/{creditorId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Secures the /users/{userId}/debtors/{debtorId} collection.
-     * @path /users/{userId}/debtors/{debtorId}
-     * @allow (create) - Authenticated user can create a debtor document under their user ID.
-     * @allow (get) - Authenticated user can get their own debtor document.
-     * @allow (update) - Authenticated user can update their own debtor document.
-     * @allow (delete) - Authenticated user can delete their own debtor document.
-     * @deny (create) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (get) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (update) - If the user ID in the path does not match the authenticated user's ID.
-     * @deny (delete) - If the user ID in the path does not match the authenticated user's ID.
-     * @principle Enforces document ownership for writes.
-     */
-    match /users/{userId}/debtors/{debtorId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if isSignedIn() && request.auth.uid == userId;
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
     }
   }
 }
