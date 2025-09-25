@@ -3,7 +3,7 @@
 import { createContext, useCallback, ReactNode, useMemo } from 'react';
 import type { Transaction, Debt, BankAccount, UserSettings } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, serverTimestamp, Timestamp, writeBatch, runTransaction, Firestore } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, Timestamp, writeBatch, runTransaction, Firestore, DocumentReference } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface FinancialContextType {
@@ -11,10 +11,10 @@ interface FinancialContextType {
   debts: Debt[];
   bankAccounts: BankAccount[];
   currency: string;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId'>) => void;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId'>, returnRef?: boolean) => Promise<DocumentReference | void>;
   updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => void;
   deleteTransaction: (transaction: Transaction) => void;
-  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId'>) => void;
+  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId'>, returnRef?: boolean) => Promise<DocumentReference | void>;
   updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => void;
   deleteDebt: (debt: Debt) => void;
   addRepayment: (debt: Debt, amount: number, accountId: string) => void;
@@ -22,6 +22,8 @@ interface FinancialContextType {
   setCurrency: (currency: string) => void;
   setPrimaryBankAccount: (accountId: string) => void;
   isLoading: boolean;
+  getTransactionById: (id: string) => Transaction | undefined;
+  getDebtById: (id: string) => Debt | undefined;
 }
 
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -65,7 +67,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const bankAccountsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'bankAccounts') : null, [firestore, user]);
   const { data: bankAccounts, isLoading: isBankAccountsLoading } = useCollection<BankAccount>(bankAccountsColRef);
 
-  const addTransaction = useCallback((transactionData: Omit<Transaction, 'id' | 'date' | 'userId'>) => {
+  const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id' | 'date' | 'userId'>, returnRef = false): Promise<DocumentReference | void> => {
     if (!user || !transactionsColRef || !firestore) return;
 
     let finalTransaction: any = {
@@ -84,7 +86,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         delete finalTransaction.accountId;
     }
     
-    addDocumentNonBlocking(transactionsColRef, finalTransaction);
+    const docRefPromise = addDocumentNonBlocking(transactionsColRef, finalTransaction);
 
     if (transactionData.type === 'income' && transactionData.accountId) {
       updateAccountBalance(firestore, user.uid, transactionData.accountId, transactionData.amount, 'add');
@@ -93,6 +95,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     } else if (transactionData.type === 'transfer' && transactionData.fromAccountId && transactionData.toAccountId) {
       updateAccountBalance(firestore, user.uid, transactionData.fromAccountId, transactionData.amount, 'subtract');
       updateAccountBalance(firestore, user.uid, transactionData.toAccountId, transactionData.amount, 'add');
+    }
+
+    if (returnRef) {
+        return docRefPromise;
     }
   }, [user, firestore, transactionsColRef]);
 
@@ -173,7 +179,7 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
 }, [user, firestore, transactionsColRef]);
 
 
-  const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date' | 'userId'>) => {
+  const addDebt = useCallback(async (debt: Omit<Debt, 'id' | 'date' | 'userId'>, returnRef = false): Promise<DocumentReference | void> => {
     if (!user || !debtsColRef || !firestore || !debt.accountId) return;
 
     const newDebt: any = {
@@ -186,7 +192,7 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
       newDebt.dueDate = Timestamp.fromDate(new Date(debt.dueDate));
     }
     
-    addDocumentNonBlocking(debtsColRef, newDebt);
+    const docRefPromise = addDocumentNonBlocking(debtsColRef, newDebt);
 
     // When a debt is created, the money moves.
     // 'creditor' (I owe someone) implies money came INTO my account (e.g. taking a loan).
@@ -195,6 +201,10 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
       updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'add');
     } else if (debt.type === 'debtor') { 
       updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'subtract');
+    }
+
+    if (returnRef) {
+        return docRefPromise;
     }
 
   }, [user, firestore, debtsColRef]);
@@ -337,6 +347,14 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
     });
   
   }, [user, firestore, bankAccountsColRef, bankAccounts]);
+  
+  const getTransactionById = useCallback((id: string) => {
+      return transactions?.find(t => t.id === id);
+  }, [transactions]);
+
+  const getDebtById = useCallback((id: string) => {
+      return debts?.find(d => d.id === id);
+  }, [debts]);
 
 
   const isLoading = isUserLoading || isUserSettingsLoading || isTransactionsLoading || isDebtsLoading || isBankAccountsLoading;
@@ -357,6 +375,8 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
     setCurrency,
     setPrimaryBankAccount,
     isLoading,
+    getTransactionById,
+    getDebtById,
   }), [
       transactions, 
       debts, 
@@ -372,7 +392,9 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
       addBankAccount, 
       setCurrency, 
       setPrimaryBankAccount, 
-      isLoading
+      isLoading,
+      getTransactionById,
+      getDebtById
     ]);
 
   return (

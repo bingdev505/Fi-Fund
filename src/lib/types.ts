@@ -46,4 +46,6 @@ export type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
     timestamp: Timestamp;
+    transactionId?: string;
+    entryType?: 'income' | 'expense' | 'creditor' | 'debtor';
 };

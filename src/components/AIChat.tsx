@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Bot, Loader2, Send, User, Paperclip, ArrowUpCircle, ArrowDownCircle, PlusCircle } from 'lucide-react';
+import { Bot, Loader2, Send, User, Paperclip, ArrowUpCircle, ArrowDownCircle, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +18,15 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import type { ChatMessage as ChatMessageType, Debt } from '@/lib/types';
+import type { ChatMessage as ChatMessageType, Debt, Transaction } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
-import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
 import RepaymentForm from './RepaymentForm';
 import { cn } from '@/lib/utils';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import EditEntryForm from './EditEntryForm';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
@@ -33,10 +35,23 @@ export default function AIChat() {
   const firestore = useFirestore();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { addTransaction, addDebt, currency, transactions, debts, bankAccounts } = useFinancials();
+  const { 
+    addTransaction, 
+    addDebt, 
+    currency, 
+    transactions, 
+    debts, 
+    bankAccounts,
+    getTransactionById,
+    getDebtById,
+    deleteTransaction,
+    deleteDebt,
+  } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [isBankPopoverOpen, setIsBankPopoverOpen] = useState(false);
+  
+  const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
 
   const [repaymentPopoverOpen, setRepaymentPopoverOpen] = useState(false);
   const [repaymentStep, setRepaymentStep] = useState<'select_type' | 'select_debtor' | 'select_creditor'>('select_type');
@@ -80,7 +95,6 @@ export default function AIChat() {
 
   useEffect(() => {
     if (!repaymentPopoverOpen) {
-      // Reset state when the main popover is closed
       setTimeout(() => setRepaymentStep('select_type'), 150);
     }
   }, [repaymentPopoverOpen]);
@@ -88,17 +102,6 @@ export default function AIChat() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInput(value);
-    if (value.endsWith('@') && !value.endsWith(' @')) {
-      setIsBankPopoverOpen(true);
-    } else {
-      setIsBankPopoverOpen(false);
-    }
-  };
-
-  const handleBankSelect = (bankName: string) => {
-    setInput(prev => prev.slice(0, prev.lastIndexOf('@')) + bankName + ' ');
-    setIsBankPopoverOpen(false);
-    document.getElementById('chat-input')?.focus();
   };
   
   const handleQuickAction = (action: string, type: 'bank' | 'prefix') => {
@@ -114,7 +117,7 @@ export default function AIChat() {
   const handleRepaymentSelect = (debt: Debt) => {
     setSelectedDebt(debt);
     setRepaymentDialogOpen(true);
-    setRepaymentPopoverOpen(false); // Close the selection popover
+    setRepaymentPopoverOpen(false);
   };
   
   const handleRepaymentFinished = () => {
@@ -122,14 +125,41 @@ export default function AIChat() {
     setSelectedDebt(null);
   };
 
+  const handleEditClick = (message: ChatMessageType) => {
+    if (!message.transactionId || !message.entryType) return;
+    
+    let entry;
+    if (message.entryType === 'income' || message.entryType === 'expense') {
+        entry = getTransactionById(message.transactionId);
+    } else if (message.entryType === 'creditor' || message.entryType === 'debtor') {
+        entry = getDebtById(message.transactionId);
+    }
+
+    if (entry) {
+        setEditingEntry(entry);
+    }
+  };
+
+  const handleDelete = () => {
+    if (!deletingEntry) return;
+
+    if ('category' in deletingEntry) {
+      deleteTransaction(deletingEntry as Transaction);
+      toast({ title: "Transaction Deleted" });
+    } else {
+      deleteDebt(deletingEntry as Debt);
+      toast({ title: "Debt Deleted" });
+    }
+    setDeletingEntry(null);
+  };
+
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !chatHistoryRef || !messages) return;
 
     const userMessageContent = input;
     setInput('');
-    setIsBankPopoverOpen(false);
-
 
     addDocumentNonBlocking(chatHistoryRef, {
       role: 'user',
@@ -158,7 +188,6 @@ export default function AIChat() {
         }
       }
 
-
       const result = await routeUserIntent({ 
         chatInput: userMessageContent, 
         financialData,
@@ -166,6 +195,9 @@ export default function AIChat() {
       });
 
       let assistantResponse = '';
+      let newEntryId: string | undefined;
+      let newEntryType: 'income' | 'expense' | 'creditor' | 'debtor' | undefined;
+
       if (result.intent === 'logData') {
         const logResult = result.result;
         
@@ -202,13 +234,17 @@ export default function AIChat() {
                 });
                 assistantResponse = "I couldn't log that because there's no primary account set. Please go to settings to select one, or tell me which account to use.";
             } else if (logResult.transactionType === 'income' || logResult.transactionType === 'expense') {
-                addTransaction({
+                const newTransaction = {
                     type: logResult.transactionType,
                     amount: logResult.amount,
                     category: logResult.category,
                     description: logResult.description || 'AI Logged Transaction',
                     accountId: accountIdToUse,
-                });
+                };
+                const newDocRef = await addTransaction(newTransaction, true);
+                newEntryId = newDocRef?.id;
+                newEntryType = newTransaction.type;
+                
                 const toastDescription = `${logResult.transactionType.charAt(0).toUpperCase() + logResult.transactionType.slice(1)} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
                 toast({
@@ -216,13 +252,17 @@ export default function AIChat() {
                     description: toastDescription,
                 });
             } else { // creditor or debtor
-                addDebt({
+                const newDebt = {
                     type: logResult.transactionType,
                     amount: logResult.amount,
                     name: logResult.category,
                     description: logResult.description || 'AI Logged Debt',
                     accountId: accountIdToUse
-                });
+                };
+                const newDocRef = await addDebt(newDebt, true);
+                newEntryId = newDocRef?.id;
+                newEntryType = newDebt.type;
+
                 const toastDescription = `${logResult.transactionType.charAt(0).toUpperCase() + logResult.transactionType.slice(1)} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
                 toast({
@@ -235,11 +275,18 @@ export default function AIChat() {
         assistantResponse = result.result.answer;
       }
 
-      addDocumentNonBlocking(chatHistoryRef, {
+      const assistantMessage: Partial<ChatMessageType> = {
         role: 'assistant',
         content: assistantResponse,
         timestamp: serverTimestamp() as Timestamp,
-      });
+      };
+
+      if (newEntryId && newEntryType) {
+        assistantMessage.transactionId = newEntryId;
+        assistantMessage.entryType = newEntryType;
+      }
+
+      addDocumentNonBlocking(chatHistoryRef, assistantMessage);
 
     } catch (error) {
       console.error('AI Chat Error:', error);
@@ -318,6 +365,8 @@ export default function AIChat() {
 
   return (
     <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
+    <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
+    <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
       <div className="absolute inset-0 flex flex-col bg-muted/40">
         <ScrollArea className="flex-1 p-4 no-scrollbar" ref={scrollAreaRef}>
           <div className="space-y-4 pr-4">
@@ -330,13 +379,27 @@ export default function AIChat() {
               </div>
             )}
             {messages && messages.map(message => (
-              <div key={message.id} className={cn('flex items-start gap-3', message.role === 'user' ? 'justify-end' : '')}>
+              <div key={message.id} className={cn('flex items-start gap-3 group/message', message.role === 'user' ? 'justify-end' : '')}>
                 {message.role === 'assistant' && (
                   <Avatar className="h-8 w-8 border bg-white">
                     <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
                   </Avatar>
                 )}
-                <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
+                <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
+                   {message.transactionId && (
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-20 opacity-0 group-hover/message:opacity-100 transition-opacity flex items-center bg-white rounded-full border shadow-sm">
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setDeletingEntry(getDebtById(message.transactionId!) || getTransactionById(message.transactionId!))}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                      </AlertDialogTrigger>
+                    </div>
+                  )}
                   <p>{message.content}</p>
                 </div>
                 {message.role === 'user' && (
@@ -399,38 +462,15 @@ export default function AIChat() {
                 {renderRepaymentContent()}
               </PopoverContent>
             </Popover>
-
-            <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
-              <PopoverAnchor asChild>
-                <Input
-                    id="chat-input"
-                    value={input}
-                    onChange={handleInputChange}
-                    placeholder="Type your message..."
-                    disabled={isLoading || isMessagesLoading}
-                    autoComplete='off'
-                    className="flex-1 rounded-full bg-background"
-                />
-              </PopoverAnchor>
-              {bankAccounts.length > 0 && (
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                      <CommandList>
-                          <CommandGroup heading="Your Bank Accounts">
-                          {bankAccounts.map((account) => (
-                              <CommandItem
-                              key={account.id}
-                              onSelect={() => handleBankSelect(account.name)}
-                              >
-                              {account.name}
-                              </CommandItem>
-                          ))}
-                          </CommandGroup>
-                      </CommandList>
-                      </Command>
-                  </PopoverContent>
-              )}
-            </Popover>
+            <Input
+                id="chat-input"
+                value={input}
+                onChange={handleInputChange}
+                placeholder="Type your message..."
+                disabled={isLoading || isMessagesLoading}
+                autoComplete='off'
+                className="flex-1 rounded-full bg-background"
+            />
             <Button type="submit" size="icon" disabled={isLoading || isMessagesLoading || !input.trim()} className="rounded-full flex-shrink-0">
               <Send className="h-4 w-4" />
               <span className="sr-only">Send</span>
@@ -438,6 +478,30 @@ export default function AIChat() {
           </form>
         </div>
       </div>
+       {editingEntry && (
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Edit Entry</DialogTitle>
+              </DialogHeader>
+              <EditEntryForm entry={editingEntry} onFinished={() => setEditingEntry(null)} />
+          </DialogContent>
+      )}
+      {deletingEntry && (
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete this entry and update your account balances.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      )}
+    </Dialog>
+    </AlertDialog>
       {selectedDebt && (
         <DialogContent>
             <DialogHeader>
