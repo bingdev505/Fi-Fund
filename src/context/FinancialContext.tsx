@@ -142,11 +142,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     addDocumentNonBlocking(transactionsColRef, repaymentTransaction);
     
     // Update the bank account balance based on the debt type
+    // CORRECTED LOGIC:
+    // If it's a creditor (I owe them), I am paying them back, so money SUBTRACTS from my account.
+    // If it's a debtor (they owe me), they are paying me back, so money ADDS to my account.
     if (debt.type === 'creditor') {
-      // I am paying someone back, so money SUBTRACTS from my account
       updateAccountBalance(firestore, user.uid, accountId, amount, 'subtract');
     } else { // 'debtor'
-      // Someone is paying me back, so money ADDS to my account
       updateAccountBalance(firestore, user.uid, accountId, amount, 'add');
     }
   }, [user, firestore, debtsColRef, transactionsColRef]);
