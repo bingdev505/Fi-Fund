@@ -84,7 +84,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
   };
 
   const renderEntry = (entry: Debt) => {
-    const color = entry.type === 'debtor' ? 'text-green-600' : 'text-red-600';
+    const color = entry.type === 'creditor' ? 'text-green-600' : 'text-red-600';
     const RepaymentIcon = entry.type === 'creditor' ? ArrowDownCircle : ArrowUpCircle;
     
     return (
