@@ -10,6 +10,7 @@ import Transactions from '@/components/Transactions';
 import Debts from '@/components/Debts';
 import Reports from '@/components/Reports';
 import AIChat from '@/components/AIChat';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 export default function Home() {
   return (
@@ -20,13 +21,16 @@ export default function Home() {
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
           <Tabs defaultValue="dashboard" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
-              <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</TabsTrigger>
-              <TabsTrigger value="transactions"><ArrowRightLeft className="mr-2 h-4 w-4" />Transactions</TabsTrigger>
-              <TabsTrigger value="debts"><Users className="mr-2 h-4 w-4" />Debts</TabsTrigger>
-              <TabsTrigger value="reports"><BarChart2 className="mr-2 h-4 w-4" />Reports</TabsTrigger>
-              <TabsTrigger value="ai-chat"><Bot className="mr-2 h-4 w-4" />AI Chat</TabsTrigger>
-            </TabsList>
+            <ScrollArea>
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</TabsTrigger>
+                <TabsTrigger value="transactions"><ArrowRightLeft className="mr-2 h-4 w-4" />Transactions</TabsTrigger>
+                <TabsTrigger value="debts"><Users className="mr-2 h-4 w-4" />Debts</TabsTrigger>
+                <TabsTrigger value="reports"><BarChart2 className="mr-2 h-4 w-4" />Reports</TabsTrigger>
+                <TabsTrigger value="ai-chat"><Bot className="mr-2 h-4 w-4" />AI Chat</TabsTrigger>
+              </TabsList>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
             <TabsContent value="dashboard">
               <Dashboard />
             </TabsContent>

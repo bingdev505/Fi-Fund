@@ -31,7 +31,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {summaryData.map(({ title, value, icon: Icon, color }) => (
         <Card key={title}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

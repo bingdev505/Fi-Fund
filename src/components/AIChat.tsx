@@ -65,7 +65,7 @@ export default function AIChat() {
             name: result.category, // AI might put name in category for debts
             description: result.description || 'AI Logged Debt'
         });
-        toastDescription = `${result.transactionType} of ₹${result.amount} for ${result.category} logged.`
+        toastDescription = `${result.transactionType} of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(result.amount)} for ${result.category} logged.`
       }
 
       const assistantMessage: Message = {
@@ -93,7 +93,7 @@ export default function AIChat() {
   };
 
   return (
-    <Card className="h-[75vh] flex flex-col">
+    <Card className="h-full md:h-[75vh] flex flex-col">
       <CardHeader>
         <CardTitle>AI Chat Input</CardTitle>
         <CardDescription>
@@ -133,7 +133,7 @@ export default function AIChat() {
           </div>
         </ScrollArea>
       </CardContent>
-      <CardFooter className="pt-4">
+      <CardFooter className="pt-4 border-t">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
           <Input
             value={input}

@@ -16,7 +16,7 @@ export default function DebtList({ type }: DebtListProps) {
 
   if (filteredDebts.length === 0) {
     return (
-      <Card className="flex h-full items-center justify-center">
+      <Card className="flex h-full items-center justify-center min-h-[200px] md:min-h-0">
         <CardContent className="text-center text-muted-foreground p-6">
           <p>No {type}s recorded yet.</p>
         </CardContent>
@@ -25,7 +25,7 @@ export default function DebtList({ type }: DebtListProps) {
   }
 
   return (
-    <ScrollArea className="h-[435px] rounded-md border">
+    <ScrollArea className="h-full max-h-[435px] rounded-md border">
       <div className="p-4">
         {filteredDebts.map((debt, index) => (
           <div key={debt.id}>
@@ -40,7 +40,7 @@ export default function DebtList({ type }: DebtListProps) {
                   {debt.dueDate && <p className="text-xs text-muted-foreground">Due: {debt.dueDate.toLocaleDateString()}</p>}
                 </div>
               </div>
-              <div className={`font-semibold ${type === 'creditor' ? 'text-destructive' : 'text-primary'}`}>
+              <div className={`font-semibold text-right ${type === 'creditor' ? 'text-destructive' : 'text-primary'}`}>
                 {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(debt.amount)}
               </div>
             </div>

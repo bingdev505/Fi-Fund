@@ -16,7 +16,7 @@ export default function TransactionList({ type }: TransactionListProps) {
 
   if (filteredTransactions.length === 0) {
     return (
-      <Card className="flex h-full items-center justify-center">
+      <Card className="flex h-full items-center justify-center min-h-[200px] md:min-h-0">
         <CardContent className="text-center text-muted-foreground p-6">
           <p>No {type}s recorded yet.</p>
         </CardContent>
@@ -25,7 +25,7 @@ export default function TransactionList({ type }: TransactionListProps) {
   }
 
   return (
-    <ScrollArea className="h-[370px] rounded-md border">
+    <ScrollArea className="h-full max-h-[370px] rounded-md border">
       <div className="p-4">
         {filteredTransactions.map((transaction, index) => (
           <div key={transaction.id}>
@@ -37,7 +37,7 @@ export default function TransactionList({ type }: TransactionListProps) {
                         <p className="text-sm text-muted-foreground">{transaction.category} &bull; {transaction.date.toLocaleDateString()}</p>
                     </div>
                 </div>
-                <div className={`font-semibold ${type === 'income' ? 'text-primary' : 'text-destructive'}`}>
+                <div className={`font-semibold text-right ${type === 'income' ? 'text-primary' : 'text-destructive'}`}>
                 {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(transaction.amount)}
                 </div>
             </div>
