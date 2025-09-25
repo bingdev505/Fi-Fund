@@ -293,7 +293,7 @@ export default function AIChat() {
   };
 
   const quickActions = [
-    ...bankAccounts.map(acc => ({ label: acc.name, action: acc.name, type: 'bank' as const })),
+    ...bankAccounts.filter(acc => !acc.isPrimary).map(acc => ({ label: acc.name, action: acc.name, type: 'bank' as const })),
     { label: 'Creditor', action: 'creditor', type: 'prefix' as const },
     { label: 'Debtor', action: 'debtor', type: 'prefix' as const },
     { label: 'Income', action: 'income', type: 'prefix' as const },
@@ -426,5 +426,3 @@ export default function AIChat() {
     </Dialog>
   );
 }
-
-    
