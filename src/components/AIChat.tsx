@@ -26,6 +26,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import RepaymentForm from './RepaymentForm';
 import { cn } from '@/lib/utils';
 
+const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
+
 export default function AIChat() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -140,10 +142,22 @@ export default function AIChat() {
     try {
       const financialData = JSON.stringify({ transactions, debts, bankAccounts });
       
-      const chatHistoryForContext = messages
-        .slice(-4)
-        .map(msg => `${msg.role}: ${msg.content}`)
-        .join('\n');
+      let chatHistoryForContext = '';
+      const lastMessage = messages[messages.length - 1];
+
+      if (lastMessage?.timestamp) {
+        const lastMessageDate = lastMessage.timestamp.toDate();
+        const now = new Date();
+        const timeDiffMinutes = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60);
+
+        if (timeDiffMinutes < CHAT_CONTEXT_TIMEOUT_MINUTES) {
+          chatHistoryForContext = messages
+            .slice(-4)
+            .map(msg => `${msg.role}: ${msg.content}`)
+            .join('\n');
+        }
+      }
+
 
       const result = await routeUserIntent({ 
         chatInput: userMessageContent, 
@@ -195,7 +209,7 @@ export default function AIChat() {
                     description: logResult.description || 'AI Logged Transaction',
                     accountId: accountIdToUse,
                 });
-                const toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transactionType.charAt(0).toUpperCase() + logResult.transactionType.slice(1)} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
                 toast({
                     title: 'Logged via AI Chat',
@@ -209,7 +223,7 @@ export default function AIChat() {
                     description: logResult.description || 'AI Logged Debt',
                     accountId: accountIdToUse
                 });
-                const toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transactionType.charAt(0).toUpperCase() + logResult.transactionType.slice(1)} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
                 toast({
                     title: 'Logged via AI Chat',
