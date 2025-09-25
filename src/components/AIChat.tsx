@@ -81,28 +81,32 @@ export default function AIChat() {
         
         let accountIdToUse: string | undefined;
         let accountNameToUse: string | undefined;
-        let toastDescription = '';
-        let wasAccountFound = true;
+        let wasAccountFound = false;
 
         if (logResult.accountName) {
-            const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(logResult.accountName!.toLowerCase()));
+            // Find the best match for the account name
+            const searchName = logResult.accountName.toLowerCase();
+            const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(searchName));
+            
             if (foundAccount) {
                 accountIdToUse = foundAccount.id;
                 accountNameToUse = foundAccount.name;
+                wasAccountFound = true;
             } else {
-                wasAccountFound = false;
                 assistantResponse = `I couldn't find an account named '${logResult.accountName}'. Please check your account settings or try again.`;
             }
         } else {
+            // If no account name is mentioned, use the primary account
             const primaryAccount = bankAccounts.find(acc => acc.isPrimary);
             if (primaryAccount) {
                 accountIdToUse = primaryAccount.id;
                 accountNameToUse = primaryAccount.name;
+                wasAccountFound = true;
             }
         }
 
         if (wasAccountFound) {
-            if (!accountIdToUse) {
+             if (!accountIdToUse) {
                 toast({
                   variant: 'destructive',
                   title: 'No Account Available',
@@ -117,7 +121,7 @@ export default function AIChat() {
                     description: logResult.description || 'AI Logged Transaction',
                     accountId: accountIdToUse,
                 });
-                toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
                 assistantResponse = `I've logged that for you! ${toastDescription}`;
                 toast({
                     title: 'Logged via AI Chat',
@@ -131,7 +135,7 @@ export default function AIChat() {
                     description: logResult.description || 'AI Logged Debt',
                     accountId: accountIdToUse
                 });
-                toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transactionType} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
                 assistantResponse = `I've logged that for you! ${toastDescription}`;
                 toast({
                     title: 'Logged via AI Chat',
