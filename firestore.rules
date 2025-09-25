@@ -2,123 +2,128 @@
  * @fileoverview Firestore Security Rules for the application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Users can only access data
- * associated with their own user ID.
+ * This ruleset enforces a strict user-ownership model. Users can only
+ * create, read, update, and delete data associated with their own user ID.
  *
  * Data Structure:
- * All data is nested under /users/{userId}, including profile information,
- * transactions, debts, and bank accounts. This hierarchical structure simplifies
- * security rules and ensures data isolation.
+ * All data is nested under /users/{userId}, ensuring clear ownership.
+ * - /users/{userId}: User profile information.
+ * - /users/{userId}/transactions/{transactionId}: Financial transactions.
+ * - /users/{userId}/debts/{debtId}: Debt information.
+ * - /users/{userId}/bankAccounts/{accountId}: Bank account details.
  *
  * Key Security Decisions:
- * - Users cannot list all users in the /users collection.
- * - All write operations are validated against the authenticated user's UID.
- * - Data consistency between the path and document fields is enforced on create
- *   and update operations to prevent unauthorized data manipulation.
- *
- * Denormalization for Authorization:
- * The `userId` field within each document is used to quickly verify ownership
- * without requiring additional reads. This denormalization improves performance
- * and reduces costs.
+ * - Users can only manage their own data.
+ * - Data consistency is enforced between the path and the document's internal fields
+ *   to prevent unauthorized data access.
+ * - Listing collections is restricted to the owner of the data.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures the /users/{userId} document. Only the user with the matching UID can read or write their own profile.
+     * @description Enforces user-ownership for user profiles. Users can only
+     * create their own profile and subsequently read, update, and delete it.
      * @path /users/{userId}
-     * @allow (get) User 'user123' can read their own profile.
-     * @allow (create) User 'user123' can create their profile if their auth UID matches the userId.
-     * @allow (update) User 'user123' can update their own profile.
-     * @allow (delete) User 'user123' can delete their own profile.
-     * @deny (get) User 'user456' cannot read User 'user123' profile.
-     * @deny (create) User 'user123' cannot create User 'user456' profile.
+     * @allow (create) - User 'abc' can create their profile at /users/abc if request.auth.uid == 'abc'.
+     * @allow (get, update, delete) - User 'abc' can read, update, and delete their profile at /users/abc if request.auth.uid == 'abc'.
+     * @deny (create) - User 'def' cannot create a profile at /users/abc.
+     * @deny (update) - User 'def' cannot update the profile at /users/abc.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      //function
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && resource.data.id == userId;
-      allow delete: if isOwner(userId) && resource != null;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures the /users/{userId}/transactions/{transactionId} collection. Only the user with the matching UID can manage their own transactions.
+     * @description Enforces user-ownership for transactions. Users can only
+     * create, read, update, and delete transactions associated with their user ID.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (get) User 'user123' can read their own transaction.
-     * @allow (create) User 'user123' can create a transaction under their user ID.
-     * @allow (update) User 'user123' can update their own transaction.
-     * @allow (delete) User 'user123' can delete their own transaction.
-     * @deny (get) User 'user456' cannot read User 'user123' transaction.
-     * @deny (create) User 'user123' cannot create a transaction under User 'user456' ID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User 'abc' can create a transaction under /users/abc/transactions/123 if request.auth.uid == 'abc'.
+     * @allow (get, list, update, delete) - User 'abc' can manage their transactions under /users/abc/transactions/.
+     * @deny (create) - User 'def' cannot create a transaction under /users/abc/transactions/123.
+     * @deny (update) - User 'def' cannot update a transaction under /users/abc/transactions/123.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId}/transactions/{transactionId} {
-      //function
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource != null && resource.data.userId == userId;
-      allow delete: if isOwner(userId) && resource != null;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures the /users/{userId}/debts/{debtId} collection. Only the user with the matching UID can manage their own debts.
+     * @description Enforces user-ownership for debts. Users can only
+     * create, read, update, and delete debts associated with their user ID.
      * @path /users/{userId}/debts/{debtId}
-     * @allow (get) User 'user123' can read their own debt.
-     * @allow (create) User 'user123' can create a debt under their user ID.
-     * @allow (update) User 'user123' can update their own debt.
-     * @allow (delete) User 'user123' can delete their own debt.
-     * @deny (get) User 'user456' cannot read User 'user123' debt.
-     * @deny (create) User 'user123' cannot create a debt under User 'user456' ID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User 'abc' can create a debt under /users/abc/debts/123 if request.auth.uid == 'abc'.
+     * @allow (get, list, update, delete) - User 'abc' can manage their debts under /users/abc/debts/.
+     * @deny (create) - User 'def' cannot create a debt under /users/abc/debts/123.
+     * @deny (update) - User 'def' cannot update a debt under /users/abc/debts/123.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId}/debts/{debtId} {
-      //function
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource != null && resource.data.userId == userId;
-      allow delete: if isOwner(userId) && resource != null;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures the /users/{userId}/bankAccounts/{accountId} collection. Only the user with the matching UID can manage their own bank accounts.
+     * @description Enforces user-ownership for bank accounts. Users can only
+     * create, read, update, and delete bank accounts associated with their user ID.
      * @path /users/{userId}/bankAccounts/{accountId}
-     * @allow (get) User 'user123' can read their own bank account.
-     * @allow (create) User 'user123' can create a bank account under their user ID.
-     * @allow (update) User 'user123' can update their own bank account.
-     * @allow (delete) User 'user123' can delete their own bank account.
-     * @deny (get) User 'user456' cannot read User 'user123' bank account.
-     * @deny (create) User 'user123' cannot create a bank account under User 'user456' ID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User 'abc' can create a bank account under /users/abc/bankAccounts/123 if request.auth.uid == 'abc'.
+     * @allow (get, list, update, delete) - User 'abc' can manage their bank accounts under /users/abc/bankAccounts/.
+     * @deny (create) - User 'def' cannot create a bank account under /users/abc/bankAccounts/123.
+     * @deny (update) - User 'def' cannot update a bank account under /users/abc/bankAccounts/123.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
      */
     match /users/{userId}/bankAccounts/{accountId} {
-      //function
       function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource != null && resource.data.userId == userId;
-      allow delete: if isOwner(userId) && resource != null;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
   }
 }
