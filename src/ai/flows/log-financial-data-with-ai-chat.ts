@@ -22,7 +22,7 @@ const LogFinancialDataInputSchema = z.object({
 });
 export type LogFinancialDataInput = z.infer<typeof LogFinancialDataInputSchema>;
 
-const LogFinancialDataOutputSchema = z.object({
+export const LogFinancialDataOutputSchema = z.object({
   transactionType: z
     .enum(['income', 'expense', 'creditor', 'debtor'])
     .describe('The type of financial transaction.'),
