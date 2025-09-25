@@ -105,22 +105,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
           <div className="hidden md:flex items-center gap-2">
-            <div className="w-8 h-8 bg-foreground text-background flex items-center justify-center rounded-md font-bold text-lg">
-                F
-            </div>
-            <h1 className="text-xl font-headline font-bold text-foreground">
-              Financial Dashboard
-            </h1>
+            <Link href="/dashboard" className='flex items-center gap-2'>
+              <div className="w-8 h-8 bg-primary text-primary-foreground flex items-center justify-center rounded-md font-bold text-lg">
+                  F
+              </div>
+              <h1 className="text-xl font-headline font-bold text-foreground">
+                FinanceFlow
+              </h1>
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-4">
             <Avatar>
                 <AvatarFallback><CircleUserRound /></AvatarFallback>
             </Avatar>
-            <div>
-                <p className="font-semibold text-sm">{user.email}</p>
-                <p className="text-xs text-muted-foreground">User</p>
-            </div>
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
@@ -144,7 +142,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </aside>
-        <div className='flex-1 overflow-y-auto'>
+        <div className='flex-1 overflow-y-auto bg-gray-50'>
             {children}
         </div>
       </div>

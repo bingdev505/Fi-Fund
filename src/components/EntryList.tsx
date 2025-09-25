@@ -16,7 +16,12 @@ import type { Transaction, Debt } from '@/lib/types';
 import { useMemo } from 'react';
 import { Timestamp } from 'firebase/firestore';
 
-export default function EntryList() {
+type EntryListProps = {
+  limit?: number;
+  showHeader?: boolean;
+}
+
+export default function EntryList({ limit, showHeader = true }: EntryListProps) {
   const { transactions, debts, currency, bankAccounts, isLoading } = useFinancials();
 
   const allEntries = useMemo(() => {
@@ -32,8 +37,15 @@ export default function EntryList() {
       ...transactions.map(t => ({...t, date: toDate(t.date)})),
       ...debts.map(d => ({...d, date: toDate(d.date), dueDate: d.dueDate ? toDate(d.dueDate) : undefined })),
     ];
-    return combined.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 20);
-  }, [transactions, debts]);
+    
+    const sorted = combined.sort((a, b) => b.date.getTime() - a.date.getTime());
+    
+    if (limit) {
+      return sorted.slice(0, limit);
+    }
+
+    return sorted;
+  }, [transactions, debts, limit]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -66,23 +78,26 @@ export default function EntryList() {
   }
 
   const renderIcon = (entry: Transaction | Debt) => {
+    const iconContainerClass = "h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-full";
+    const iconClass = "h-5 w-5";
+
     switch (entry.type) {
       case 'income':
-        return <TrendingUp className="h-6 w-6 text-primary" />;
+        return <div className={`${iconContainerClass} bg-green-100`}><TrendingUp className={`${iconClass} text-green-600`} /></div>;
       case 'expense':
-        return <TrendingDown className="h-6 w-6 text-destructive" />;
+        return <div className={`${iconContainerClass} bg-red-100`}><TrendingDown className={`${iconClass} text-red-600`} /></div>;
       case 'transfer':
-        return <ArrowRightLeft className="h-6 w-6 text-muted-foreground" />;
+        return <div className={`${iconContainerClass} bg-blue-100`}><ArrowRightLeft className={`${iconClass} text-blue-600`} /></div>;
       case 'creditor':
-        return <Landmark className="h-6 w-6 text-destructive" />;
+        return <div className={`${iconContainerClass} bg-orange-100`}><Landmark className={`${iconClass} text-orange-600`} /></div>;
       case 'debtor':
-        return <User className="h-6 w-6 text-primary" />;
+        return <div className={`${iconContainerClass} bg-indigo-100`}><User className={`${iconClass} text-indigo-600`} /></div>;
     }
   };
 
   const renderEntry = (entry: Transaction | Debt) => {
     const isTransaction = 'category' in entry;
-    const color = entry.type === 'income' || entry.type === 'debtor' ? 'text-primary' : entry.type === 'transfer' ? '' : 'text-destructive';
+    const color = entry.type === 'income' || entry.type === 'debtor' ? 'text-green-600' : entry.type === 'transfer' ? '' : 'text-red-600';
     
     return (
         <div className="flex items-start justify-between py-3">
@@ -95,26 +110,29 @@ export default function EntryList() {
                     <p className="text-sm text-muted-foreground">
                         {isTransaction ? 
                           ((entry as Transaction).type === 'transfer' ? 
-                            `${getAccountName((entry as Transaction).fromAccountId)} → ${getAccountName((entry as Transaction).toAccountId)}` :
+                            `Transfer: ${getAccountName((entry as Transaction).fromAccountId)} → ${getAccountName((entry as Transaction).toAccountId)}` :
                             `${(entry as Transaction).category} (${getAccountName((entry as Transaction).accountId)})`)
                           : `${(entry as Debt).description} (${getAccountName((entry as Debt).accountId)})`}
-                        &bull; {(entry.date as Date).toLocaleDateString()}
+                         • {(entry.date as Date).toLocaleDateString()}
                     </p>
                     {!isTransaction && (entry as Debt).dueDate && (
                         <p className="text-xs text-muted-foreground">Due: {((entry as Debt).dueDate as Date).toLocaleDateString()}</p>
                     )}
                 </div>
             </div>
-            <div className={`font-semibold text-right ${color}`}>
+            <div className={`font-semibold text-right shrink-0 ${color}`}>
             {formatCurrency(entry.amount)}
             </div>
         </div>
     );
   }
 
+  const Wrapper = showHeader ? ScrollArea : 'div';
+  const wrapperProps = showHeader ? { className: "h-full max-h-[500px] rounded-md border" } : {};
+
   return (
-    <ScrollArea className="h-full max-h-[500px] rounded-md border">
-      <div className="p-4">
+    <Wrapper {...wrapperProps}>
+      <div className={showHeader ? 'p-4' : ''}>
         {allEntries.map((entry, index) => (
           <div key={entry.id}>
             {renderEntry(entry)}
@@ -122,6 +140,6 @@ export default function EntryList() {
           </div>
         ))}
       </div>
-    </ScrollArea>
+    </Wrapper>
   );
 }
