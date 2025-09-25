@@ -22,8 +22,9 @@ import type { ChatMessage as ChatMessageType, Debt } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import RepaymentForm from './RepaymentForm';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 export default function AIChat() {
   const { user } = useUser();
@@ -269,16 +270,30 @@ export default function AIChat() {
       case 'select_type':
       default:
         return (
-          <div className="p-2 space-y-2">
-             <Button variant="ghost" className="w-full justify-start" onClick={() => setRepaymentStep('select_creditor')}>
-              <ArrowUpCircle className="mr-2 text-red-600" />
-              Pay Someone Back (Creditor)
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" onClick={() => setRepaymentStep('select_debtor')}>
-              <ArrowDownCircle className="mr-2 text-green-600" />
-              Receive a Payment (Debtor)
-            </Button>
-          </div>
+          <TooltipProvider>
+            <div className="p-2 flex justify-center items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="w-16 h-16" onClick={() => setRepaymentStep('select_creditor')}>
+                    <ArrowUpCircle className="h-8 w-8 text-red-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Pay Someone Back (Creditor)</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="w-16 h-16" onClick={() => setRepaymentStep('select_debtor')}>
+                    <ArrowDownCircle className="h-8 w-8 text-green-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Receive a Payment (Debtor)</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         )
     }
   };
@@ -334,7 +349,7 @@ export default function AIChat() {
                   <span className="sr-only">Log Repayment</span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="start">
+              <PopoverContent className="w-auto p-0" align="start">
                 {renderRepaymentContent()}
               </PopoverContent>
             </Popover>
