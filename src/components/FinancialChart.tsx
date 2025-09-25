@@ -98,11 +98,11 @@ export default function FinancialChart({ transactions, period }: FinancialChartP
     }, [transactions, period]);
 
   if (transactions.length === 0) {
-    return <div className="h-[350px] w-full flex items-center justify-center text-muted-foreground">Add some transaction data to see the report.</div>
+    return <div className="h-[250px] md:h-[350px] w-full flex items-center justify-center text-muted-foreground">Add some transaction data to see the report.</div>
   }
 
   return (
-    <ChartContainer config={chartConfig} className="min-h-[200px] w-full h-[350px]">
+    <ChartContainer config={chartConfig} className="min-h-[200px] w-full h-[250px] md:h-[350px]">
       <BarChart accessibilityLayer data={data}>
         <CartesianGrid vertical={false} />
         <XAxis
