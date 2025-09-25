@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/compon
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import RepaymentForm from './RepaymentForm';
+import { cn } from '@/lib/utils';
 
 export default function AIChat() {
   const { user } = useUser();
@@ -92,8 +93,19 @@ export default function AIChat() {
   };
 
   const handleBankSelect = (bankName: string) => {
-    setInput(input.slice(0, -1) + bankName + ' ');
+    setInput(prev => prev.slice(0, prev.lastIndexOf('@')) + bankName + ' ');
     setIsBankPopoverOpen(false);
+    document.getElementById('chat-input')?.focus();
+  };
+  
+  const handleQuickAction = (action: string) => {
+    if (action === '@') {
+      setInput(prev => prev + '@');
+      setIsBankPopoverOpen(true);
+    } else {
+      setInput(prev => `${action} ${prev}`);
+    }
+    document.getElementById('chat-input')?.focus();
   };
 
   const handleRepaymentSelect = (debt: Debt) => {
@@ -239,7 +251,7 @@ export default function AIChat() {
                   <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
                     <div className="flex justify-between w-full">
                       <span>{debt.name}</span>
-                      <span className="text-red-600">{formatCurrency(debt.amount)}</span>
+                      <span className="text-green-600">{formatCurrency(debt.amount)}</span>
                     </div>
                   </CommandItem>
                 ))}
@@ -258,7 +270,7 @@ export default function AIChat() {
                   <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
                     <div className="flex justify-between w-full">
                       <span>{debt.name}</span>
-                      <span className="text-green-600">{formatCurrency(debt.amount)}</span>
+                      <span className="text-red-600">{formatCurrency(debt.amount)}</span>
                     </div>
                   </CommandItem>
                 ))}
@@ -271,15 +283,23 @@ export default function AIChat() {
         return (
           <div className="flex flex-col justify-center items-center">
             <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full" onClick={() => setRepaymentStep('select_creditor')}>
-              <ArrowUpCircle className="h-8 w-8 text-red-600" />
+              <ArrowUpCircle className="h-8 w-8 text-green-600" />
             </Button>
             <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full" onClick={() => setRepaymentStep('select_debtor')}>
-              <ArrowDownCircle className="h-8 w-8 text-green-600" />
+              <ArrowDownCircle className="h-8 w-8 text-red-600" />
             </Button>
           </div>
         )
     }
   };
+
+  const quickActions = [
+    { label: '@', action: '@' },
+    { label: 'Income', action: 'income' },
+    { label: 'Expense', action: 'expense' },
+    { label: 'Creditor', action: 'creditor' },
+    { label: 'Debtor', action: 'debtor' },
+  ];
 
   return (
     <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
@@ -295,13 +315,13 @@ export default function AIChat() {
               </div>
             )}
             {messages && messages.map(message => (
-              <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+              <div key={message.id} className={cn('flex items-start gap-3', message.role === 'user' ? 'justify-end' : '')}>
                 {message.role === 'assistant' && (
                   <Avatar className="h-8 w-8 border bg-white">
                     <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
                   </Avatar>
                 )}
-                <div className={`rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground'}`}>
+                <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
                   <p>{message.content}</p>
                 </div>
                 {message.role === 'user' && (
@@ -324,6 +344,20 @@ export default function AIChat() {
           </div>
         </ScrollArea>
         <div className="p-4 border-t bg-card">
+           <div className="mb-2 flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+            {quickActions.map(({ label, action }) => (
+              <Button
+                key={action}
+                variant="outline"
+                size="sm"
+                className="rounded-full text-xs h-7 px-3 flex-shrink-0"
+                onClick={() => handleQuickAction(action)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+
           <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
             <Popover open={repaymentPopoverOpen} onOpenChange={setRepaymentPopoverOpen}>
               <PopoverTrigger asChild>
@@ -344,6 +378,7 @@ export default function AIChat() {
             <Popover open={isBankPopoverOpen} onOpenChange={setIsBankPopoverOpen}>
               <PopoverAnchor asChild>
                 <Input
+                    id="chat-input"
                     value={input}
                     onChange={handleInputChange}
                     placeholder="Type your message..."
@@ -392,3 +427,5 @@ export default function AIChat() {
     </Dialog>
   );
 }
+
+    
