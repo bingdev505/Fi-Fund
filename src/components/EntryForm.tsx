@@ -37,11 +37,11 @@ const formSchema = z.object({
   name: z.string().optional(), // For debts
   description: z.string().min(3, 'Description must be at least 3 characters'),
   dueDate: z.date().optional(),
-  accountId: z.string().optional(), // for income/expense
+  accountId: z.string().optional(), // for income/expense/debts
   fromAccountId: z.string().optional(), // for transfer
   toAccountId: z.string().optional(), // for transfer
 }).refine(data => {
-    if ((data.entryType === 'income' || data.entryType === 'expense') && !data.accountId) {
+    if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.accountId) {
         return false;
     }
     return true;
@@ -73,6 +73,15 @@ const formSchema = z.object({
 }, {
   message: "Please select a category.",
   path: ["category"],
+})
+.refine(data => {
+    if ((data.entryType === 'creditor' || data.entryType === 'debtor') && !data.category) { // name is stored in category field for debts
+        return false;
+    }
+    return true;
+  }, {
+    message: "Please provide a name.",
+    path: ["category"],
 });
 
 export default function EntryForm() {
@@ -117,13 +126,14 @@ export default function EntryForm() {
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
         description: `${formatCurrency(data.amount)} has been logged.`,
       });
-    } else {
+    } else { // creditor or debtor
       addDebt({
         type: entryType,
         amount: data.amount,
         name: data.category!, // Using category as name for debts
         description: data.description,
         dueDate: data.dueDate,
+        accountId: data.accountId!,
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
@@ -305,28 +315,54 @@ export default function EntryForm() {
         )}
 
         {(entryType === 'creditor' || entryType === 'debtor') && (
-          <FormField
-            control={form.control}
-            name="category" // Using category field for name
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {entryType === 'creditor' ? 'Creditor Name' : 'Debtor Name'}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={
-                      entryType === 'creditor'
-                        ? 'e.g. Landlord'
-                        : 'e.g. John Doe'
-                    }
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="category" // Using category field for name
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>
+                        {entryType === 'creditor' ? 'Creditor Name' : 'Debtor Name'}
+                        </FormLabel>
+                        <FormControl>
+                        <Input
+                            placeholder={
+                            entryType === 'creditor'
+                                ? 'e.g. Landlord'
+                                : 'e.g. John Doe'
+                            }
+                            {...field}
+                        />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="accountId"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Account</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select an account" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {bankAccounts.map((acc) => (
+                            <SelectItem key={acc.id} value={acc.id}>
+                                {acc.name}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+          </div>
         )}
         
         <FormField
@@ -385,11 +421,11 @@ export default function EntryForm() {
           />
         )}
 
-        <Button type="submit" className="w-full" disabled={bankAccounts.length === 0 && (entryType === 'income' || entryType === 'expense' || entryType === 'transfer')}>
+        <Button type="submit" className="w-full" disabled={bankAccounts.length === 0}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Entry
         </Button>
-        {bankAccounts.length === 0 && (entryType === 'income' || entryType === 'expense' || entryType === 'transfer') && (
+        {bankAccounts.length === 0 && (
             <p className="text-sm text-destructive text-center">Please add a bank account in Settings before adding entries.</p>
         )}
       </form>

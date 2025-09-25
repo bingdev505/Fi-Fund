@@ -23,6 +23,7 @@ export type Debt = {
   description: string;
   dueDate?: Timestamp;
   date: Timestamp;
+  accountId?: string;
 };
 
 export type BankAccount = {

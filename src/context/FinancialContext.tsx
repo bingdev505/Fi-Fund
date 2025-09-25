@@ -63,36 +63,24 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const addTransaction = useCallback((transactionData: Omit<Transaction, 'id' | 'date' | 'userId'>) => {
     if (!user || !transactionsColRef || !firestore) return;
 
-    // Base transaction object
-    const baseTransaction: Omit<Transaction, 'id'> = {
+    let finalTransaction: any = {
       ...transactionData,
       userId: user.uid,
       date: serverTimestamp() as Timestamp,
     };
     
-    // Conditionally add account fields to avoid 'undefined'
-    let finalTransaction: any = baseTransaction;
     if (transactionData.type === 'income' || transactionData.type === 'expense') {
-        finalTransaction = {
-            ...baseTransaction,
-            accountId: transactionData.accountId,
-        }
-        // remove transfer fields
+        finalTransaction.accountId = transactionData.accountId;
         delete finalTransaction.fromAccountId;
         delete finalTransaction.toAccountId;
     } else if (transactionData.type === 'transfer') {
-        finalTransaction = {
-            ...baseTransaction,
-            fromAccountId: transactionData.fromAccountId,
-            toAccountId: transactionData.toAccountId,
-        }
-        // remove income/expense field
+        finalTransaction.fromAccountId = transactionData.fromAccountId;
+        finalTransaction.toAccountId = transactionData.toAccountId;
         delete finalTransaction.accountId;
     }
     
     addDocumentNonBlocking(transactionsColRef, finalTransaction);
 
-    // Update account balances
     if (transactionData.type === 'income' && transactionData.accountId) {
       updateAccountBalance(firestore, user.uid, transactionData.accountId, transactionData.amount, 'add');
     } else if (transactionData.type === 'expense' && transactionData.accountId) {
@@ -105,15 +93,28 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
 
   const addDebt = useCallback((debt: Omit<Debt, 'id' | 'date' | 'userId'>) => {
-    if (!user || !debtsColRef) return;
-    const newDebt = {
+    if (!user || !debtsColRef || !firestore || !debt.accountId) return;
+
+    const newDebt: any = {
       ...debt,
       userId: user.uid,
       date: serverTimestamp() as Timestamp,
-      dueDate: debt.dueDate ? Timestamp.fromDate(new Date(debt.dueDate)) : undefined,
     };
+    
+    if (debt.dueDate) {
+      newDebt.dueDate = Timestamp.fromDate(new Date(debt.dueDate));
+    }
+    
     addDocumentNonBlocking(debtsColRef, newDebt);
-  }, [user, debtsColRef]);
+
+    // Update account balances
+    if (debt.type === 'creditor') { // Money I owe, so it's paid out from my account
+      updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'subtract');
+    } else if (debt.type === 'debtor') { // Money owed to me, so it comes into my account
+      updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'add');
+    }
+
+  }, [user, firestore, debtsColRef]);
 
   const addBankAccount = useCallback((account: Omit<BankAccount, 'id'| 'userId'>) => {
     if (!user || !bankAccountsColRef) return;

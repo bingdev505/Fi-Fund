@@ -97,7 +97,7 @@ export default function EntryList() {
                           ((entry as Transaction).type === 'transfer' ? 
                             `${getAccountName((entry as Transaction).fromAccountId)} → ${getAccountName((entry as Transaction).toAccountId)}` :
                             `${(entry as Transaction).category} (${getAccountName((entry as Transaction).accountId)})`)
-                          : (entry as Debt).description}
+                          : `${(entry as Debt).description} (${getAccountName((entry as Debt).accountId)})`}
                         &bull; {(entry.date as Date).toLocaleDateString()}
                     </p>
                     {!isTransaction && (entry as Debt).dueDate && (
