@@ -17,6 +17,7 @@ import {
   Users,
   Tag,
   ChevronRight,
+  Landmark
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -73,6 +74,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/business', label: 'Dashboard', icon: Briefcase },
     { href: '/business/clients', label: 'Clients', icon: Users },
     { href: '/business/categories', label: 'Categories', icon: Tag },
+    { href: '/business/accounts', label: 'Accounts', icon: Landmark },
   ];
 
   const handleLogout = async () => {

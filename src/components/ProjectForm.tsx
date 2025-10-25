@@ -15,8 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import type { Project } from '@/lib/types';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -25,16 +26,21 @@ const projectSchema = z.object({
 });
 
 type ProjectFormProps = {
+    project?: Project | null;
     onFinished: () => void;
 }
 
-export default function ProjectForm({ onFinished }: ProjectFormProps) {
-  const { addProject, projects } = useFinancials();
+export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
+  const { addProject, updateProject, projects } = useFinancials();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof projectSchema>>({
     resolver: zodResolver(projectSchema),
-    defaultValues: {
+    defaultValues: project ? {
+        name: project.name,
+        parentProjectId: project.parentProjectId,
+        googleSheetId: project.googleSheetId
+    } : {
       name: '',
       parentProjectId: '',
       googleSheetId: '',
@@ -42,12 +48,16 @@ export default function ProjectForm({ onFinished }: ProjectFormProps) {
   });
 
   function onSubmit(values: z.infer<typeof projectSchema>) {
-    addProject(values);
-    toast({
-      title: 'Business Added',
-      description: `Business "${values.name}" has been created.`,
-    });
-    form.reset();
+    if (project) {
+        updateProject(project.id, values);
+        toast({ title: "Business Updated" });
+    } else {
+        addProject(values);
+        toast({
+          title: 'Business Added',
+          description: `Business "${values.name}" has been created.`,
+        });
+    }
     onFinished();
   }
 
@@ -74,14 +84,14 @@ export default function ProjectForm({ onFinished }: ProjectFormProps) {
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Parent Business (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                     <SelectTrigger>
                         <SelectValue placeholder="Select a parent business" />
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                    {projects.map((p) => (
+                    {projects.filter(p => p.id !== project?.id).map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
                         </SelectItem>
@@ -107,8 +117,8 @@ export default function ProjectForm({ onFinished }: ProjectFormProps) {
             />
         </div>
         <Button type="submit" className="w-full">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Create Business
+          {project ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+          {project ? 'Save Changes' : 'Create Business'}
         </Button>
       </form>
     </Form>

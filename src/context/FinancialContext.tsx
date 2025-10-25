@@ -8,28 +8,42 @@ interface FinancialContextType {
   projects: Project[];
   activeProject: Project | null;
   setActiveProject: (project: Project | null) => void;
+  addProject: (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => void;
+  updateProject: (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => void;
+  deleteProject: (projectId: string) => void;
+  
   transactions: Transaction[];
-  debts: Debt[];
-  bankAccounts: BankAccount[];
-  clients: Client[];
-  categories: Category[];
-  currency: string;
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => void;
   deleteTransaction: (transaction: Transaction) => void;
+  getTransactionById: (id: string) => Transaction | undefined;
+  
+  debts: Debt[];
   addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => void;
   deleteDebt: (debt: Debt) => void;
   addRepayment: (debt: Debt, amount: number, accountId: string) => void;
-  addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
-  setCurrency: (currency: string) => void;
-  setPrimaryBankAccount: (accountId: string) => void;
-  addProject: (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => void;
-  addClient: (clientData: Omit<Client, 'id' | 'projectId'>) => void;
-  addCategory: (categoryData: Omit<Category, 'id' | 'projectId'>) => void;
-  isLoading: boolean;
-  getTransactionById: (id: string) => Transaction | undefined;
   getDebtById: (id: string) => Debt | undefined;
+
+  bankAccounts: BankAccount[];
+  addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
+  updateBankAccount: (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'userId'>>) => void;
+  deleteBankAccount: (accountId: string) => void;
+  setPrimaryBankAccount: (accountId: string) => void;
+  
+  clients: Client[];
+  addClient: (clientData: Omit<Client, 'id' | 'projectId'>) => void;
+  updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id' | 'projectId'>>) => void;
+  deleteClient: (clientId: string) => void;
+
+  categories: Category[];
+  addCategory: (categoryData: Omit<Category, 'id' | 'projectId'>) => void;
+  updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'projectId'>>) => void;
+  deleteCategory: (categoryId: string) => void;
+  
+  currency: string;
+  setCurrency: (currency: string) => void;
+  isLoading: boolean;
 }
 
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -137,17 +151,49 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (!activeProject) { setActiveProject(newProject); }
   }, [user, activeProject]);
 
+  const updateProject = useCallback((projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...projectData } : p));
+  }, []);
+
+  const deleteProject = useCallback((projectId: string) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    setTransactions(prev => prev.filter(t => t.projectId !== projectId));
+    setDebts(prev => prev.filter(d => d.projectId !== projectId));
+    setClients(prev => prev.filter(c => c.projectId !== projectId));
+    setCategories(prev => prev.filter(cat => cat.projectId !== projectId));
+    if (activeProject?.id === projectId) {
+      const remainingProjects = projects.filter(p => p.id !== projectId);
+      setActiveProject(remainingProjects.length > 0 ? remainingProjects[0] : null);
+    }
+  }, [activeProject, projects]);
+
   const addClient = useCallback((clientData: Omit<Client, 'id' | 'projectId'>) => {
     if (!user || !activeProject) return;
     const newClient = { ...clientData, id: crypto.randomUUID(), projectId: activeProject.id };
     setClients(prev => [...prev, newClient]);
   }, [user, activeProject]);
 
+  const updateClient = useCallback((clientId: string, clientData: Partial<Omit<Client, 'id' | 'projectId'>>) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, ...clientData } : c));
+  }, []);
+
+  const deleteClient = useCallback((clientId: string) => {
+    setClients(prev => prev.filter(c => c.id !== clientId));
+  }, []);
+
   const addCategory = useCallback((categoryData: Omit<Category, 'id' | 'projectId'>) => {
     if (!user || !activeProject) return;
     const newCategory = { ...categoryData, id: crypto.randomUUID(), projectId: activeProject.id };
     setCategories(prev => [...prev, newCategory]);
   }, [user, activeProject]);
+
+  const updateCategory = useCallback((categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'projectId'>>) => {
+    setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, ...categoryData } : c));
+  }, []);
+  
+  const deleteCategory = useCallback((categoryId: string) => {
+    setCategories(prev => prev.filter(c => c.id !== categoryId));
+  }, []);
   
   const updateAccountBalance = useCallback((accountId: string, amount: number, operation: 'add' | 'subtract') => {
       setBankAccounts(prevAccounts => 
@@ -235,6 +281,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setBankAccounts(prev => [...prev, newAccount]);
   }, [user, bankAccounts]);
 
+  const updateBankAccount = useCallback((accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'userId'>>) => {
+    setBankAccounts(prev => prev.map(acc => acc.id === accountId ? { ...acc, ...accountData } : acc));
+  }, []);
+
+  const deleteBankAccount = useCallback((accountId: string) => {
+    setBankAccounts(prev => prev.filter(acc => acc.id !== accountId));
+  }, []);
+
   const setCurrency = useCallback((newCurrency: string) => { setCurrencyState(newCurrency); }, []);
 
   const setPrimaryBankAccount = useCallback((accountId: string) => {
@@ -255,26 +309,23 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const filteredCategories = useMemo(() => activeProject ? categories.filter(cat => cat.projectId === activeProject.id) : [], [categories, activeProject]);
 
   const contextValue = useMemo(() => ({
-    projects, activeProject, setActiveProject,
-    transactions: filteredTransactions,
-    debts: filteredDebts,
-    bankAccounts,
-    clients: filteredClients,
-    categories: filteredCategories,
-    currency, addTransaction, updateTransaction, deleteTransaction,
-    addDebt, updateDebt, deleteDebt, addRepayment,
-    addBankAccount, setCurrency, setPrimaryBankAccount, addProject,
-    addClient, addCategory,
-    isLoading: isLoading, getTransactionById, getDebtById,
+    projects, activeProject, setActiveProject, addProject, updateProject, deleteProject,
+    transactions: filteredTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
+    debts: filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
+    bankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
+    clients: filteredClients, addClient, updateClient, deleteClient,
+    categories: filteredCategories, addCategory, updateCategory, deleteCategory,
+    currency, setCurrency,
+    isLoading: isLoading,
   }), [
-      projects, activeProject, setActiveProject,
-      filteredTransactions, filteredDebts, bankAccounts,
-      filteredClients, filteredCategories,
-      currency, addTransaction, updateTransaction, deleteTransaction,
-      addDebt, updateDebt, deleteDebt, addRepayment,
-      addBankAccount, setCurrency, setPrimaryBankAccount, addProject,
-      addClient, addCategory,
-      isLoading, getTransactionById, getDebtById
+      projects, activeProject, setActiveProject, addProject, updateProject, deleteProject,
+      filteredTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
+      filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
+      bankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
+      filteredClients, addClient, updateClient, deleteClient,
+      filteredCategories, addCategory, updateCategory, deleteCategory,
+      currency, setCurrency,
+      isLoading
     ]);
 
   return (

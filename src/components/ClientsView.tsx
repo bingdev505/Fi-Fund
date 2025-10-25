@@ -1,98 +1,119 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, User, PlusCircle } from 'lucide-react';
+import { Loader2, User, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
-import { Input } from './ui/input';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-
-const clientSchema = z.object({
-  name: z.string().min(2, 'Client name must be at least 2 characters'),
-});
+import { useState } from 'react';
+import type { Client } from '@/lib/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import ClientForm from './ClientForm';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 export default function ClientsView() {
-  const { isLoading, clients, addClient } = useFinancials();
+  const { isLoading, clients, deleteClient } = useFinancials();
   const { toast } = useToast();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
 
-  const form = useForm<z.infer<typeof clientSchema>>({
-    resolver: zodResolver(clientSchema),
-    defaultValues: { name: '' },
-  });
+  const handleAddClick = () => {
+    setEditingClient(null);
+    setFormOpen(true);
+  };
+  
+  const handleEditClick = (client: Client) => {
+    setEditingClient(client);
+    setFormOpen(true);
+  };
 
-  function onSubmit(values: z.infer<typeof clientSchema>) {
-    addClient(values);
-    toast({
-      title: 'Client Added',
-      description: `Client "${values.name}" has been created.`,
-    });
-    form.reset();
-  }
+  const handleDelete = () => {
+    if (!deletingClient) return;
+    deleteClient(deletingClient.id);
+    toast({ title: "Client Deleted" });
+    setDeletingClient(null);
+  };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Manage Clients</CardTitle>
-        <CardDescription>Add or manage your clients for the active business.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div>
-          <h3 className="text-lg font-medium mb-2">Add New Client</h3>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem className="flex-grow">
-                    <FormLabel>Client Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Client
+    <Dialog open={formOpen} onOpenChange={(open) => {
+      setFormOpen(open);
+      if (!open) setEditingClient(null);
+    }}>
+      <AlertDialog>
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Manage Clients</CardTitle>
+                <CardDescription>Add or manage your clients for the active business.</CardDescription>
+              </div>
+              <Button onClick={handleAddClick}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Client
               </Button>
-            </form>
-          </Form>
-        </div>
-        <Separator className='my-6' />
-        <div>
-          <h3 className="text-lg font-medium mb-4">Your Clients</h3>
-          {isLoading ? (
-            <div className="flex justify-center items-center h-24">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : clients.length > 0 ? (
-            <div className="border rounded-md">
-              <ul className="divide-y divide-border">
-                {clients.map(client => (
-                  <li key={client.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                    <div className="flex items-center gap-4">
-                      <User className="h-6 w-6 text-muted-foreground" />
-                      <div>
-                        <span className="font-medium">{client.name}</span>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <h3 className="text-lg font-medium mb-4">Your Clients</h3>
+              {isLoading ? (
+                <div className="flex justify-center items-center h-24">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : clients.length > 0 ? (
+                <div className="border rounded-md">
+                  <ul className="divide-y divide-border">
+                    {clients.map(client => (
+                      <li key={client.id} className="flex items-center justify-between p-4 group hover:bg-muted/50">
+                        <div className="flex items-center gap-4">
+                          <User className="h-6 w-6 text-muted-foreground" />
+                          <div>
+                            <span className="font-medium">{client.name}</span>
+                          </div>
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(client)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="text-center py-10 border-dashed border-2 rounded-md">
+                  <p className="text-muted-foreground text-sm">You haven't added any clients for this business yet.</p>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-center py-10 border-dashed border-2 rounded-md">
-              <p className="text-muted-foreground text-sm">You haven't added any clients for this business yet.</p>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete this client.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeletingClient(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{editingClient ? 'Edit' : 'Add'} Client</DialogTitle>
+            </DialogHeader>
+            <ClientForm client={editingClient} onFinished={() => {
+                setFormOpen(false);
+                setEditingClient(null);
+            }}/>
+        </DialogContent>
+    </Dialog>
   );
 }
