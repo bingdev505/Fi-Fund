@@ -35,7 +35,7 @@ interface FinancialContextType {
   setPrimaryBankAccount: (accountId: string) => void;
   
   clients: Client[];
-  addClient: (clientData: Omit<Client, 'id' | 'projectId'>) => void;
+  addClient: (clientData: Omit<Client, 'id' | 'projectId'>) => Client;
   updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id' | 'projectId'>>) => void;
   deleteClient: (clientId: string) => void;
 
@@ -256,10 +256,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [activeProject, setActiveProject]);
 
-  const addClient = useCallback((clientData: Omit<Client, 'id' | 'projectId'>) => {
-    if (!user || !activeProject || activeProject.id === 'all') return;
+  const addClient = useCallback((clientData: Omit<Client, 'id' | 'projectId'>): Client => {
+    if (!user || !activeProject || activeProject.id === 'all') {
+        // This case should be handled by form validation, but as a fallback:
+        const fallbackClient = { ...clientData, id: crypto.randomUUID(), projectId: '' };
+        setAllClients(prev => [...prev, fallbackClient]);
+        return fallbackClient;
+    };
     const newClient = { ...clientData, id: crypto.randomUUID(), projectId: activeProject.id };
     setAllClients(prev => [...prev, newClient]);
+    return newClient;
   }, [user, activeProject]);
 
   const updateClient = useCallback((clientId: string, clientData: Partial<Omit<Client, 'id' | 'projectId'>>) => {
@@ -339,9 +345,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id'| 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user || !activeProject || (activeProject.id === 'all' && transactionData.type !== 'transfer' && transactionData.type !== 'repayment')) return;
+    if (!user) return;
     
-    const projectId = (activeProject.id === 'all' || !activeProject.id) ? '' : activeProject.id;
+    const projectId = (activeProject && activeProject.id !== 'all') ? activeProject.id : '';
     const newTransaction = { ...transactionData, id: crypto.randomUUID(), userId: user.uid, projectId: projectId, date: new Date().toISOString() };
     
     setAllTransactions(prev => [...prev, newTransaction]);
@@ -377,8 +383,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [updateAccountBalance]);
 
   const addDebt = useCallback(async (debtData: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user || !activeProject || !debtData.accountId || activeProject.id === 'all') return;
-    const newDebt = { ...debtData, id: crypto.randomUUID(), userId: user.uid, projectId: activeProject.id, date: new Date().toISOString() };
+    if (!user || !debtData.accountId) return;
+    const projectId = (activeProject && activeProject.id !== 'all') ? activeProject.id : '';
+    const newDebt = { ...debtData, id: crypto.randomUUID(), userId: user.uid, projectId, date: new Date().toISOString() };
     setAllDebts(prev => [...prev, newDebt]);
 
     if (newDebt.type === 'creditor') { updateAccountBalance(newDebt.accountId, newDebt.amount, 'add'); } 

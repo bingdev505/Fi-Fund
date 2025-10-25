@@ -35,12 +35,13 @@ const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor', 'transfer']),
   amount: z.coerce.number().positive('Amount must be positive'),
   category: z.string().optional(),
-  clientId: z.string().optional(),
+  clientName: z.string().optional(), // For debts - can be new or existing
   description: z.string().min(3, 'Description must be at least 3 characters'),
   dueDate: z.date().optional(),
   accountId: z.string().optional(), // for income/expense/debts
   fromAccountId: z.string().optional(), // for transfer
   toAccountId: z.string().optional(), // for transfer
+  clientId: z.string().optional(), // to associate income/expense to client
 }).refine(data => {
     if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.accountId) {
         return false;
@@ -72,17 +73,17 @@ const formSchema = z.object({
   }
   return true;
 }, {
-  message: "Please select a category.",
+  message: "Please provide a category.",
   path: ["category"],
 })
 .refine(data => {
-    if ((data.entryType === 'creditor' || data.entryType === 'debtor') && !data.clientId) {
+    if ((data.entryType === 'creditor' || data.entryType === 'debtor') && !data.clientName) {
         return false;
     }
     return true;
   }, {
-    message: "Please select a client.",
-    path: ["clientId"],
+    message: "Please provide a name.",
+    path: ["clientName"],
 });
 
 type EntryFormProps = {
@@ -91,7 +92,7 @@ type EntryFormProps = {
 
 
 export default function EntryForm({ onFinished }: EntryFormProps) {
-  const { addTransaction, addDebt, currency, bankAccounts, clients, categories: customCategories } = useFinancials();
+  const { addTransaction, addDebt, currency, bankAccounts, clients, categories: customCategories, addClient, addCategory } = useFinancials();
   const { toast } = useToast();
 
   const formatCurrency = (amount: number) => {
@@ -112,13 +113,20 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   const categories = useMemo(() => {
     const baseCategories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
     const projectCategories = customCategories.filter(c => c.type === entryType).map(c => c.name);
-    return [...baseCategories, ...projectCategories];
+    return [...new Set([...baseCategories, ...projectCategories])];
   }, [entryType, customCategories]);
 
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
+
     if (entryType === 'income' || entryType === 'expense' || entryType === 'transfer') {
+      
+      // Auto-create category if it's new
+      if (data.category && !categories.includes(data.category) && (entryType === 'income' || entryType === 'expense')) {
+        addCategory({ name: data.category, type: entryType });
+      }
+
       addTransaction({
         type: entryType,
         amount: data.amount,
@@ -134,11 +142,16 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         description: `${formatCurrency(data.amount)} has been logged.`,
       });
     } else { // creditor or debtor
-      const client = clients.find(c => c.id === data.clientId);
-      if (!client) {
-        toast({ variant: 'destructive', title: 'Client not found' });
+      if (!data.clientName) {
+        toast({ variant: 'destructive', title: 'Client name is required.' });
         return;
       }
+      
+      let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase());
+      if (!client) {
+          client = addClient({ name: data.clientName! });
+      }
+
       addDebt({
         type: entryType,
         amount: data.amount,
@@ -163,6 +176,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       fromAccountId: undefined,
       toAccountId: undefined,
       clientId: undefined,
+      clientName: '',
     });
     onFinished();
   }
@@ -182,6 +196,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     field.onChange(value);
                     form.setValue('category', '');
                     form.setValue('clientId', undefined);
+                    form.setValue('clientName', '');
                     form.setValue('accountId', undefined);
                     form.setValue('fromAccountId', undefined);
                     form.setValue('toAccountId', undefined);
@@ -281,24 +296,14 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    key={entryType}
-                  >
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
+                        <Input list="category-suggestions" placeholder="Type or select a category" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <datalist id="category-suggestions">
+                        {categories.map((cat) => (
+                            <option key={cat} value={cat} />
+                        ))}
+                    </datalist>
                   <FormMessage />
                 </FormItem>
               )}
@@ -334,26 +339,20 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
-                    name="clientId"
+                    name="clientName"
                     render={({ field }) => (
                       <FormItem>
                           <FormLabel>
                           {entryType === 'creditor' ? "Lender (Creditor)" : "Borrower (Debtor)"}
                           </FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                <SelectValue placeholder="Select a client" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
+                          <FormControl>
+                            <Input list="client-suggestions" placeholder="Type or select a client" {...field} />
+                          </FormControl>
+                           <datalist id="client-suggestions">
                                 {clients.map((client) => (
-                                <SelectItem key={client.id} value={client.id}>
-                                    {client.name}
-                                </SelectItem>
+                                    <option key={client.id} value={client.name} />
                                 ))}
-                            </SelectContent>
-                          </Select>
+                            </datalist>
                           <FormMessage />
                       </FormItem>
                     )}
@@ -468,15 +467,12 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           />
         )}
 
-        <Button type="submit" className="w-full" disabled={bankAccounts.length === 0 || (entryType === 'creditor' || entryType === 'debtor' ? clients.length === 0 : false)}>
+        <Button type="submit" className="w-full" disabled={bankAccounts.length === 0}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Entry
         </Button>
         {bankAccounts.length === 0 && (
             <p className="text-sm text-destructive text-center">Please add a bank account in Settings before adding entries.</p>
-        )}
-        {(entryType === 'creditor' || entryType === 'debtor') && clients.length === 0 && (
-             <p className="text-sm text-destructive text-center">Please add a client in the Business page before adding debts.</p>
         )}
       </form>
     </Form>
