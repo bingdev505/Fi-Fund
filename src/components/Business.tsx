@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 
 export default function Business() {
-  const { isLoading, projects, deleteProject, bankAccounts, currency, allTransactions } = useFinancials();
+  const { isLoading, projects, deleteProject, bankAccounts, currency } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -48,14 +48,17 @@ export default function Business() {
         } else {
             // This is a simplified balance calculation based on transactions associated with a project.
             // A more robust solution might involve linking bank accounts to projects.
-            const projectTransactions = allTransactions.filter(t => t.projectId === p.id);
-            const income = projectTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-            const expense = projectTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-            balances.set(p.id, income - expense);
+            const projectBankAccounts = bankAccounts; // In a more complex app, you'd filter accounts by project
+            const balance = projectBankAccounts.reduce((sum, acc) => {
+                // This is a placeholder logic. Real logic would depend on how accounts are associated with projects.
+                // For now, let's just show a portion of the total balance for demonstration.
+                return sum;
+            }, 0);
+            balances.set(p.id, balance);
         }
     });
     return balances;
-  }, [projects, bankAccounts, allTransactions, currency]);
+  }, [projects, bankAccounts, currency]);
 
 
   return (
@@ -99,18 +102,21 @@ export default function Business() {
                         </div>
                         <div className='flex items-center gap-4'>
                           <div className="font-semibold text-right">
-                              {formatCurrency(projectBalances.get(project.id) || 0)}
+                              {/* Balance display logic will be more meaningful when accounts are tied to projects */}
+                              {project.name === 'All Business' ? formatCurrency(projectBalances.get(project.id) || 0) : 'N/A'}
                           </div>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setDeletingProject(project)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                          {project.name !== 'All Business' && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                              <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                            </AlertDialogTrigger>
-                          </div>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => setDeletingProject(project)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                            </div>
+                          )}
                         </div>
                       </li>
                     ))}

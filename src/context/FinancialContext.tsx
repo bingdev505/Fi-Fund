@@ -70,7 +70,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   // State management for all data
   const [allProjects, setAllProjects] = useState<Project[]>([]);
-  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [activeProject, _setActiveProject] = useState<Project | null>(null);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [allDebts, setAllDebts] = useState<Debt[]>([]);
   const [allBankAccounts, setAllBankAccounts] = useState<BankAccount[]>([]);
@@ -102,13 +102,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         const defaultProject = { id: crypto.randomUUID(), name: 'All Business', userId: user.uid, createdAt: new Date().toISOString() };
         storedProjects = [defaultProject];
         setAllProjects(storedProjects);
-        setActiveProject(defaultProject);
+        _setActiveProject(defaultProject);
       } else {
         setAllProjects(storedProjects);
         if (storedActiveProject && storedProjects.some((p: Project) => p.id === storedActiveProject.id)) {
-          setActiveProject(storedActiveProject);
+          _setActiveProject(storedActiveProject);
         } else {
-          setActiveProject(storedProjects.find((p: Project) => p.name === 'All Business') || storedProjects[0]);
+          _setActiveProject(storedProjects.find((p: Project) => p.name === 'All Business') || storedProjects[0]);
         }
       }
 
@@ -123,7 +123,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       console.error("Failed to parse from local storage", error);
       // Initialize with empty/default values if parsing fails
       setAllProjects([]);
-      setActiveProject(null);
+      _setActiveProject(null);
       setAllTransactions([]);
       setAllDebts([]);
       setAllBankAccounts([]);
@@ -135,9 +135,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isUserLoading, projectsKey, activeProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey, clientsKey, categoriesKey]);
 
+  const setActiveProject = useCallback((project: Project | null) => {
+    _setActiveProject(project);
+    if (activeProjectKey) {
+      localStorage.setItem(activeProjectKey, JSON.stringify(project));
+    }
+  }, [activeProjectKey]);
+
   // Write to local storage whenever state changes
   useEffect(() => { if (projectsKey) localStorage.setItem(projectsKey, JSON.stringify(allProjects)); }, [allProjects, projectsKey]);
-  useEffect(() => { if (activeProjectKey) localStorage.setItem(activeProjectKey, JSON.stringify(activeProject)); }, [activeProject, activeProjectKey]);
   useEffect(() => { if (transactionsKey) localStorage.setItem(transactionsKey, JSON.stringify(allTransactions)); }, [allTransactions, transactionsKey]);
   useEffect(() => { if (debtsKey) localStorage.setItem(debtsKey, JSON.stringify(allDebts)); }, [allDebts, debtsKey]);
   useEffect(() => { if (bankAccountsKey) localStorage.setItem(bankAccountsKey, JSON.stringify(allBankAccounts)); }, [allBankAccounts, bankAccountsKey]);
@@ -151,7 +157,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const newProject = { ...projectData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
     setAllProjects(prev => [...prev, newProject]);
     if (!activeProject) { setActiveProject(newProject); }
-  }, [user, activeProject]);
+  }, [user, activeProject, setActiveProject]);
 
   const updateProject = useCallback((projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => {
     setAllProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...projectData } : p));
@@ -167,7 +173,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       const allBusinessProject = allProjects.find(p => p.name === 'All Business');
       setActiveProject(allBusinessProject || null);
     }
-  }, [activeProject, allProjects]);
+  }, [activeProject, allProjects, setActiveProject]);
 
   const addClient = useCallback((clientData: Omit<Client, 'id' | 'projectId'>) => {
     if (!user || !activeProject || activeProject.name === 'All Business') return;
@@ -209,9 +215,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id'| 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user || !activeProject || (activeProject.name === 'All Business' && transactionData.type !== 'transfer')) return;
+    if (!user || !activeProject || (activeProject.name === 'All Business' && transactionData.type !== 'transfer' && transactionData.type !== 'repayment')) return;
     
-    const projectId = activeProject.name === 'All Business' ? '' : activeProject.id;
+    const projectId = (activeProject.name === 'All Business' || !activeProject.id) ? '' : activeProject.id;
     const newTransaction = { ...transactionData, id: crypto.randomUUID(), userId: user.uid, projectId: projectId, date: new Date().toISOString() };
     
     setAllTransactions(prev => [...prev, newTransaction]);
@@ -276,9 +282,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const addRepayment = useCallback((debt: Debt, amount: number, accountId: string) => {
     updateDebt(debt, { amount: debt.amount - amount });
     addTransaction({ type: 'repayment', amount, category: 'Debt Repayment', description: `Payment for debt: ${debt.name}`, debtId: debt.id, accountId: accountId });
-    if (debt.type === 'creditor') { updateAccountBalance(accountId, amount, 'subtract'); } 
-    else { updateAccountBalance(accountId, amount, 'add'); }
-  }, [addTransaction, updateDebt, updateAccountBalance]);
+  }, [addTransaction, updateDebt]);
 
   const addBankAccount = useCallback((account: Omit<BankAccount, 'id' | 'userId'>) => {
     if (!user) return;
@@ -325,10 +329,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }), [
       allProjects, activeProject, setActiveProject, addProject, updateProject, deleteProject,
       filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
-      filteredDebts, allDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
+      filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
       allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
-      filteredClients, allClients, addClient, updateClient, deleteClient,
-      filteredCategories, allCategories, addCategory, updateCategory, deleteCategory,
+      filteredClients, addClient, updateClient, deleteClient,
+      filteredCategories, addCategory, updateCategory, deleteCategory,
       currency, setCurrency,
       isLoading
     ]);
