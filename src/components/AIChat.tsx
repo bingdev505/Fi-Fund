@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -113,7 +114,6 @@ export default function AIChat() {
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
 
   const [repaymentPopoverOpen, setRepaymentPopoverOpen] = useState(false);
-  const [repaymentStep, setRepaymentStep] = useState<'select_type' | 'select_debtor' | 'select_creditor'>('select_type');
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [repaymentDialogOpen, setRepaymentDialogOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
@@ -140,11 +140,6 @@ export default function AIChat() {
     }
   }, [messages, isAiLoading]);
 
-  useEffect(() => {
-    if (!repaymentPopoverOpen) {
-      setTimeout(() => setRepaymentStep('select_type'), 150);
-    }
-  }, [repaymentPopoverOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -368,58 +363,38 @@ export default function AIChat() {
   };
   
   const renderRepaymentContent = () => {
-    switch(repaymentStep) {
-      case 'select_creditor':
-        return (
-          <Command>
-            <CommandInput placeholder="Search creditors..." />
+    return (
+        <Command>
+            <CommandInput placeholder="Search debts..." />
             <CommandList>
-              {creditors.length === 0 && <div className="p-4 text-sm text-muted-foreground">No creditors found.</div>}
-              <CommandGroup heading="You Owe (Creditors)">
+            {(creditors.length === 0 && debtors.length === 0) && <div className="p-4 text-sm text-muted-foreground">No outstanding debts found.</div>}
+            {creditors.length > 0 && (
+                <CommandGroup heading="You Owe (Creditors)">
                 {creditors.map((debt) => (
-                  <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
+                    <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
                     <div className="flex justify-between w-full">
-                      <span>{debt.name}</span>
-                      <span className="text-green-600">{formatCurrency(debt.amount)}</span>
+                        <span>{debt.name}</span>
+                        <span className="text-red-600">{formatCurrency(debt.amount)}</span>
                     </div>
-                  </CommandItem>
+                    </CommandItem>
                 ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        );
-      case 'select_debtor':
-        return (
-          <Command>
-            <CommandInput placeholder="Search debtors..." />
-            <CommandList>
-              {debtors.length === 0 && <div className="p-4 text-sm text-muted-foreground">No debtors found.</div>}
-              <CommandGroup heading="They Owe You (Debtors)">
+                </CommandGroup>
+            )}
+            {debtors.length > 0 && (
+                <CommandGroup heading="They Owe You (Debtors)">
                 {debtors.map((debt) => (
-                  <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
+                    <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
                     <div className="flex justify-between w-full">
-                      <span>{debt.name}</span>
-                      <span className="text-red-600">{formatCurrency(debt.amount)}</span>
+                        <span>{debt.name}</span>
+                        <span className="text-green-600">{formatCurrency(debt.amount)}</span>
                     </div>
-                  </CommandItem>
+                    </CommandItem>
                 ))}
-              </CommandGroup>
+                </CommandGroup>
+            )}
             </CommandList>
-          </Command>
-        );
-      case 'select_type':
-      default:
-        return (
-          <div className="flex flex-col justify-center items-center">
-            <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full" onClick={() => setRepaymentStep('select_creditor')}>
-              <ArrowUpCircle className="h-8 w-8 text-green-600" />
-            </Button>
-            <Button variant="ghost" size="icon" className="w-16 h-16 rounded-full" onClick={() => setRepaymentStep('select_debtor')}>
-              <ArrowDownCircle className="h-8 w-8 text-red-600" />
-            </Button>
-          </div>
-        )
-    }
+        </Command>
+    );
   };
 
   const quickActions = [
@@ -524,7 +499,7 @@ export default function AIChat() {
               <PopoverContent 
                 side="top" 
                 align="start"
-                className="w-auto p-0 rounded-b-none shadow-none border-none bg-card data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=top]:slide-in-from-bottom-2"
+                className="w-auto p-0"
                 >
                 {renderRepaymentContent()}
               </PopoverContent>
@@ -583,3 +558,5 @@ export default function AIChat() {
     </Dialog>
   );
 }
+
+    
