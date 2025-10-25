@@ -1,5 +1,34 @@
 {
   "entities": {
+    "Hobby": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Hobby",
+      "description": "Represents a user's hobby or interest.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the hobby." },
+        "userId": { "type": "string", "description": "Reference to the User who has this hobby." },
+        "name": { "type": "string", "description": "The name of the hobby." },
+        "description": { "type": "string", "description": "A description of the hobby." }
+      },
+      "required": ["id", "userId", "name"]
+    },
+    "Task": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Task",
+      "description": "Represents a task for a user to complete.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the task." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this task." },
+        "name": { "type": "string", "description": "The name or title of the task." },
+        "description": { "type": "string", "description": "A detailed description of the task." },
+        "status": { "type": "string", "enum": ["todo", "in-progress", "done"], "description": "The current status of the task." },
+        "dueDate": { "type": "string", "format": "date-time", "description": "The date the task is due." },
+        "hobbyId": { "type": "string", "description": "Optional reference to a Hobby this task is associated with." }
+      },
+      "required": ["id", "userId", "name", "status"]
+    },
     "ChatMessage": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Chat Message",
@@ -189,6 +218,30 @@
           "params": [
             { "name": "userId", "description": "The unique identifier of the user." },
             { "name": "messageId", "description": "The unique identifier of the chat message." }
+          ]
+        }
+      },
+       {
+        "path": "/users/{userId}/hobbies/{hobbyId}",
+        "definition": {
+          "entityName": "Hobby",
+          "schema": { "$ref": "#/backend/entities/Hobby" },
+          "description": "Stores hobby entries for a specific user.",
+          "params": [
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "hobbyId", "description": "The unique identifier of the hobby entry." }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": { "$ref": "#/backend/entities/Task" },
+          "description": "Stores task entries for a specific user.",
+          "params": [
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "taskId", "description": "The unique identifier of the task entry." }
           ]
         }
       }

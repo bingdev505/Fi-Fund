@@ -20,6 +20,8 @@ import {
   Landmark,
   HandCoins,
   ArrowRightLeft,
+  Heart,
+  ListTodo,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -71,6 +73,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/transactions', icon: ArrowRightLeft, label: 'Transactions' },
     { href: '/debts', icon: HandCoins, label: 'Debts' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
+    { href: '/hobbies', icon: Heart, label: 'Hobbies' },
+    { href: '/tasks', icon: ListTodo, label: 'Tasks' },
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },
   ];
 

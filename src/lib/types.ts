@@ -77,3 +77,20 @@ export type Category = {
   name: string;
   type: 'income' | 'expense';
 };
+
+export type Hobby = {
+  id: string;
+  userId: string;
+  name: string;
+  description: string;
+};
+
+export type Task = {
+  id: string;
+  userId: string;
+  name: string;
+  description: string;
+  status: 'todo' | 'in-progress' | 'done';
+  dueDate?: LocalTimestamp;
+  hobbyId?: string;
+};
