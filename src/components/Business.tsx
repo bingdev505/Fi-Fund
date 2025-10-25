@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 
 export default function Business() {
-  const { isLoading, projects, deleteProject, bankAccounts, transactions, currency } = useFinancials();
+  const { isLoading, projects, deleteProject, bankAccounts, currency, allTransactions } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -40,27 +40,22 @@ export default function Business() {
 
   const projectBalances = useMemo(() => {
     const balances = new Map<string, number>();
-    
-    // This is a simplified balance calculation. 
-    // For a real app, you might want to calculate based on transactions for each project.
-    // Here we just distribute the total bank balance for demonstration.
     const totalBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-    const nonAllBusinessProjects = projects.filter(p => p.name !== 'All Business');
 
     projects.forEach(p => {
         if (p.name === 'All Business') {
             balances.set(p.id, totalBalance);
         } else {
-            // A more complex logic would be needed here to get per-project balance.
-            // For now, let's just show a portion of the total balance as a placeholder.
-            const projectTransactions = transactions.filter(t => t.projectId === p.id);
+            // This is a simplified balance calculation based on transactions associated with a project.
+            // A more robust solution might involve linking bank accounts to projects.
+            const projectTransactions = allTransactions.filter(t => t.projectId === p.id);
             const income = projectTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
             const expense = projectTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
             balances.set(p.id, income - expense);
         }
     });
     return balances;
-  }, [projects, bankAccounts, transactions, currency]);
+  }, [projects, bankAccounts, allTransactions, currency]);
 
 
   return (
