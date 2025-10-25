@@ -29,7 +29,7 @@ type EntryListProps = {
 }
 
 export default function EntryList({ limit, showHeader = true }: EntryListProps) {
-  const { transactions, debts, currency, bankAccounts, isLoading, deleteTransaction, deleteDebt } = useFinancials();
+  const { transactions, debts, currency, bankAccounts, clients, isLoading, deleteTransaction, deleteDebt } = useFinancials();
   const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
   const { toast } = useToast();
@@ -60,6 +60,11 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
   const getAccountName = (accountId?: string) => {
     if (!accountId) return '';
     return bankAccounts.find(acc => acc.id === accountId)?.name || '';
+  }
+
+  const getClientName = (clientId?: string) => {
+    if (!clientId) return '';
+    return clients.find(c => c.id === clientId)?.name || '';
   }
 
   const handleDelete = () => {
@@ -118,6 +123,21 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     const isTransaction = 'category' in entry;
     const color = entry.type === 'income' || entry.type === 'debtor' ? 'text-green-600' : entry.type === 'transfer' ? '' : 'text-red-600';
     
+    let subtext = '';
+    if (isTransaction) {
+        const tx = entry as Transaction;
+        if (tx.type === 'transfer') {
+            subtext = `Transfer: ${getAccountName(tx.fromAccountId)} → ${getAccountName(tx.toAccountId)}`;
+        } else {
+            const clientName = tx.clientId ? ` (${getClientName(tx.clientId)})` : '';
+            subtext = `${tx.category}${clientName} (${getAccountName(tx.accountId)})`;
+        }
+    } else {
+        const debt = entry as Debt;
+        subtext = `${debt.description} (${getAccountName(debt.accountId)})`;
+    }
+
+
     return (
         <div className="flex items-start justify-between py-3 group">
             <div className="flex items-center gap-4">
@@ -127,12 +147,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
                         {isTransaction ? (entry as Transaction).description : (entry as Debt).name}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {isTransaction ? 
-                          ((entry as Transaction).type === 'transfer' ? 
-                            `Transfer: ${getAccountName((entry as Transaction).fromAccountId)} → ${getAccountName((entry as Transaction).toAccountId)}` :
-                            `${(entry as Transaction).category} (${getAccountName((entry as Transaction).accountId)})`)
-                          : `${(entry as Debt).description} (${getAccountName((entry as Debt).accountId)})`}
-                         • {(entry.date as Date).toLocaleDateString()}
+                        {subtext} • {(entry.date as Date).toLocaleDateString()}
                     </p>
                     {!isTransaction && (entry as Debt).dueDate && (
                         <p className="text-xs text-muted-foreground">Due: {((entry as Debt).dueDate as Date).toLocaleDateString()}</p>

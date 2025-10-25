@@ -16,6 +16,7 @@ export type Transaction = {
   fromAccountId?: string;
   toAccountId?: string;
   debtId?: string; // To link repayment to a debt
+  clientId?: string; // To link income/expense to a client
 };
 
 export type Debt = {

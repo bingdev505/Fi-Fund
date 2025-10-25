@@ -35,7 +35,7 @@ const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor', 'transfer']),
   amount: z.coerce.number().positive('Amount must be positive'),
   category: z.string().optional(),
-  clientId: z.string().optional(), // For debts
+  clientId: z.string().optional(),
   description: z.string().min(3, 'Description must be at least 3 characters'),
   dueDate: z.date().optional(),
   accountId: z.string().optional(), // for income/expense/debts
@@ -121,7 +121,8 @@ export default function EntryForm() {
         description: data.description,
         accountId: data.accountId,
         fromAccountId: data.fromAccountId,
-        toAccountId: data.toAccountId
+        toAccountId: data.toAccountId,
+        clientId: data.clientId,
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
@@ -376,6 +377,33 @@ export default function EntryForm() {
                     )}
                 />
           </div>
+        )}
+
+        {(entryType === 'income' || entryType === 'expense') && clients.length > 0 && (
+          <FormField
+            control={form.control}
+            name="clientId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Client (Optional)</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a client" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
         
         <FormField

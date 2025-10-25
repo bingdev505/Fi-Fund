@@ -25,7 +25,8 @@
         "amount": { "type": "number", "description": "The amount of income received." },
         "category": { "type": "string", "description": "The category of income (e.g., salary, investment)." },
         "date": { "type": "string", "description": "The date the income was received.", "format": "date-time" },
-        "description": { "type": "string", "description": "Optional description or notes about the income." }
+        "description": { "type": "string", "description": "Optional description or notes about the income." },
+        "clientId": { "type": "string", "description": "Optional reference to the Client associated with this income." }
       },
       "required": ["id", "userId", "amount", "category", "date"]
     },
@@ -40,7 +41,8 @@
         "amount": { "type": "number", "description": "The amount of the expense." },
         "category": { "type": "string", "description": "The category of expense (e.g., food, rent)." },
         "date": { "type": "string", "description": "The date the expense was incurred.", "format": "date-time" },
-        "description": { "type": "string", "description": "Optional description or notes about the expense." }
+        "description": { "type": "string", "description": "Optional description or notes about the expense." },
+        "clientId": { "type": "string", "description": "Optional reference to the Client associated with this expense." }
       },
       "required": ["id", "userId", "amount", "category", "date"]
     },
