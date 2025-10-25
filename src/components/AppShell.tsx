@@ -36,6 +36,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from './ui/command';
 import type { Project } from '@/lib/types';
 import { Separator } from './ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import ProjectForm from './ProjectForm';
 
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -45,6 +47,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const { projects, activeProject, setActiveProject, isLoading: isFinancialsLoading } = useFinancials();
   const [open, setOpen] = useState(false);
+  const [addProjectOpen, setAddProjectOpen] = useState(false);
 
 
   useEffect(() => {
@@ -87,6 +90,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <Dialog open={addProjectOpen} onOpenChange={setAddProjectOpen}>
     <div className="grid h-screen w-full md:grid-cols-[180px_1fr] lg:grid-cols-[240px_1fr]">
       <div className="hidden border-r bg-card md:block">
         <div className="flex h-full max-h-screen flex-col gap-2">
@@ -204,10 +208,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <CommandSeparator />
                      <CommandList>
                         <CommandGroup>
-                            <CommandItem onSelect={() => router.push('/settings')}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Create Project
-                            </CommandItem>
+                            <DialogTrigger asChild>
+                                <CommandItem onSelect={() => setAddProjectOpen(true)}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Create Business
+                                </CommandItem>
+                            </DialogTrigger>
                         </CommandGroup>
                     </CommandList>
                   </Command>
@@ -241,6 +247,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {children}
         </div>
       </div>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create a new Business</DialogTitle>
+        </DialogHeader>
+        <ProjectForm onFinished={() => setAddProjectOpen(false)}/>
+      </DialogContent>
     </div>
+    </Dialog>
   );
 }

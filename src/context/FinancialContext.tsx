@@ -73,11 +73,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       const storedCurrency = currencyKey ? localStorage.getItem(currencyKey) || 'INR' : 'INR';
       
       if (storedProjects.length === 0) {
-        const defaultProject1 = { id: crypto.randomUUID(), name: 'All Business', userId: user.uid, createdAt: new Date().toISOString() };
-        const defaultProject2 = { id: crypto.randomUUID(), name: 'Business', userId: user.uid, createdAt: new Date().toISOString() };
-        storedProjects = [defaultProject1, defaultProject2];
+        const defaultProject = { id: crypto.randomUUID(), name: 'All Business', userId: user.uid, createdAt: new Date().toISOString() };
+        storedProjects = [defaultProject];
         setProjects(storedProjects);
-        setActiveProject(defaultProject1);
+        setActiveProject(defaultProject);
       } else {
         setProjects(storedProjects);
         if (storedActiveProject && storedProjects.some((p: Project) => p.id === storedActiveProject.id)) {
@@ -321,10 +320,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [debts, activeProject]);
   
   const filteredTransactions = useMemo(() => {
+    if (activeProject?.name === 'All Business') {
+        return transactions;
+    }
     return activeProject ? transactions.filter(t => t.projectId === activeProject.id) : [];
   }, [transactions, activeProject]);
   
   const filteredDebts = useMemo(() => {
+    if (activeProject?.name === 'All Business') {
+        return debts;
+    }
     return activeProject ? debts.filter(d => d.projectId === activeProject.id) : [];
   }, [debts, activeProject]);
 
