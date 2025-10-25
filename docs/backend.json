@@ -6,38 +6,13 @@
       "description": "Represents a single message in a user's chat history.",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the chat message."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this message."
-        },
-        "role": {
-          "type": "string",
-          "enum": [
-            "user",
-            "assistant"
-          ]
-        },
-        "content": {
-          "type": "string",
-          "description": "The text content of the message."
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The time the message was sent."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the chat message." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this message." },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string", "description": "The text content of the message." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "The time the message was sent." }
       },
-      "required": [
-        "id",
-        "userId",
-        "role",
-        "content",
-        "timestamp"
-      ]
+      "required": ["id", "userId", "role", "content", "timestamp"]
     },
     "Income": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -45,39 +20,14 @@
       "type": "object",
       "description": "Represents a source of income for a user.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the income entry."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this income entry. (Relationship: User 1:N Income)"
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount of income received."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of income (e.g., salary, investment)."
-        },
-        "date": {
-          "type": "string",
-          "description": "The date the income was received.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "Optional description or notes about the income."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the income entry." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this income entry. (Relationship: User 1:N Income)" },
+        "amount": { "type": "number", "description": "The amount of income received." },
+        "category": { "type": "string", "description": "The category of income (e.g., salary, investment)." },
+        "date": { "type": "string", "description": "The date the income was received.", "format": "date-time" },
+        "description": { "type": "string", "description": "Optional description or notes about the income." }
       },
-      "required": [
-        "id",
-        "userId",
-        "amount",
-        "category",
-        "date"
-      ]
+      "required": ["id", "userId", "amount", "category", "date"]
     },
     "Expense": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -85,39 +35,14 @@
       "type": "object",
       "description": "Represents an expense incurred by a user.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the expense entry."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this expense entry. (Relationship: User 1:N Expense)"
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount of the expense."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of expense (e.g., food, rent)."
-        },
-        "date": {
-          "type": "string",
-          "description": "The date the expense was incurred.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "Optional description or notes about the expense."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the expense entry." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this expense entry. (Relationship: User 1:N Expense)" },
+        "amount": { "type": "number", "description": "The amount of the expense." },
+        "category": { "type": "string", "description": "The category of expense (e.g., food, rent)." },
+        "date": { "type": "string", "description": "The date the expense was incurred.", "format": "date-time" },
+        "description": { "type": "string", "description": "Optional description or notes about the expense." }
       },
-      "required": [
-        "id",
-        "userId",
-        "amount",
-        "category",
-        "date"
-      ]
+      "required": ["id", "userId", "amount", "category", "date"]
     },
     "Creditor": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -125,39 +50,14 @@
       "type": "object",
       "description": "Represents a person or entity to whom the user owes money.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the creditor."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owes this debt. (Relationship: User 1:N Creditor)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the creditor."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount owed to the creditor."
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "The date the debt is due.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "Optional description or notes about the debt."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the creditor." },
+        "userId": { "type": "string", "description": "Reference to the User who owes this debt. (Relationship: User 1:N Creditor)" },
+        "name": { "type": "string", "description": "The name of the creditor." },
+        "amount": { "type": "number", "description": "The amount owed to the creditor." },
+        "dueDate": { "type": "string", "description": "The date the debt is due.", "format": "date-time" },
+        "description": { "type": "string", "description": "Optional description or notes about the debt." }
       },
-      "required": [
-        "id",
-        "userId",
-        "name",
-        "amount",
-        "dueDate"
-      ]
+      "required": ["id", "userId", "name", "amount", "dueDate"]
     },
     "Debtor": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -165,39 +65,14 @@
       "type": "object",
       "description": "Represents a person or entity who owes money to the user.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the debtor."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who is owed this debt. (Relationship: User 1:N Debtor)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the debtor."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount owed by the debtor."
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "The date the debt is due.",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string",
-          "description": "Optional description or notes about the debt."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the debtor." },
+        "userId": { "type": "string", "description": "Reference to the User who is owed this debt. (Relationship: User 1:N Debtor)" },
+        "name": { "type": "string", "description": "The name of the debtor." },
+        "amount": { "type": "number", "description": "The amount owed by the debtor." },
+        "dueDate": { "type": "string", "description": "The date the debt is due.", "format": "date-time" },
+        "description": { "type": "string", "description": "Optional description or notes about the debt." }
       },
-      "required": [
-        "id",
-        "userId",
-        "name",
-        "amount",
-        "dueDate"
-      ]
+      "required": ["id", "userId", "name", "amount", "dueDate"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -205,24 +80,11 @@
       "type": "object",
       "description": "Represents a user of the application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user."
-        },
-        "email": {
-          "type": "string",
-          "description": "The email address of the user.",
-          "format": "email"
-        },
-        "currency": {
-          "type": "string",
-          "description": "The user's preferred currency."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the user." },
+        "email": { "type": "string", "description": "The email address of the user.", "format": "email" },
+        "currency": { "type": "string", "description": "The user's preferred currency." }
       },
-      "required": [
-        "id",
-        "email"
-      ]
+      "required": ["id", "email"]
     },
     "BankAccount": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -230,33 +92,38 @@
       "type": "object",
       "description": "Represents a bank account for a user.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the bank account."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this account."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the bank account (e.g., 'Savings', 'Checking')."
-        },
-        "balance": {
-          "type": "number",
-          "description": "The current balance of the account."
-        },
-        "isPrimary": {
-          "type": "boolean",
-          "description": "Indicates if this is the user's primary bank account."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the bank account." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this account." },
+        "name": { "type": "string", "description": "The name of the bank account (e.g., 'Savings', 'Checking')." },
+        "balance": { "type": "number", "description": "The current balance of the account." },
+        "isPrimary": { "type": "boolean", "description": "Indicates if this is the user's primary bank account." }
       },
-      "required": [
-        "id",
-        "userId",
-        "name",
-        "balance"
-      ]
+      "required": ["id", "userId", "name", "balance"]
+    },
+    "Client": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Client",
+      "type": "object",
+      "description": "Represents a client or contact for a specific business/project.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the client." },
+        "projectId": { "type": "string", "description": "Reference to the Project this client belongs to." },
+        "name": { "type": "string", "description": "The name of the client." }
+      },
+      "required": ["id", "projectId", "name"]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a custom income or expense category for a specific business/project.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the category." },
+        "projectId": { "type": "string", "description": "Reference to the Project this category belongs to." },
+        "name": { "type": "string", "description": "The name of the category." },
+        "type": { "type": "string", "enum": ["income", "expense"], "description": "The type of the category." }
+      },
+      "required": ["id", "projectId", "name", "type"]
     }
   },
   "auth": {
@@ -270,35 +137,20 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
+          "schema": { "$ref": "#/backend/entities/User" },
           "description": "Stores user profile information, including settings. The user can read/write their own profile.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching the auth UID."
-            }
-          ]
+          "params": [{ "name": "userId", "description": "The unique identifier of the user, matching the auth UID." }]
         }
       },
       {
         "path": "/users/{userId}/transactions/{transactionId}",
         "definition": {
           "entityName": "Transaction",
-          "schema": {
-            "$ref": "#/backend/entities/Income"
-          },
+          "schema": { "$ref": "#/backend/entities/Income" },
           "description": "Stores transaction entries (income and expenses) for a specific user.",
           "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "transactionId",
-              "description": "The unique identifier of the transaction entry."
-            }
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "transactionId", "description": "The unique identifier of the transaction entry." }
           ]
         }
       },
@@ -306,19 +158,11 @@
         "path": "/users/{userId}/debts/{debtId}",
         "definition": {
           "entityName": "Debt",
-          "schema": {
-            "$ref": "#/backend/entities/Creditor"
-          },
+          "schema": { "$ref": "#/backend/entities/Creditor" },
           "description": "Stores debt entries (creditors and debtors) for a specific user.",
           "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "debtId",
-              "description": "The unique identifier of the debt entry."
-            }
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "debtId", "description": "The unique identifier of the debt entry." }
           ]
         }
       },
@@ -326,19 +170,11 @@
         "path": "/users/{userId}/bankAccounts/{accountId}",
         "definition": {
           "entityName": "BankAccount",
-          "schema": {
-            "$ref": "#/backend/entities/BankAccount"
-          },
+          "schema": { "$ref": "#/backend/entities/BankAccount" },
           "description": "Stores bank account information for a specific user.",
           "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "accountId",
-              "description": "The unique identifier of the bank account."
-            }
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "accountId", "description": "The unique identifier of the bank account." }
           ]
         }
       },
@@ -346,19 +182,11 @@
         "path": "/users/{userId}/chatHistory/{messageId}",
         "definition": {
           "entityName": "ChatMessage",
-          "schema": {
-            "$ref": "#/backend/entities/ChatMessage"
-          },
+          "schema": { "$ref": "#/backend/entities/ChatMessage" },
           "description": "Stores the chat message history for a specific user.",
           "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "messageId",
-              "description": "The unique identifier of the chat message."
-            }
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "messageId", "description": "The unique identifier of the chat message." }
           ]
         }
       }

@@ -29,12 +29,13 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useMemo } from 'react';
 
 const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor', 'transfer']),
   amount: z.coerce.number().positive('Amount must be positive'),
-  category: z.string().optional(), 
-  name: z.string().optional(), // For debts
+  category: z.string().optional(),
+  clientId: z.string().optional(), // For debts
   description: z.string().min(3, 'Description must be at least 3 characters'),
   dueDate: z.date().optional(),
   accountId: z.string().optional(), // for income/expense/debts
@@ -75,17 +76,17 @@ const formSchema = z.object({
   path: ["category"],
 })
 .refine(data => {
-    if ((data.entryType === 'creditor' || data.entryType === 'debtor') && !data.category) { // name is stored in category field for debts
+    if ((data.entryType === 'creditor' || data.entryType === 'debtor') && !data.clientId) {
         return false;
     }
     return true;
   }, {
-    message: "Please provide a name.",
-    path: ["category"],
+    message: "Please select a client.",
+    path: ["clientId"],
 });
 
 export default function EntryForm() {
-  const { addTransaction, addDebt, currency, bankAccounts } = useFinancials();
+  const { addTransaction, addDebt, currency, bankAccounts, clients, categories: customCategories } = useFinancials();
   const { toast } = useToast();
 
   const formatCurrency = (amount: number) => {
@@ -103,12 +104,12 @@ export default function EntryForm() {
 
   const entryType = form.watch('entryType');
 
-  const categories =
-    entryType === 'income'
-      ? INCOME_CATEGORIES
-      : entryType === 'expense'
-      ? EXPENSE_CATEGORIES
-      : [];
+  const categories = useMemo(() => {
+    const baseCategories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    const projectCategories = customCategories.filter(c => c.type === entryType).map(c => c.name);
+    return [...baseCategories, ...projectCategories];
+  }, [entryType, customCategories]);
+
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
@@ -127,17 +128,23 @@ export default function EntryForm() {
         description: `${formatCurrency(data.amount)} has been logged.`,
       });
     } else { // creditor or debtor
+      const client = clients.find(c => c.id === data.clientId);
+      if (!client) {
+        toast({ variant: 'destructive', title: 'Client not found' });
+        return;
+      }
       addDebt({
         type: entryType,
         amount: data.amount,
-        name: data.category!, // Using category as name for debts
+        name: client.name,
+        clientId: client.id,
         description: data.description,
         dueDate: data.dueDate,
         accountId: data.accountId!,
       });
       toast({
         title: `${entryType === 'creditor' ? 'Loan Taken' : 'Loan Given'} added`,
-        description: `Debt related to ${data.category} for ${formatCurrency(data.amount)} has been logged.`,
+        description: `Debt related to ${client.name} for ${formatCurrency(data.amount)} has been logged.`,
       });
     }
     form.reset({
@@ -148,7 +155,8 @@ export default function EntryForm() {
       dueDate: undefined,
       accountId: undefined,
       fromAccountId: undefined,
-      toAccountId: undefined
+      toAccountId: undefined,
+      clientId: undefined,
     });
   }
 
@@ -166,6 +174,7 @@ export default function EntryForm() {
                   onValueChange={(value) => {
                     field.onChange(value);
                     form.setValue('category', '');
+                    form.setValue('clientId', undefined);
                     form.setValue('accountId', undefined);
                     form.setValue('fromAccountId', undefined);
                     form.setValue('toAccountId', undefined);
@@ -318,24 +327,28 @@ export default function EntryForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
-                    name="category" // Using category field for name
+                    name="clientId"
                     render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>
-                        {entryType === 'creditor' ? "Lender's Name (Creditor)" : "Borrower's Name (Debtor)"}
-                        </FormLabel>
-                        <FormControl>
-                        <Input
-                            placeholder={
-                            entryType === 'creditor'
-                                ? 'e.g. Landlord'
-                                : 'e.g. John Doe'
-                            }
-                            {...field}
-                        />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
+                      <FormItem>
+                          <FormLabel>
+                          {entryType === 'creditor' ? "Lender (Creditor)" : "Borrower (Debtor)"}
+                          </FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                <SelectValue placeholder="Select a client" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {clients.map((client) => (
+                                <SelectItem key={client.id} value={client.id}>
+                                    {client.name}
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                      </FormItem>
                     )}
                 />
                 <FormField
@@ -421,12 +434,15 @@ export default function EntryForm() {
           />
         )}
 
-        <Button type="submit" className="w-full" disabled={bankAccounts.length === 0}>
+        <Button type="submit" className="w-full" disabled={bankAccounts.length === 0 || (entryType === 'creditor' || entryType === 'debtor' ? clients.length === 0 : false)}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Entry
         </Button>
         {bankAccounts.length === 0 && (
             <p className="text-sm text-destructive text-center">Please add a bank account in Settings before adding entries.</p>
+        )}
+        {(entryType === 'creditor' || entryType === 'debtor') && clients.length === 0 && (
+             <p className="text-sm text-destructive text-center">Please add a client in the Business page before adding debts.</p>
         )}
       </form>
     </Form>

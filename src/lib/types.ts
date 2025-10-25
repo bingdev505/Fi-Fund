@@ -23,7 +23,8 @@ export type Debt = {
   userId: string;
   projectId: string;
   type: 'creditor' | 'debtor';
-  name: string;
+  name: string; // This will now be the client's name from the Client list
+  clientId: string; // Link to the Client
   amount: number;
   description: string;
   dueDate?: LocalTimestamp;
@@ -61,4 +62,17 @@ export type ChatMessage = {
     timestamp: LocalTimestamp;
     transactionId?: string;
     entryType?: 'income' | 'expense' | 'creditor' | 'debtor';
+};
+
+export type Client = {
+  id: string;
+  projectId: string;
+  name: string;
+};
+
+export type Category = {
+  id: string;
+  projectId: string;
+  name: string;
+  type: 'income' | 'expense';
 };

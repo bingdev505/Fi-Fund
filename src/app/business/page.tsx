@@ -1,16 +1,13 @@
 'use client';
 import { FinancialProvider } from '@/context/FinancialContext';
-import Business from '@/components/Business';
-import AppShell from '@/components/AppShell';
+import BusinessShell from '@/components/BusinessShell';
 
-export default function BusinessPage() {
+export default function BusinessPage({ children }: { children: React.ReactNode }) {
   return (
     <FinancialProvider>
-      <AppShell>
-        <main className="flex flex-1 flex-col">
-          <Business />
-        </main>
-      </AppShell>
+      <BusinessShell>
+        {children}
+      </BusinessShell>
     </FinancialProvider>
   );
 }

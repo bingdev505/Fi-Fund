@@ -4,23 +4,29 @@ import { Separator } from '@/components/ui/separator';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Loader2, Folder } from 'lucide-react';
 import ProjectForm from './ProjectForm';
+import { Button } from './ui/button';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 export default function Business() {
   const { isLoading, projects } = useFinancials();
+  const [addProjectOpen, setAddProjectOpen] = useState(false);
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <Dialog open={addProjectOpen} onOpenChange={setAddProjectOpen}>
       <Card>
         <CardHeader>
-          <CardTitle>Manage Businesses</CardTitle>
-          <CardDescription>Add or manage your businesses (projects).</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Manage Businesses</CardTitle>
+              <CardDescription>Add or manage your businesses (projects).</CardDescription>
+            </div>
+            <DialogTrigger asChild>
+                <Button>Add New Business</Button>
+            </DialogTrigger>
+          </div>
         </CardHeader>
         <CardContent>
-          <div>
-            <h3 className="text-lg font-medium mb-2">Add New Business</h3>
-            <ProjectForm onFinished={() => {}} />
-          </div>
-          <Separator className='my-6' />
            <div>
             <h3 className="text-lg font-medium mb-4">Your Businesses</h3>
             {isLoading ? (
@@ -50,6 +56,12 @@ export default function Business() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create a new Business</DialogTitle>
+        </DialogHeader>
+        <ProjectForm onFinished={() => setAddProjectOpen(false)}/>
+      </DialogContent>
+    </Dialog>
   );
 }
