@@ -66,15 +66,12 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         });
     }
 
-    if (isNewProject && values.googleSheetId) {
-        setSubmittedSheetId(values.googleSheetId);
-        setShowSheetShareDialog(true);
-    } else if (hasNewSheetId) {
+    if ((isNewProject && values.googleSheetId) || hasNewSheetId) {
         setSubmittedSheetId(values.googleSheetId!);
         setShowSheetShareDialog(true);
+    } else {
+        onFinished();
     }
-    
-    onFinished();
   }
 
   return (
@@ -139,7 +136,12 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         </Button>
       </form>
     </Form>
-    <Dialog open={showSheetShareDialog} onOpenChange={setShowSheetShareDialog}>
+    <Dialog open={showSheetShareDialog} onOpenChange={(isOpen) => {
+        setShowSheetShareDialog(isOpen);
+        if (!isOpen) {
+            onFinished(); // Call the original onFinished when this dialog closes
+        }
+    }}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Connect Your Google Sheet</DialogTitle>
@@ -164,7 +166,10 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
                     4. Make sure to give it **Editor** access, and click &quot;Send&quot;.
                 </p>
             </div>
-            <Button onClick={() => setShowSheetShareDialog(false)}>Done</Button>
+            <Button onClick={() => {
+                setShowSheetShareDialog(false);
+                onFinished();
+            }}>Done</Button>
         </DialogContent>
     </Dialog>
     </>
