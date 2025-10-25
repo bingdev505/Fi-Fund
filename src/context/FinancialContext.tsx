@@ -110,55 +110,79 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   // Read from local storage on mount and when user changes
   useEffect(() => {
-    if (!user) {
+    if (!user || !projectsKey) {
       setIsLoading(!isUserLoading);
       return;
     };
     setIsLoading(true);
 
     try {
-      const storedProjects = projectsKey ? JSON.parse(localStorage.getItem(projectsKey) || '[]') : [];
-      const storedDefaultProject = defaultProjectKey ? JSON.parse(localStorage.getItem(defaultProjectKey) || 'null') : null;
-      let activeProjectToSet = storedDefaultProject;
+      const storedProjectsJSON = localStorage.getItem(projectsKey);
+      const firstTimeUser = storedProjectsJSON === null;
 
-      const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
-      if (storedActiveProject) {
-        activeProjectToSet = storedActiveProject;
-      }
-      
-      const storedTransactions = transactionsKey ? JSON.parse(localStorage.getItem(transactionsKey) || '[]') : [];
-      const storedDebts = debtsKey ? JSON.parse(localStorage.getItem(debtsKey) || '[]') : [];
-      const storedBankAccounts = bankAccountsKey ? JSON.parse(localStorage.getItem(bankAccountsKey) || '[]') : [];
-      const storedCurrency = currencyKey ? localStorage.getItem(currencyKey) || 'INR' : 'INR';
-      const storedClients = clientsKey ? JSON.parse(localStorage.getItem(clientsKey) || '[]') : [];
-      const storedCategories = categoriesKey ? JSON.parse(localStorage.getItem(categoriesKey) || '[]') : [];
-      const storedHobbies = hobbiesKey ? JSON.parse(localStorage.getItem(hobbiesKey) || '[]') : [];
-      const storedTasks = tasksKey ? JSON.parse(localStorage.getItem(tasksKey) || '[]') : [];
-      const storedHobbySessions = hobbySessionsKey ? JSON.parse(localStorage.getItem(hobbySessionsKey) || '[]') : [];
-      
-      setAllProjects(storedProjects);
-      
-      if (activeProjectToSet && (activeProjectToSet.id === 'all' || storedProjects.some((p: Project) => p.id === activeProjectToSet.id))) {
-        _setActiveProject(activeProjectToSet);
-      } else {
+      if (firstTimeUser) {
+        // Create default data for a new user
+        const defaultAccountId = crypto.randomUUID();
+        const defaultAccount: BankAccount = { id: defaultAccountId, userId: user.uid, name: 'Primary Account', balance: 0, isPrimary: true };
+        
+        setAllBankAccounts([defaultAccount]);
+        
+        setAllProjects([]);
         _setActiveProject(ALL_BUSINESS_PROJECT);
-      }
-       if (storedDefaultProject && (storedDefaultProject.id === 'all' || storedProjects.some((p: Project) => p.id === storedDefaultProject.id))) {
-        _setDefaultProject(storedDefaultProject);
-      } else {
         _setDefaultProject(ALL_BUSINESS_PROJECT);
+        setAllTransactions([]);
+        setAllDebts([]);
+        setAllClients([]);
+        setAllCategories([]);
+        setAllHobbies([]);
+        setAllTasks([]);
+        setAllHobbySessions([]);
+        setCurrencyState('INR');
+
+      } else {
+        // Load existing user data
+        const storedProjects = storedProjectsJSON ? JSON.parse(storedProjectsJSON) : [];
+        const storedDefaultProject = defaultProjectKey ? JSON.parse(localStorage.getItem(defaultProjectKey) || 'null') : null;
+        let activeProjectToSet = storedDefaultProject;
+
+        const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
+        if (storedActiveProject) {
+          activeProjectToSet = storedActiveProject;
+        }
+        
+        const storedTransactions = transactionsKey ? JSON.parse(localStorage.getItem(transactionsKey) || '[]') : [];
+        const storedDebts = debtsKey ? JSON.parse(localStorage.getItem(debtsKey) || '[]') : [];
+        const storedBankAccounts = bankAccountsKey ? JSON.parse(localStorage.getItem(bankAccountsKey) || '[]') : [];
+        const storedCurrency = currencyKey ? localStorage.getItem(currencyKey) || 'INR' : 'INR';
+        const storedClients = clientsKey ? JSON.parse(localStorage.getItem(clientsKey) || '[]') : [];
+        const storedCategories = categoriesKey ? JSON.parse(localStorage.getItem(categoriesKey) || '[]') : [];
+        const storedHobbies = hobbiesKey ? JSON.parse(localStorage.getItem(hobbiesKey) || '[]') : [];
+        const storedTasks = tasksKey ? JSON.parse(localStorage.getItem(tasksKey) || '[]') : [];
+        const storedHobbySessions = hobbySessionsKey ? JSON.parse(localStorage.getItem(hobbySessionsKey) || '[]') : [];
+        
+        setAllProjects(storedProjects);
+        
+        if (activeProjectToSet && (activeProjectToSet.id === 'all' || storedProjects.some((p: Project) => p.id === activeProjectToSet.id))) {
+          _setActiveProject(activeProjectToSet);
+        } else {
+          _setActiveProject(ALL_BUSINESS_PROJECT);
+        }
+         if (storedDefaultProject && (storedDefaultProject.id === 'all' || storedProjects.some((p: Project) => p.id === storedDefaultProject.id))) {
+          _setDefaultProject(storedDefaultProject);
+        } else {
+          _setDefaultProject(ALL_BUSINESS_PROJECT);
+        }
+
+        setAllTransactions(storedTransactions);
+        setAllDebts(storedDebts);
+        setAllBankAccounts(storedBankAccounts);
+        setAllClients(storedClients);
+        setAllCategories(storedCategories);
+        setAllHobbies(storedHobbies);
+        setAllTasks(storedTasks);
+        setAllHobbySessions(storedHobbySessions);
+        setCurrencyState(storedCurrency);
       }
-
-      setAllTransactions(storedTransactions);
-      setAllDebts(storedDebts);
-      setAllBankAccounts(storedBankAccounts);
-      setAllClients(storedClients);
-      setAllCategories(storedCategories);
-      setAllHobbies(storedHobbies);
-      setAllTasks(storedTasks);
-      setAllHobbySessions(storedHobbySessions);
-      setCurrencyState(storedCurrency);
-
     } catch (error) {
       console.error("Failed to parse from local storage", error);
       // Initialize with empty/default values if parsing fails
