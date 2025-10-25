@@ -45,6 +45,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import ProjectForm from './ProjectForm';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
 
+const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', userId: '', createdAt: new Date().toISOString() };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -227,6 +228,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <CommandList>
                         <CommandEmpty>No project found.</CommandEmpty>
                         <CommandGroup>
+                        <CommandItem
+                            key={ALL_BUSINESS_PROJECT.id}
+                            value={ALL_BUSINESS_PROJECT.name}
+                            onSelect={() => handleProjectSelect(ALL_BUSINESS_PROJECT)}
+                            >
+                            {ALL_BUSINESS_PROJECT.name}
+                            </CommandItem>
                         {projects && projects.map((project) => (
                             <CommandItem
                             key={project.id}

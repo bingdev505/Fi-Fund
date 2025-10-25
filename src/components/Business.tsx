@@ -73,14 +73,8 @@ export default function Business() {
 
     flatten(tree);
     
-    // Simple balance logic: for "All Business" it's the total. For others, it's a placeholder.
-    // A real implementation would link bank accounts to projects.
     projects.forEach(p => {
-        if (p.name === 'All Business') {
-            balances.set(p.id, totalBalance);
-        } else {
-            balances.set(p.id, 0); // Placeholder
-        }
+        balances.set(p.id, 0); // Placeholder
     });
 
     return { projectTree: flattenedTree, projectBalances: balances };
@@ -124,20 +118,18 @@ export default function Business() {
                         </div>
                         <div className='flex items-center gap-4'>
                           <div className="font-semibold text-right">
-                              {project.name === 'All Business' ? formatCurrency(projectBalances.get(project.id) || 0) : 'N/A'}
+                              {formatCurrency(projectBalances.get(project.id) || 0)}
                           </div>
-                          {project.name !== 'All Business' && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                              <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
-                                <Pencil className="h-4 w-4" />
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={() => setDeletingProject(project)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={() => setDeletingProject(project)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                            </div>
-                          )}
+                            </AlertDialogTrigger>
+                          </div>
                         </div>
                       </li>
                     ))}
