@@ -1,26 +1,30 @@
 'use client';
 
-import { createContext, useCallback, ReactNode, useMemo } from 'react';
-import type { Transaction, Debt, BankAccount, UserSettings } from '@/lib/types';
+import { createContext, useCallback, ReactNode, useMemo, useState } from 'react';
+import type { Transaction, Debt, BankAccount, UserSettings, Project } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, serverTimestamp, Timestamp, writeBatch, runTransaction, Firestore, DocumentReference } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface FinancialContextType {
+  projects: Project[];
+  activeProject: Project | null;
+  setActiveProject: (project: Project) => void;
   transactions: Transaction[];
   debts: Debt[];
   bankAccounts: BankAccount[];
   currency: string;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId'>, returnRef?: boolean) => Promise<DocumentReference | void>;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<DocumentReference | void>;
   updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => void;
   deleteTransaction: (transaction: Transaction) => void;
-  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId'>, returnRef?: boolean) => Promise<DocumentReference | void>;
+  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<DocumentReference | void>;
   updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => void;
   deleteDebt: (debt: Debt) => void;
   addRepayment: (debt: Debt, amount: number, accountId: string) => void;
   addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
   setCurrency: (currency: string) => void;
   setPrimaryBankAccount: (accountId: string) => void;
+  addProject: (projectName: string) => void;
   isLoading: boolean;
   getTransactionById: (id: string) => Transaction | undefined;
   getDebtById: (id: string) => Debt | undefined;
@@ -55,24 +59,46 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+
   const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userSettings, isLoading: isUserSettingsLoading } = useDoc<UserSettings>(userDocRef);
 
-  const transactionsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'transactions') : null, [firestore, user]);
+  const projectsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'projects') : null, [firestore, user]);
+  const { data: projects, isLoading: isProjectsLoading } = useCollection<Project>(projectsColRef);
+
+  const transactionsColRef = useMemoFirebase(() => (user && activeProject) ? collection(firestore, 'users', user.uid, 'projects', activeProject.id, 'transactions') : null, [firestore, user, activeProject]);
   const { data: transactions, isLoading: isTransactionsLoading } = useCollection<Transaction>(transactionsColRef);
 
-  const debtsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'debts') : null, [firestore, user]);
+  const debtsColRef = useMemoFirebase(() => (user && activeProject) ? collection(firestore, 'users', user.uid, 'projects', activeProject.id, 'debts') : null, [firestore, user, activeProject]);
   const { data: debts, isLoading: isDebtsLoading } = useCollection<Debt>(debtsColRef);
 
   const bankAccountsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'bankAccounts') : null, [firestore, user]);
   const { data: bankAccounts, isLoading: isBankAccountsLoading } = useCollection<BankAccount>(bankAccountsColRef);
 
-  const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id' | 'date' | 'userId'>, returnRef = false): Promise<DocumentReference | void> => {
-    if (!user || !transactionsColRef || !firestore) return;
+  useMemo(() => {
+    if (projects && projects.length > 0 && !activeProject) {
+        setActiveProject(projects[0]);
+    }
+  }, [projects, activeProject]);
+
+  const addProject = useCallback((projectName: string) => {
+    if (!user || !projectsColRef) return;
+    const newProject = {
+      name: projectName,
+      userId: user.uid,
+      createdAt: serverTimestamp() as Timestamp,
+    };
+    addDocumentNonBlocking(projectsColRef, newProject);
+  }, [user, projectsColRef]);
+
+  const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id' | 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<DocumentReference | void> => {
+    if (!user || !transactionsColRef || !firestore || !activeProject) return;
 
     let finalTransaction: any = {
       ...transactionData,
       userId: user.uid,
+      projectId: activeProject.id,
       date: serverTimestamp() as Timestamp,
     };
     
@@ -100,7 +126,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (returnRef) {
         return docRefPromise;
     }
-  }, [user, firestore, transactionsColRef]);
+  }, [user, firestore, transactionsColRef, activeProject]);
 
   const updateTransaction = useCallback(async (originalTransaction: Transaction, updatedData: Partial<Transaction>) => {
     if (!user || !firestore || !transactionsColRef) return;
@@ -179,12 +205,13 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
 }, [user, firestore, transactionsColRef]);
 
 
-  const addDebt = useCallback(async (debt: Omit<Debt, 'id' | 'date' | 'userId'>, returnRef = false): Promise<DocumentReference | void> => {
-    if (!user || !debtsColRef || !firestore || !debt.accountId) return;
+  const addDebt = useCallback(async (debt: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<DocumentReference | void> => {
+    if (!user || !debtsColRef || !firestore || !debt.accountId || !activeProject) return;
 
     const newDebt: any = {
       ...debt,
       userId: user.uid,
+      projectId: activeProject.id,
       date: serverTimestamp() as Timestamp,
     };
     
@@ -207,7 +234,7 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
         return docRefPromise;
     }
 
-  }, [user, firestore, debtsColRef]);
+  }, [user, firestore, debtsColRef, activeProject]);
 
   const updateDebt = useCallback(async (originalDebt: Debt, updatedData: Partial<Debt>) => {
     if (!user || !firestore || !debtsColRef) return;
@@ -281,7 +308,7 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
   }, [user, firestore, debtsColRef]);
 
   const addRepayment = useCallback((debt: Debt, amount: number, accountId: string) => {
-    if (!user || !debtsColRef || !firestore || !transactionsColRef) return;
+    if (!user || !debtsColRef || !firestore || !transactionsColRef || !activeProject) return;
     
     const debtRef = doc(debtsColRef, debt.id);
     const newDebtAmount = debt.amount - amount;
@@ -297,6 +324,7 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
       description: `Payment for debt: ${debt.name}`,
       date: serverTimestamp() as Timestamp,
       userId: user.uid,
+      projectId: activeProject.id,
       debtId: debt.id,
       accountId: accountId,
     };
@@ -310,7 +338,7 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
     } else { // 'debtor'
       updateAccountBalance(firestore, user.uid, accountId, amount, 'add');
     }
-  }, [user, firestore, debtsColRef, transactionsColRef]);
+  }, [user, firestore, debtsColRef, transactionsColRef, activeProject]);
 
   const addBankAccount = useCallback((account: Omit<BankAccount, 'id'| 'userId'>) => {
     if (!user || !bankAccountsColRef) return;
@@ -357,9 +385,12 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
   }, [debts]);
 
 
-  const isLoading = isUserLoading || isUserSettingsLoading || isTransactionsLoading || isDebtsLoading || isBankAccountsLoading;
+  const isLoading = isUserLoading || isUserSettingsLoading || isProjectsLoading || isTransactionsLoading || isDebtsLoading || isBankAccountsLoading;
 
   const contextValue = useMemo(() => ({
+    projects: projects || [],
+    activeProject,
+    setActiveProject,
     transactions: transactions || [],
     debts: debts || [],
     bankAccounts: bankAccounts || [],
@@ -374,10 +405,13 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
     addBankAccount,
     setCurrency,
     setPrimaryBankAccount,
+    addProject,
     isLoading,
     getTransactionById,
     getDebtById,
   }), [
+      projects,
+      activeProject,
       transactions, 
       debts, 
       bankAccounts, 
@@ -392,6 +426,7 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
       addBankAccount, 
       setCurrency, 
       setPrimaryBankAccount, 
+      addProject,
       isLoading,
       getTransactionById,
       getDebtById

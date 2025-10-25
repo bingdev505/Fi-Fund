@@ -129,7 +129,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col p-0">
                <SheetHeader className='p-4 border-b'>
-                <SheetTitle className="sr-only">Menu</SheetTitle>
+                 <SheetTitle className="sr-only">Menu</SheetTitle>
                  <Link href="/" className="flex items-center gap-2 font-semibold">
                     <div className="w-8 h-8 bg-primary text-primary-foreground flex items-center justify-center rounded-md font-bold text-lg">
                       F
@@ -150,13 +150,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     </SheetClose>
                 ))}
                  <Separator className="my-2 bg-sidebar-border" />
-                 <Link
-                    href={'/settings'}
-                    className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", { "bg-sidebar-accent text-primary": pathname === '/settings' })}
-                  >
-                    <Cog className="h-5 w-5" />
-                    Settings
-                  </Link>
+                 <SheetClose asChild>
+                    <Link
+                        href={'/settings'}
+                        className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", { "bg-sidebar-accent text-primary": pathname === '/settings' })}
+                    >
+                        <Cog className="h-5 w-5" />
+                        Settings
+                    </Link>
+                 </SheetClose>
                   <div
                     onClick={handleLogout}
                     className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary cursor-pointer")}
@@ -188,7 +190,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <CommandList>
                         <CommandEmpty>No project found.</CommandEmpty>
                         <CommandGroup>
-                        {projects.map((project) => (
+                        {projects && projects.map((project) => (
                             <CommandItem
                             key={project.id}
                             value={project.name}
