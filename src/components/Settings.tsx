@@ -11,9 +11,8 @@ import { Separator } from '@/components/ui/separator';
 import { useFinancials } from '@/hooks/useFinancials';
 import { CURRENCIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Landmark, Loader2, Star, Folder } from 'lucide-react';
+import { PlusCircle, Landmark, Loader2, Star } from 'lucide-react';
 import { Badge } from './ui/badge';
-import ProjectForm from './ProjectForm';
 
 const bankAccountSchema = z.object({
   name: z.string().min(2, 'Bank name must be at least 2 characters'),
@@ -21,7 +20,7 @@ const bankAccountSchema = z.object({
 });
 
 export default function Settings() {
-  const { currency, setCurrency, bankAccounts, addBankAccount, setPrimaryBankAccount, isLoading, projects } = useFinancials();
+  const { currency, setCurrency, bankAccounts, addBankAccount, setPrimaryBankAccount, isLoading } = useFinancials();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof bankAccountSchema>>({
@@ -88,45 +87,10 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Projects & Bank Accounts</CardTitle>
-          <CardDescription>Add and manage your projects (businesses) and bank accounts.</CardDescription>
+          <CardTitle>Bank Accounts</CardTitle>
+          <CardDescription>Add and manage your bank accounts.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div>
-            <h3 className="text-lg font-medium mb-2">Add New Project</h3>
-            <ProjectForm onFinished={() => {}} />
-          </div>
-          <Separator className='my-6' />
-           <div>
-            <h3 className="text-lg font-medium mb-4">Your Projects</h3>
-            {isLoading ? (
-              <div className="flex justify-center items-center h-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : projects.length > 0 ? (
-              <div className="border rounded-md">
-                <ul className="divide-y divide-border">
-                  {projects.map(project => (
-                    <li key={project.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                      <div className="flex items-center gap-4">
-                          <Folder className="h-6 w-6 text-muted-foreground" />
-                          <div>
-                            <span className="font-medium">{project.name}</span>
-                          </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="text-center py-10 border-dashed border-2 rounded-md">
-                <p className="text-muted-foreground text-sm">You haven't added any projects yet.</p>
-              </div>
-            )}
-          </div>
-
-          <Separator className="my-6" />
-
           <h3 className="text-lg font-medium mb-2">Add New Bank Account</h3>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onAddBankAccount)} className="space-y-4 max-w-2xl">
