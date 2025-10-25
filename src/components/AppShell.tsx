@@ -9,17 +9,19 @@ import {
   Cog,
   LogOut,
   Loader2,
-  CircleUserRound,
   User,
+  ChevronsUpDown,
+  PlusCircle,
+  Folder,
 } from 'lucide-react';
-import { Sheet, SheetTrigger, SheetContent, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useUser } from '@/firebase';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import {
   DropdownMenu,
@@ -29,6 +31,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useFinancials } from '@/hooks/useFinancials';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from './ui/command';
+import type { Project } from '@/lib/types';
+import { Separator } from './ui/separator';
 
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -36,6 +43,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const { projects, activeProject, setActiveProject, isLoading: isFinancialsLoading } = useFinancials();
+  const [open, setOpen] = useState(false);
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -59,7 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
 
-  if (isUserLoading) {
+  if (isUserLoading || isFinancialsLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -71,6 +81,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  const handleProjectSelect = (project: Project) => {
+    setActiveProject(project);
+    setOpen(false);
+  }
+
   return (
     <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-card md:block">
@@ -80,7 +95,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div className="w-8 h-8 bg-primary text-primary-foreground flex items-center justify-center rounded-md font-bold text-lg">
                 F
               </div>
-              <span className="font-headline">FinanceFlow</span>
+              <span className="">FinanceFlow</span>
             </Link>
           </div>
           <div className="flex-1">
@@ -113,14 +128,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col p-0">
-              <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+               <SheetHeader className='p-4 border-b'>
+                <SheetTitle className="sr-only">Menu</SheetTitle>
                  <Link href="/" className="flex items-center gap-2 font-semibold">
                     <div className="w-8 h-8 bg-primary text-primary-foreground flex items-center justify-center rounded-md font-bold text-lg">
                       F
                     </div>
-                    <span className="font-headline">FinanceFlow</span>
+                    <span className="">FinanceFlow</span>
                   </Link>
-              </div>
+              </SheetHeader>
               <nav className="grid gap-2 text-lg font-medium p-4">
                 {navItems.map((item) => (
                    <SheetClose asChild key={item.label}>
@@ -133,12 +149,70 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       </Link>
                     </SheetClose>
                 ))}
+                 <Separator className="my-2 bg-sidebar-border" />
+                 <Link
+                    href={'/settings'}
+                    className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", { "bg-sidebar-accent text-primary": pathname === '/settings' })}
+                  >
+                    <Cog className="h-5 w-5" />
+                    Settings
+                  </Link>
+                  <div
+                    onClick={handleLogout}
+                    className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary cursor-pointer")}
+                  >
+                    <LogOut className="h-5 w-5" />
+                    Logout
+                  </div>
               </nav>
             </SheetContent>
           </Sheet>
+          
           <div className="w-full flex-1">
-            {/* Can add a search bar here if needed */}
+             <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-[200px] justify-between"
+                  >
+                    <Folder className='mr-2' />
+                    {activeProject ? activeProject.name : "Select project..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search project..." />
+                    <CommandList>
+                        <CommandEmpty>No project found.</CommandEmpty>
+                        <CommandGroup>
+                        {projects.map((project) => (
+                            <CommandItem
+                            key={project.id}
+                            value={project.name}
+                            onSelect={() => handleProjectSelect(project)}
+                            >
+                            {project.name}
+                            </CommandItem>
+                        ))}
+                        </CommandGroup>
+                    </CommandList>
+                    <CommandSeparator />
+                     <CommandList>
+                        <CommandGroup>
+                            <CommandItem onSelect={() => router.push('/settings')}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Create Project
+                            </CommandItem>
+                        </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
           </div>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
