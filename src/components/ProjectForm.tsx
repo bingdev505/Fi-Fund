@@ -36,14 +36,10 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
 
   const form = useForm<z.infer<typeof projectSchema>>({
     resolver: zodResolver(projectSchema),
-    defaultValues: project ? {
-        name: project.name,
-        parentProjectId: project.parentProjectId,
-        googleSheetId: project.googleSheetId
-    } : {
-      name: '',
-      parentProjectId: '',
-      googleSheetId: '',
+    defaultValues: {
+      name: project?.name || '',
+      parentProjectId: project?.parentProjectId || '',
+      googleSheetId: project?.googleSheetId || '',
     },
   });
 
