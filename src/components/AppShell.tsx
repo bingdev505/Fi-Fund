@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Landmark,
   HandCoins,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -67,7 +68,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: '/overview', icon: LayoutDashboard, label: 'Overview' },
-    { href: '/entries', icon: BookUser, label: 'Entries' },
+    { href: '/transactions', icon: ArrowRightLeft, label: 'Transactions' },
     { href: '/debts', icon: HandCoins, label: 'Debts' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },

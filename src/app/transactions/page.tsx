@@ -1,14 +1,14 @@
 'use client';
 import { FinancialProvider } from '@/context/FinancialContext';
-import Entries from '@/components/Entries';
+import Transactions from '@/components/Transactions';
 import AppShell from '@/components/AppShell';
 
-export default function EntriesPage() {
+export default function TransactionsPage() {
   return (
     <FinancialProvider>
       <AppShell>
         <main className="flex flex-1 flex-col">
-          <Entries />
+          <Transactions />
         </main>
       </AppShell>
     </FinancialProvider>

@@ -3,12 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import EntryForm from './EntryForm';
 import EntryList from './EntryList';
 
-export default function Entries() {
+export default function Transactions() {
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Add a New Entry</CardTitle>
+          <CardTitle>Add a New Transaction</CardTitle>
         </CardHeader>
         <CardContent>
           <EntryForm />
@@ -16,7 +16,7 @@ export default function Entries() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Recent Entries</CardTitle>
+          <CardTitle>Recent Transactions</CardTitle>
         </CardHeader>
         <CardContent>
           <EntryList />
