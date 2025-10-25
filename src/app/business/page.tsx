@@ -1,13 +1,6 @@
 'use client';
-import { FinancialProvider } from '@/context/FinancialContext';
-import BusinessShell from '@/components/BusinessShell';
+import Business from '@/components/Business';
 
-export default function BusinessPage({ children }: { children: React.ReactNode }) {
-  return (
-    <FinancialProvider>
-      <BusinessShell>
-        {children}
-      </BusinessShell>
-    </FinancialProvider>
-  );
+export default function BusinessDashboardPage() {
+  return <Business />;
 }

@@ -1,6 +1,5 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Loader2, Folder } from 'lucide-react';
 import ProjectForm from './ProjectForm';
