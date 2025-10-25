@@ -54,7 +54,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [user, isUserLoading, router]);
 
   const navItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/overview', icon: LayoutDashboard, label: 'Overview' },
     { href: '/entries', icon: BookUser, label: 'Entries' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },

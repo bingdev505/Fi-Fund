@@ -49,7 +49,7 @@ export default function SignupPage() {
       // Since we use local storage, we don't need to create a user doc on signup.
       // The FinancialContext will handle creating default data on first load.
       
-      router.push('/dashboard');
+      router.push('/overview');
 
     } catch (error: any) {
       console.error('Signup Error:', error);

@@ -11,7 +11,7 @@ import Link from 'next/link';
 import EntryList from './EntryList';
 import { useUser } from '@/firebase';
 
-export default function Dashboard() {
+export default function Overview() {
   const { transactions, debts, currency, isLoading, bankAccounts } = useFinancials();
   const { user } = useUser();
 

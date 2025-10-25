@@ -1,14 +1,14 @@
 'use client';
 import { FinancialProvider } from '@/context/FinancialContext';
-import Dashboard from '@/components/Dashboard';
+import Overview from '@/components/Overview';
 import AppShell from '@/components/AppShell';
 
-export default function DashboardPage() {
+export default function OverviewPage() {
   return (
     <FinancialProvider>
       <AppShell>
         <main className="flex flex-1 flex-col">
-          <Dashboard />
+          <Overview />
         </main>
       </AppShell>
     </FinancialProvider>

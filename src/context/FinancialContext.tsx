@@ -65,29 +65,32 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      const storedProjects = projectsKey ? JSON.parse(localStorage.getItem(projectsKey) || '[]') : [];
+      let storedProjects = projectsKey ? JSON.parse(localStorage.getItem(projectsKey) || '[]') : [];
       const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
       const storedTransactions = transactionsKey ? JSON.parse(localStorage.getItem(transactionsKey) || '[]') : [];
       const storedDebts = debtsKey ? JSON.parse(localStorage.getItem(debtsKey) || '[]') : [];
       const storedBankAccounts = bankAccountsKey ? JSON.parse(localStorage.getItem(bankAccountsKey) || '[]') : [];
       const storedCurrency = currencyKey ? localStorage.getItem(currencyKey) || 'INR' : 'INR';
+      
+      if (storedProjects.length === 0) {
+        const defaultProject1 = { id: crypto.randomUUID(), name: 'All Business', userId: user.uid, createdAt: new Date().toISOString() };
+        const defaultProject2 = { id: crypto.randomUUID(), name: 'Business', userId: user.uid, createdAt: new Date().toISOString() };
+        storedProjects = [defaultProject1, defaultProject2];
+        setProjects(storedProjects);
+        setActiveProject(defaultProject1);
+      } else {
+        setProjects(storedProjects);
+        if (storedActiveProject && storedProjects.some((p: Project) => p.id === storedActiveProject.id)) {
+          setActiveProject(storedActiveProject);
+        } else {
+          setActiveProject(storedProjects[0]);
+        }
+      }
 
-      setProjects(storedProjects);
       setTransactions(storedTransactions);
       setDebts(storedDebts);
       setBankAccounts(storedBankAccounts);
       setCurrencyState(storedCurrency);
-
-      if (storedActiveProject) {
-        setActiveProject(storedActiveProject);
-      } else if (storedProjects.length > 0) {
-        setActiveProject(storedProjects[0]);
-      } else {
-        // If no projects, create a default one
-        const defaultProject = { id: crypto.randomUUID(), name: 'Default Project', userId: user.uid, createdAt: new Date().toISOString() };
-        setProjects([defaultProject]);
-        setActiveProject(defaultProject);
-      }
 
     } catch (error) {
       console.error("Failed to parse from local storage", error);
