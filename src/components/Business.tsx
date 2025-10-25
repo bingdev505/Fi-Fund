@@ -4,14 +4,14 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Loader2, Folder, Pencil, Trash2 } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { useState, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import type { Project } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Business() {
-  const { isLoading, projects, deleteProject } = useFinancials();
+  const { isLoading, projects, deleteProject, bankAccounts, transactions, currency } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -33,6 +33,35 @@ export default function Business() {
     toast({ title: "Business Deleted" });
     setDeletingProject(null);
   };
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  };
+
+  const projectBalances = useMemo(() => {
+    const balances = new Map<string, number>();
+    
+    // This is a simplified balance calculation. 
+    // For a real app, you might want to calculate based on transactions for each project.
+    // Here we just distribute the total bank balance for demonstration.
+    const totalBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+    const nonAllBusinessProjects = projects.filter(p => p.name !== 'All Business');
+
+    projects.forEach(p => {
+        if (p.name === 'All Business') {
+            balances.set(p.id, totalBalance);
+        } else {
+            // A more complex logic would be needed here to get per-project balance.
+            // For now, let's just show a portion of the total balance as a placeholder.
+            const projectTransactions = transactions.filter(t => t.projectId === p.id);
+            const income = projectTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const expense = projectTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            balances.set(p.id, income - expense);
+        }
+    });
+    return balances;
+  }, [projects, bankAccounts, transactions, currency]);
+
 
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
@@ -73,15 +102,20 @@ export default function Business() {
                               )}
                             </div>
                         </div>
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => setDeletingProject(project)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                        <div className='flex items-center gap-4'>
+                          <div className="font-semibold text-right">
+                              {formatCurrency(projectBalances.get(project.id) || 0)}
+                          </div>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
+                              <Pencil className="h-4 w-4" />
                             </Button>
-                          </AlertDialogTrigger>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={() => setDeletingProject(project)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </div>
                         </div>
                       </li>
                     ))}

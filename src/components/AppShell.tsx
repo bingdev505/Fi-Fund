@@ -216,7 +216,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     aria-expanded={open}
                     className="w-[200px] justify-between"
                   >
-                    <Folder className='mr-2' />
+                    <Folder className="mr-2 h-4 w-4" />
                     {activeProject ? activeProject.name : "Select project..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>

@@ -13,6 +13,7 @@ interface FinancialContextType {
   deleteProject: (projectId: string) => void;
   
   transactions: Transaction[];
+  allTransactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => void;
   deleteTransaction: (transaction: Transaction) => void;
@@ -106,7 +107,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         if (storedActiveProject && storedProjects.some((p: Project) => p.id === storedActiveProject.id)) {
           setActiveProject(storedActiveProject);
         } else {
-          setActiveProject(storedProjects[0]);
+          setActiveProject(storedProjects.find(p => p.name === 'All Business') || storedProjects[0]);
         }
       }
 
@@ -162,13 +163,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setClients(prev => prev.filter(c => c.projectId !== projectId));
     setCategories(prev => prev.filter(cat => cat.projectId !== projectId));
     if (activeProject?.id === projectId) {
-      const remainingProjects = projects.filter(p => p.id !== projectId);
-      setActiveProject(remainingProjects.length > 0 ? remainingProjects[0] : null);
+      const allBusinessProject = projects.find(p => p.name === 'All Business');
+      setActiveProject(allBusinessProject || null);
     }
   }, [activeProject, projects]);
 
   const addClient = useCallback((clientData: Omit<Client, 'id' | 'projectId'>) => {
-    if (!user || !activeProject) return;
+    if (!user || !activeProject || activeProject.name === 'All Business') return;
     const newClient = { ...clientData, id: crypto.randomUUID(), projectId: activeProject.id };
     setClients(prev => [...prev, newClient]);
   }, [user, activeProject]);
@@ -182,7 +183,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addCategory = useCallback((categoryData: Omit<Category, 'id' | 'projectId'>) => {
-    if (!user || !activeProject) return;
+    if (!user || !activeProject || activeProject.name === 'All Business') return;
     const newCategory = { ...categoryData, id: crypto.randomUUID(), projectId: activeProject.id };
     setCategories(prev => [...prev, newCategory]);
   }, [user, activeProject]);
@@ -207,7 +208,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id'| 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user || !activeProject) return;
+    if (!user || !activeProject || activeProject.name === 'All Business') return;
     const newTransaction = { ...transactionData, id: crypto.randomUUID(), userId: user.uid, projectId: activeProject.id, date: new Date().toISOString() };
     setTransactions(prev => [...prev, newTransaction]);
     
@@ -242,7 +243,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [updateAccountBalance]);
 
   const addDebt = useCallback(async (debtData: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user || !activeProject || !debtData.accountId) return;
+    if (!user || !activeProject || !debtData.accountId || activeProject.name === 'All Business') return;
     const newDebt = { ...debtData, id: crypto.randomUUID(), userId: user.uid, projectId: activeProject.id, date: new Date().toISOString() };
     setDebts(prev => [...prev, newDebt]);
 
@@ -303,14 +304,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       return debts.find(d => d.id === id);
   }, [debts]);
   
-  const filteredTransactions = useMemo(() => activeProject ? transactions.filter(t => t.projectId === activeProject.id || activeProject.name === 'All Business') : [], [transactions, activeProject]);
-  const filteredDebts = useMemo(() => activeProject ? debts.filter(d => d.projectId === activeProject.id || activeProject.name === 'All Business') : [], [debts, activeProject]);
-  const filteredClients = useMemo(() => activeProject ? clients.filter(c => c.projectId === activeProject.id) : [], [clients, activeProject]);
-  const filteredCategories = useMemo(() => activeProject ? categories.filter(cat => cat.projectId === activeProject.id) : [], [categories, activeProject]);
+  const filteredTransactions = useMemo(() => (activeProject && activeProject.name !== 'All Business') ? transactions.filter(t => t.projectId === activeProject.id) : transactions, [transactions, activeProject]);
+  const filteredDebts = useMemo(() => (activeProject && activeProject.name !== 'All Business') ? debts.filter(d => d.projectId === activeProject.id) : debts, [debts, activeProject]);
+  const filteredClients = useMemo(() => (activeProject && activeProject.name !== 'All Business') ? clients.filter(c => c.projectId === activeProject.id) : [], [clients, activeProject]);
+  const filteredCategories = useMemo(() => (activeProject && activeProject.name !== 'All Business') ? categories.filter(cat => cat.projectId === activeProject.id) : [], [categories, activeProject]);
 
   const contextValue = useMemo(() => ({
     projects, activeProject, setActiveProject, addProject, updateProject, deleteProject,
-    transactions: filteredTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
+    transactions: filteredTransactions, allTransactions: transactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
     debts: filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
     bankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
     clients: filteredClients, addClient, updateClient, deleteClient,
@@ -319,7 +320,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading,
   }), [
       projects, activeProject, setActiveProject, addProject, updateProject, deleteProject,
-      filteredTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
+      filteredTransactions, transactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
       filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
       bankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
       filteredClients, addClient, updateClient, deleteClient,
