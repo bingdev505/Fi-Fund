@@ -18,6 +18,9 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { Project } from '@/lib/types';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { useUser } from '@/firebase';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -30,9 +33,14 @@ type ProjectFormProps = {
     onFinished: () => void;
 }
 
+const SERVICE_ACCOUNT_EMAIL = "finance-flow-service-account@studio-9503278955-c489b.iam.gserviceaccount.com";
+
 export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
   const { addProject, updateProject, projects } = useFinancials();
   const { toast } = useToast();
+  const [showSheetShareDialog, setShowSheetShareDialog] = useState(false);
+  const [submittedSheetId, setSubmittedSheetId] = useState<string | null>(null);
+  const { user } = useUser();
 
   const form = useForm<z.infer<typeof projectSchema>>({
     resolver: zodResolver(projectSchema),
@@ -44,6 +52,9 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
   });
 
   function onSubmit(values: z.infer<typeof projectSchema>) {
+    const isNewProject = !project;
+    const hasNewSheetId = values.googleSheetId && values.googleSheetId !== project?.googleSheetId;
+
     if (project) {
         updateProject(project.id, values);
         toast({ title: "Business Updated" });
@@ -54,10 +65,20 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
           description: `Business "${values.name}" has been created.`,
         });
     }
+
+    if (isNewProject && values.googleSheetId) {
+        setSubmittedSheetId(values.googleSheetId);
+        setShowSheetShareDialog(true);
+    } else if (hasNewSheetId) {
+        setSubmittedSheetId(values.googleSheetId!);
+        setShowSheetShareDialog(true);
+    }
+    
     onFinished();
   }
 
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
@@ -118,5 +139,34 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         </Button>
       </form>
     </Form>
+    <Dialog open={showSheetShareDialog} onOpenChange={setShowSheetShareDialog}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Connect Your Google Sheet</DialogTitle>
+                <DialogDescription>
+                    To finish connecting your sheet, please share it with our service account.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <p>
+                    1. Open your Google Sheet: <a href={`https://docs.google.com/spreadsheets/d/${submittedSheetId}`} target="_blank" rel="noopener noreferrer" className="text-primary underline">Link to Sheet</a>
+                </p>
+                <p>
+                    2. Click the &quot;Share&quot; button in the top-right corner.
+                </p>
+                <p>
+                    3. In the &quot;Add people and groups&quot; field, paste the following email address:
+                </p>
+                <div className='bg-muted p-3 rounded-md'>
+                    <p className='text-sm font-mono break-all'>{SERVICE_ACCOUNT_EMAIL}</p>
+                </div>
+                <p>
+                    4. Make sure to give it **Editor** access, and click &quot;Send&quot;.
+                </p>
+            </div>
+            <Button onClick={() => setShowSheetShareDialog(false)}>Done</Button>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }
