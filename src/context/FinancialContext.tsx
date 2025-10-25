@@ -312,8 +312,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   
   const filteredTransactions = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTransactions.filter(t => t.projectId === activeProject.id) : allTransactions, [allTransactions, activeProject]);
   const filteredDebts = useMemo(() => (activeProject && activeProject.id !== 'all') ? allDebts.filter(d => d.projectId === activeProject.id) : allDebts, [allDebts, activeProject]);
-  const filteredClients = useMemo(() => (activeProject && activeProject.id !== 'all') ? allClients.filter(c => c.projectId === activeProject.id) : [], [allClients, activeProject]);
-  const filteredCategories = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCategories.filter(cat => cat.projectId === activeProject.id) : [], [allCategories, activeProject]);
+  const filteredClients = useMemo(() => (activeProject && activeProject.id !== 'all') ? allClients.filter(c => c.projectId === activeProject.id) : allClients, [allClients, activeProject]);
+  const filteredCategories = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCategories.filter(cat => cat.projectId === activeProject.id) : allCategories, [allCategories, activeProject]);
 
   const contextValue = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, addProject, updateProject, deleteProject,
