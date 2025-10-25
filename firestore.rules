@@ -1,33 +1,25 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model, where each user can only access their own data.
+ * @description This ruleset is configured to deny all access for prototyping purposes. When the application
+ * is ready for production, the rules can be updated to implement more specific access control.
  *
- * Data Structure:
- * - All data is nested under `/users/{userId}`, ensuring clear ownership.
- * - User profiles are stored directly under `/users/{userId}`.
- * - Subcollections under `/users/{userId}` store related data like transactions, debts, bank accounts, and chat history.
- *
- * Key Security Decisions:
- * - User listing is disallowed to prevent enumeration.
- * - Data consistency between the path and document data is enforced on create and update.
- * - All write operations require the user to be signed in.
- *
- * Denormalization for Authorization:
- * - The userId is denormalized into each subcollection document. This allows efficient
- *   security rules without additional `get()` calls to the `/users/{userId}` document.
+ * Core Philosophy: Deny all access until specific rules are implemented.
+ * Data Structure: Data is nested under /users/{userId}, but no access is granted at this time.
+ * Key Security Decisions: All read and write operations are denied to ensure no data is exposed during
+ * prototyping.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Protects the root of the database. No direct access allowed.
-     * @path /
-     * @allow (get, list) if false
-     * @deny (create, update, delete) always
-     * @principle Prevents accidental access to the database root.
+     * @description Denies all access to user documents during prototyping.
+     * @path /users/{userId}
+     * @allow None - All operations are denied.
+     * @deny Any operation.
+     * @principle Deny all access during prototyping.
      */
-    match /{document=**} {
+    match /users/{userId} {
       allow get: if false;
       allow list: if false;
       allow create: if false;
@@ -35,124 +27,64 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Helper function to check if the user is signed in.
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if the authenticated user is the owner of the document.
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // Helper function to check if the authenticated user is the owner of an existing document.
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
     /**
-     * @description Manages user profile data. Only the authenticated user can read and write their own profile.
-     * @path /users/{userId}
-     * @allow (get) User can read their own profile.
-     * @allow (create) User can create their profile if the userId matches their auth UID.
-     * @allow (update) User can update their profile if the userId matches their auth UID and the document exists.
-     * @allow (delete) User can delete their profile if the userId matches their auth UID and the document exists.
-     * @deny (list) Listing users is not permitted.
-     * @deny (create) If the userId doesn't match the auth UID.
-     * @deny (update) If the userId doesn't match the auth UID.
-     * @deny (delete) If the userId doesn't match the auth UID.
-     * @principle Enforces strict user ownership for profile data.
-     */
-    match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Manages transaction data (income/expenses) for a specific user. Only the owner can read and write.
+     * @description Denies all access to transaction documents during prototyping.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (get) User can read their own transactions.
-     * @allow (create) User can create transactions under their own user ID, matching the path.
-     * @allow (update) User can update their own transactions, matching the path, and the document exists.
-     * @allow (delete) User can delete their own transactions, matching the path, and the document exists.
-     * @deny (list) Listing transactions for other users is forbidden.
-     * @deny (create) If the userId doesn't match the auth UID.
-     * @deny (update) If the userId doesn't match the auth UID.
-     * @deny (delete) If the userId doesn't match the auth UID.
-     * @principle Enforces user ownership and data consistency for transaction data.
+     * @allow None - All operations are denied.
+     * @deny Any operation.
+     * @principle Deny all access during prototyping.
      */
     match /users/{userId}/transactions/{transactionId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isSignedIn() && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Manages debt data (creditors/debtors) for a specific user. Only the owner can read and write.
+     * @description Denies all access to debt documents during prototyping.
      * @path /users/{userId}/debts/{debtId}
-     * @allow (get) User can read their own debt entries.
-     * @allow (create) User can create debt entries under their own user ID, matching the path.
-     * @allow (update) User can update their own debt entries, matching the path, and the document exists.
-     * @allow (delete) User can delete their own debt entries, matching the path, and the document exists.
-     * @deny (list) Listing debt entries for other users is forbidden.
-     * @deny (create) If the userId doesn't match the auth UID.
-     * @deny (update) If the userId doesn't match the auth UID.
-     * @deny (delete) If the userId doesn't match the auth UID.
-     * @principle Enforces user ownership and data consistency for debt data.
+     * @allow None - All operations are denied.
+     * @deny Any operation.
+     * @principle Deny all access during prototyping.
      */
     match /users/{userId}/debts/{debtId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isSignedIn() && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Manages bank account data for a specific user. Only the owner can read and write.
+     * @description Denies all access to bank account documents during prototyping.
      * @path /users/{userId}/bankAccounts/{accountId}
-     * @allow (get) User can read their own bank accounts.
-     * @allow (create) User can create bank accounts under their own user ID, matching the path.
-     * @allow (update) User can update their own bank accounts, matching the path, and the document exists.
-     * @allow (delete) User can delete their own bank accounts, matching the path, and the document exists.
-     * @deny (list) Listing bank accounts for other users is forbidden.
-     * @deny (create) If the userId doesn't match the auth UID.
-     * @deny (update) If the userId doesn't match the auth UID.
-     * @deny (delete) If the userId doesn't match the auth UID.
-     * @principle Enforces user ownership and data consistency for bank account data.
+     * @allow None - All operations are denied.
+     * @deny Any operation.
+     * @principle Deny all access during prototyping.
      */
     match /users/{userId}/bankAccounts/{accountId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isSignedIn() && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Manages chat message history for a specific user. Only the owner can read and write.
+     * @description Denies all access to chat message documents during prototyping.
      * @path /users/{userId}/chatHistory/{messageId}
-     * @allow (get) User can read their own chat history.
-     * @allow (create) User can create chat messages under their own user ID, matching the path.
-     * @allow (update) User can update their own chat messages, matching the path, and the document exists.
-     * @allow (delete) User can delete their own chat messages, matching the path, and the document exists.
-     * @deny (list) Listing chat history for other users is forbidden.
-     * @deny (create) If the userId doesn't match the auth UID.
-     * @deny (update) If the userId doesn't match the auth UID.
-     * @deny (delete) If the userId doesn't match the auth UID.
-     * @principle Enforces user ownership and data consistency for chat history.
+     * @allow None - All operations are denied.
+     * @deny Any operation.
+     * @principle Deny all access during prototyping.
      */
     match /users/{userId}/chatHistory/{messageId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isSignedIn() && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
