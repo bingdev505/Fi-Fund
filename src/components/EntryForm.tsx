@@ -105,6 +105,13 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       entryType: 'expense',
       amount: 0,
       description: '',
+      category: '',
+      clientName: '',
+      accountId: '',
+      fromAccountId: '',
+      toAccountId: '',
+      clientId: '',
+      dueDate: undefined,
     },
   });
 
@@ -166,18 +173,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         description: `Debt related to ${client.name} for ${formatCurrency(data.amount)} has been logged.`,
       });
     }
-    form.reset({
-      entryType: 'expense',
-      amount: 0,
-      category: '',
-      description: '',
-      dueDate: undefined,
-      accountId: undefined,
-      fromAccountId: undefined,
-      toAccountId: undefined,
-      clientId: undefined,
-      clientName: '',
-    });
+    form.reset();
     onFinished();
   }
 
@@ -478,3 +474,5 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
+
+    
