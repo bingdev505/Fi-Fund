@@ -85,7 +85,12 @@ const formSchema = z.object({
     path: ["clientId"],
 });
 
-export default function EntryForm() {
+type EntryFormProps = {
+  onFinished: () => void;
+};
+
+
+export default function EntryForm({ onFinished }: EntryFormProps) {
   const { addTransaction, addDebt, currency, bankAccounts, clients, categories: customCategories } = useFinancials();
   const { toast } = useToast();
 
@@ -159,6 +164,7 @@ export default function EntryForm() {
       toAccountId: undefined,
       clientId: undefined,
     });
+    onFinished();
   }
 
   return (
