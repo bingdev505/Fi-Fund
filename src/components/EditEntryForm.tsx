@@ -28,9 +28,8 @@ import { Save, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import type { Transaction, Debt } from '@/lib/types';
-import { Timestamp } from 'firebase/firestore';
 
 const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor']),
@@ -88,7 +87,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       description: entry.description,
       category: isTransaction ? (entry as Transaction).category : (entry as Debt).name,
       accountId: entry.accountId,
-      dueDate: (entry as Debt).dueDate instanceof Timestamp ? (entry as Debt).dueDate?.toDate() : undefined
+      dueDate: (entry as Debt).dueDate ? parseISO((entry as Debt).dueDate!) : undefined
     },
   });
 
@@ -108,7 +107,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       updateTransaction(entry as Transaction, { ...data, category });
       toast({ title: "Transaction Updated" });
     } else {
-      updateDebt(entry as Debt, { ...data, name: category });
+      updateDebt(entry as Debt, { ...data, name: category, dueDate: data.dueDate?.toISOString() });
       toast({ title: "Debt Updated" });
     }
     onFinished();

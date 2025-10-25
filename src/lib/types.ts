@@ -1,14 +1,17 @@
 'use client';
-import { Timestamp } from 'firebase/firestore';
+
+// Timestamps are stored as ISO 8601 strings in local storage for serializability.
+export type LocalTimestamp = string;
 
 export type Transaction = {
   id: string;
   userId: string;
+  projectId: string;
   type: 'income' | 'expense' | 'transfer' | 'repayment';
   category: string;
   amount: number;
   description: string;
-  date: Timestamp;
+  date: LocalTimestamp;
   accountId?: string;
   fromAccountId?: string;
   toAccountId?: string;
@@ -18,12 +21,13 @@ export type Transaction = {
 export type Debt = {
   id:string;
   userId: string;
+  projectId: string;
   type: 'creditor' | 'debtor';
   name: string;
   amount: number;
   description: string;
-  dueDate?: Timestamp;
-  date: Timestamp;
+  dueDate?: LocalTimestamp;
+  date: LocalTimestamp;
   accountId?: string;
 };
 
@@ -41,11 +45,18 @@ export type UserSettings = {
   currency: string;
 }
 
+export type Project = {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: LocalTimestamp;
+}
+
 export type ChatMessage = {
     id: string;
     role: 'user' | 'assistant';
     content: string;
-    timestamp: Timestamp;
+    timestamp: LocalTimestamp;
     transactionId?: string;
     entryType?: 'income' | 'expense' | 'creditor' | 'debtor';
 };

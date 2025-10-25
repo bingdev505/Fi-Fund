@@ -10,10 +10,10 @@ import {
 } from 'lucide-react';
 import type { Debt } from '@/lib/types';
 import { useMemo, useState } from 'react';
-import { Timestamp } from 'firebase/firestore';
 import { Button } from './ui/button';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import RepaymentForm from './RepaymentForm';
+import { parseISO } from 'date-fns';
 
 
 type DebtListProps = {
@@ -27,10 +27,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
 
   const filteredDebts = useMemo(() => {
     const toDate = (date: any) => {
-        if (date instanceof Timestamp) {
-            return date.toDate();
-        }
-        return new Date(date);
+        return parseISO(date);
     }
 
     const filtered = debts

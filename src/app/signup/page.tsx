@@ -15,10 +15,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -31,7 +29,6 @@ const formSchema = z.object({
 
 export default function SignupPage() {
   const auth = useAuth();
-  const firestore = useFirestore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -47,19 +44,11 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-
-      // Create a user document in Firestore to store settings
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userData = {
-        email: user.email,
-        id: user.uid,
-        currency: 'INR' // Default currency
-      };
-      // Use non-blocking write
-      setDocumentNonBlocking(userDocRef, userData, { merge: true });
-
+      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      
+      // Since we use local storage, we don't need to create a user doc on signup.
+      // The FinancialContext will handle creating default data on first load.
+      
       router.push('/dashboard');
 
     } catch (error: any) {

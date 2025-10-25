@@ -16,12 +16,12 @@ import {
 } from 'lucide-react';
 import type { Transaction, Debt } from '@/lib/types';
 import { useMemo, useState } from 'react';
-import { Timestamp } from 'firebase/firestore';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import EditEntryForm from './EditEntryForm';
 import { useToast } from '@/hooks/use-toast';
+import { parseISO } from 'date-fns';
 
 type EntryListProps = {
   limit?: number;
@@ -36,10 +36,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
 
   const allEntries = useMemo(() => {
     const toDate = (date: any) => {
-        if (date instanceof Timestamp) {
-            return date.toDate();
-        }
-        return new Date(date);
+        return parseISO(date);
     }
 
     const combined: (Transaction | Debt)[] = [

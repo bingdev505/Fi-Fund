@@ -1,48 +1,15 @@
-/**
- * @fileoverview Firestore Security Rules for the application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Users can only
- * read and write data associated with their own user ID. This ensures
- * data privacy and prevents unauthorized access.
- *
- * Data Structure:
- * All data is nested under /users/{userId}, which enforces clear
- * ownership. Subcollections like /transactions, /debts, /bankAccounts,
- * and /chatHistory further organize user-specific data.
- *
- * Key Security Decisions:
- * - Users can only access their own user document.
- * - Users can only manage data (transactions, debts, bank accounts,
- *   chat history) associated with their user ID.
- * - No public listing of any collections is allowed, as all collections
- *   contain private, user-specific data.
- * - In general, the prototyping philosophy favors strict authorization
- *   over data validation; therefore, data shapes are not heavily validated.
- *
- * Denormalization for Authorization:
- * The 'userId' field within each document is used to enforce ownership.
- * This avoids costly `get()` operations to verify ownership against a
- * separate user document.
- *
- * Structural Segregation:
- * There is no data intended to be both private and public. Everything
- * is under /users/{userId}, ensuring data isolation.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants access to user profile information.
+     * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (get) User with matching UID can read their own profile.
-     * @allow (create) User with matching UID can create their own profile.
-     * @allow (update) User with matching UID can update their own profile.
-     * @allow (delete) User with matching UID can delete their own profile.
-     * @deny (get) User tries to read another user's profile.
-     * @deny (create) User tries to create a profile with a mismatched UID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with matching auth UID can create their profile.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their profile.
+     * @deny (create) - User tries to create a profile with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's profile.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       function isSignedIn() {
@@ -53,30 +20,25 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Grants access to user's transaction history.
+     * @description Controls access to transaction entries (income and expenses) for a specific user.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (get) User with matching UID can read their own transaction.
-     * @allow (create) User with matching UID can create their own transaction.
-     * @allow (update) User with matching UID can update their own transaction.
-     * @allow (delete) User with matching UID can delete their own transaction.
-     * @deny (get) User tries to read another user's transaction.
-     * @deny (create) User tries to create a transaction with a mismatched UID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with matching auth UID can create a transaction entry under their user ID.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own transaction entries.
+     * @allow (list) - User can list transactions for their own ID.
+     * @deny (create) - User tries to create a transaction entry with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's transaction entries.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/transactions/{transactionId} {
-       function isSignedIn() {
+      function isSignedIn() {
         return request.auth != null;
       }
 
@@ -84,30 +46,25 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-        function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
+      allow list: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Grants access to user's debt information.
+     * @description Controls access to debt entries (creditors and debtors) for a specific user.
      * @path /users/{userId}/debts/{debtId}
-     * @allow (get) User with matching UID can read their own debt.
-     * @allow (create) User with matching UID can create their own debt.
-     * @allow (update) User with matching UID can update their own debt.
-     * @allow (delete) User with matching UID can delete their own debt.
-     * @deny (get) User tries to read another user's debt.
-     * @deny (create) User tries to create a debt with a mismatched UID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with matching auth UID can create a debt entry under their user ID.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own debt entries.
+     * @allow (list) - User can list debts for their own ID.
+     * @deny (create) - User tries to create a debt entry with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's debt entries.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/debts/{debtId} {
-       function isSignedIn() {
+      function isSignedIn() {
         return request.auth != null;
       }
 
@@ -115,62 +72,51 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-
       allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
+      allow list: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Grants access to user's bank account information.
+     * @description Controls access to bank account information for a specific user.
      * @path /users/{userId}/bankAccounts/{accountId}
-     * @allow (get) User with matching UID can read their own bank account.
-     * @allow (create) User with matching UID can create their own bank account.
-     * @allow (update) User with matching UID can update their own bank account.
-     * @allow (delete) User with matching UID can delete their own bank account.
-     * @deny (get) User tries to read another user's bank account.
-     * @deny (create) User tries to create a bank account with a mismatched UID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with matching auth UID can create a bank account entry under their user ID.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own bank account entries.
+     * @allow (list) - User can list bank accounts for their own ID.
+     * @deny (create) - User tries to create a bank account entry with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's bank account entries.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/bankAccounts/{accountId} {
-       function isSignedIn() {
+      function isSignedIn() {
         return request.auth != null;
       }
 
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-      
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
 
       allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
+      allow list: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Grants access to user's chat history.
+     * @description Controls access to chat message history for a specific user.
      * @path /users/{userId}/chatHistory/{messageId}
-     * @allow (get) User with matching UID can read their own chat history.
-     * @allow (create) User with matching UID can create their own chat history.
-     * @allow (update) User with matching UID can update their own chat history.
-     * @allow (delete) User with matching UID can delete their own chat history.
-     * @deny (get) User tries to read another user's chat history.
-     * @deny (create) User tries to create a chat history with a mismatched UID.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - User with matching auth UID can create a chat message entry under their user ID.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own chat message entries.
+     * @allow (list) - User can list chat history for their own ID.
+     * @deny (create) - User tries to create a chat message entry with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's chat message entries.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/chatHistory/{messageId} {
-       function isSignedIn() {
+      function isSignedIn() {
         return request.auth != null;
       }
 
@@ -178,15 +124,11 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
+      allow list: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
   }
 }

@@ -1,23 +1,21 @@
 'use client';
 
-import { createContext, useCallback, ReactNode, useMemo, useState } from 'react';
+import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
 import type { Transaction, Debt, BankAccount, UserSettings, Project } from '@/lib/types';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, serverTimestamp, Timestamp, writeBatch, runTransaction, Firestore, DocumentReference } from 'firebase/firestore';
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from '@/firebase';
 
 interface FinancialContextType {
   projects: Project[];
   activeProject: Project | null;
-  setActiveProject: (project: Project) => void;
+  setActiveProject: (project: Project | null) => void;
   transactions: Transaction[];
   debts: Debt[];
   bankAccounts: BankAccount[];
   currency: string;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<DocumentReference | void>;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => void;
   deleteTransaction: (transaction: Transaction) => void;
-  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<DocumentReference | void>;
+  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => void;
   deleteDebt: (debt: Debt) => void;
   addRepayment: (debt: Debt, amount: number, accountId: string) => void;
@@ -32,369 +30,310 @@ interface FinancialContextType {
 
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
-async function updateAccountBalance(
-  firestore: Firestore,
-  userId: string,
-  accountId: string,
-  amount: number,
-  operation: 'add' | 'subtract'
-) {
-  const accountRef = doc(firestore, 'users', userId, 'bankAccounts', accountId);
-  try {
-    await runTransaction(firestore, async (transaction) => {
-      const accountDoc = await transaction.get(accountRef);
-      if (!accountDoc.exists()) {
-        throw "Bank account not found!";
-      }
-      const currentBalance = accountDoc.data().balance;
-      const newBalance = operation === 'add' ? currentBalance + amount : currentBalance - amount;
-      transaction.update(accountRef, { balance: newBalance });
-    });
-  } catch (e) {
-    console.error("Transaction failed: ", e);
-  }
-}
+// Hook to get a key for local storage, scoped to the user
+const useLocalStorageKey = (key: string) => {
+  const { user } = useUser();
+  return user ? `financeflow_${user.uid}_${key}` : null;
+};
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
 
+  // Keys for local storage
+  const projectsKey = useLocalStorageKey('projects');
+  const activeProjectKey = useLocalStorageKey('activeProject');
+  const transactionsKey = useLocalStorageKey('transactions');
+  const debtsKey = useLocalStorageKey('debts');
+  const bankAccountsKey = useLocalStorageKey('bankAccounts');
+  const currencyKey = useLocalStorageKey('currency');
+
+  // State management
+  const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [currency, setCurrencyState] = useState<string>('INR');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userSettings, isLoading: isUserSettingsLoading } = useDoc<UserSettings>(userDocRef);
+  // Read from local storage on mount and when user changes
+  useEffect(() => {
+    if (!user) {
+      setIsLoading(!isUserLoading);
+      return;
+    };
+    setIsLoading(true);
 
-  const projectsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'projects') : null, [firestore, user]);
-  const { data: projects, isLoading: isProjectsLoading } = useCollection<Project>(projectsColRef);
+    try {
+      const storedProjects = projectsKey ? JSON.parse(localStorage.getItem(projectsKey) || '[]') : [];
+      const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
+      const storedTransactions = transactionsKey ? JSON.parse(localStorage.getItem(transactionsKey) || '[]') : [];
+      const storedDebts = debtsKey ? JSON.parse(localStorage.getItem(debtsKey) || '[]') : [];
+      const storedBankAccounts = bankAccountsKey ? JSON.parse(localStorage.getItem(bankAccountsKey) || '[]') : [];
+      const storedCurrency = currencyKey ? localStorage.getItem(currencyKey) || 'INR' : 'INR';
 
-  const transactionsColRef = useMemoFirebase(() => (user && activeProject) ? collection(firestore, 'users', user.uid, 'projects', activeProject.id, 'transactions') : null, [firestore, user, activeProject]);
-  const { data: transactions, isLoading: isTransactionsLoading } = useCollection<Transaction>(transactionsColRef);
+      setProjects(storedProjects);
+      setTransactions(storedTransactions);
+      setDebts(storedDebts);
+      setBankAccounts(storedBankAccounts);
+      setCurrencyState(storedCurrency);
 
-  const debtsColRef = useMemoFirebase(() => (user && activeProject) ? collection(firestore, 'users', user.uid, 'projects', activeProject.id, 'debts') : null, [firestore, user, activeProject]);
-  const { data: debts, isLoading: isDebtsLoading } = useCollection<Debt>(debtsColRef);
+      if (storedActiveProject) {
+        setActiveProject(storedActiveProject);
+      } else if (storedProjects.length > 0) {
+        setActiveProject(storedProjects[0]);
+      } else {
+        // If no projects, create a default one
+        const defaultProject = { id: crypto.randomUUID(), name: 'Default Project', userId: user.uid, createdAt: new Date().toISOString() };
+        setProjects([defaultProject]);
+        setActiveProject(defaultProject);
+      }
 
-  const bankAccountsColRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'bankAccounts') : null, [firestore, user]);
-  const { data: bankAccounts, isLoading: isBankAccountsLoading } = useCollection<BankAccount>(bankAccountsColRef);
-
-  useMemo(() => {
-    if (projects && projects.length > 0 && !activeProject) {
-        setActiveProject(projects[0]);
+    } catch (error) {
+      console.error("Failed to parse from local storage", error);
+      // Initialize with empty/default values if parsing fails
+      setProjects([]);
+      setActiveProject(null);
+      setTransactions([]);
+      setDebts([]);
+      setBankAccounts([]);
+      setCurrencyState('INR');
+    } finally {
+      setIsLoading(false);
     }
-  }, [projects, activeProject]);
+  }, [user, isUserLoading, projectsKey, activeProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey]);
 
+  // Write to local storage whenever state changes
+  useEffect(() => {
+    if (projectsKey) localStorage.setItem(projectsKey, JSON.stringify(projects));
+  }, [projects, projectsKey]);
+  
+  useEffect(() => {
+    if (activeProjectKey) localStorage.setItem(activeProjectKey, JSON.stringify(activeProject));
+  }, [activeProject, activeProjectKey]);
+
+  useEffect(() => {
+    if (transactionsKey) localStorage.setItem(transactionsKey, JSON.stringify(transactions));
+  }, [transactions, transactionsKey]);
+
+  useEffect(() => {
+    if (debtsKey) localStorage.setItem(debtsKey, JSON.stringify(debts));
+  }, [debts, debtsKey]);
+
+  useEffect(() => {
+    if (bankAccountsKey) localStorage.setItem(bankAccountsKey, JSON.stringify(bankAccounts));
+  }, [bankAccounts, bankAccountsKey]);
+
+  useEffect(() => {
+    if (currencyKey) localStorage.setItem(currencyKey, currency);
+  }, [currency, currencyKey]);
+
+  // Data manipulation functions
   const addProject = useCallback((projectName: string) => {
-    if (!user || !projectsColRef) return;
+    if (!user) return;
     const newProject = {
+      id: crypto.randomUUID(),
       name: projectName,
       userId: user.uid,
-      createdAt: serverTimestamp() as Timestamp,
+      createdAt: new Date().toISOString(),
     };
-    addDocumentNonBlocking(projectsColRef, newProject);
-  }, [user, projectsColRef]);
+    setProjects(prev => [...prev, newProject]);
+    if (!activeProject) {
+        setActiveProject(newProject);
+    }
+  }, [user, activeProject]);
+  
+  const updateAccountBalance = useCallback((accountId: string, amount: number, operation: 'add' | 'subtract') => {
+      setBankAccounts(prevAccounts => 
+        prevAccounts.map(acc => {
+          if (acc.id === accountId) {
+            return {
+              ...acc,
+              balance: operation === 'add' ? acc.balance + amount : acc.balance - amount,
+            };
+          }
+          return acc;
+        })
+      );
+  }, []);
 
-  const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id' | 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<DocumentReference | void> => {
-    if (!user || !transactionsColRef || !firestore || !activeProject) return;
-
-    let finalTransaction: any = {
+  const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id' | 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<{ id: string } | void> => {
+    if (!user || !activeProject) return;
+    
+    const newTransaction = {
       ...transactionData,
+      id: crypto.randomUUID(),
       userId: user.uid,
       projectId: activeProject.id,
-      date: serverTimestamp() as Timestamp,
+      date: new Date().toISOString(),
     };
     
-    if (transactionData.type === 'income' || transactionData.type === 'expense') {
-        finalTransaction.accountId = transactionData.accountId;
-        delete finalTransaction.fromAccountId;
-        delete finalTransaction.toAccountId;
-    } else if (transactionData.type === 'transfer') {
-        finalTransaction.fromAccountId = transactionData.fromAccountId;
-        finalTransaction.toAccountId = transactionData.toAccountId;
-        delete finalTransaction.accountId;
+    setTransactions(prev => [...prev, newTransaction]);
+    
+    if (newTransaction.type === 'income' && newTransaction.accountId) {
+        updateAccountBalance(newTransaction.accountId, newTransaction.amount, 'add');
+    } else if (newTransaction.type === 'expense' && newTransaction.accountId) {
+        updateAccountBalance(newTransaction.accountId, newTransaction.amount, 'subtract');
+    } else if (newTransaction.type === 'transfer' && newTransaction.fromAccountId && newTransaction.toAccountId) {
+        updateAccountBalance(newTransaction.fromAccountId, newTransaction.amount, 'subtract');
+        updateAccountBalance(newTransaction.toAccountId, newTransaction.amount, 'add');
     }
     
-    const docRefPromise = addDocumentNonBlocking(transactionsColRef, finalTransaction);
+    if (returnRef) {
+        return { id: newTransaction.id };
+    }
+  }, [user, activeProject, updateAccountBalance]);
 
-    if (transactionData.type === 'income' && transactionData.accountId) {
-      updateAccountBalance(firestore, user.uid, transactionData.accountId, transactionData.amount, 'add');
-    } else if (transactionData.type === 'expense' && transactionData.accountId) {
-      updateAccountBalance(firestore, user.uid, transactionData.accountId, transactionData.amount, 'subtract');
-    } else if (transactionData.type === 'transfer' && transactionData.fromAccountId && transactionData.toAccountId) {
-      updateAccountBalance(firestore, user.uid, transactionData.fromAccountId, transactionData.amount, 'subtract');
-      updateAccountBalance(firestore, user.uid, transactionData.toAccountId, transactionData.amount, 'add');
+  const updateTransaction = useCallback((originalTransaction: Transaction, updatedData: Partial<Transaction>) => {
+    const amountDifference = (updatedData.amount ?? originalTransaction.amount) - originalTransaction.amount;
+    
+    // Revert original transaction effect
+    if (originalTransaction.accountId) {
+      if (originalTransaction.type === 'income') updateAccountBalance(originalTransaction.accountId, originalTransaction.amount, 'subtract');
+      if (originalTransaction.type === 'expense') updateAccountBalance(originalTransaction.accountId, originalTransaction.amount, 'add');
+    }
+
+    const finalTransaction = { ...originalTransaction, ...updatedData };
+    
+    // Apply new transaction effect
+    if (finalTransaction.accountId) {
+        if (finalTransaction.type === 'income') updateAccountBalance(finalTransaction.accountId, finalTransaction.amount, 'add');
+        if (finalTransaction.type === 'expense') updateAccountBalance(finalTransaction.accountId, finalTransaction.amount, 'subtract');
+    }
+
+    setTransactions(prev => prev.map(t => (t.id === originalTransaction.id ? finalTransaction : t)));
+  }, [updateAccountBalance]);
+
+  const deleteTransaction = useCallback((transactionToDelete: Transaction) => {
+     if (transactionToDelete.accountId) {
+        if (transactionToDelete.type === 'income') {
+            updateAccountBalance(transactionToDelete.accountId, transactionToDelete.amount, 'subtract');
+        } else if (transactionToDelete.type === 'expense') {
+            updateAccountBalance(transactionToDelete.accountId, transactionToDelete.amount, 'add');
+        }
+    }
+    setTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
+  }, [updateAccountBalance]);
+
+  const addDebt = useCallback(async (debtData: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<{ id: string } | void> => {
+    if (!user || !activeProject || !debtData.accountId) return;
+    const newDebt = {
+      ...debtData,
+      id: crypto.randomUUID(),
+      userId: user.uid,
+      projectId: activeProject.id,
+      date: new Date().toISOString(),
+    };
+    
+    setDebts(prev => [...prev, newDebt]);
+
+    if (newDebt.type === 'creditor') {
+      updateAccountBalance(newDebt.accountId, newDebt.amount, 'add');
+    } else if (newDebt.type === 'debtor') {
+      updateAccountBalance(newDebt.accountId, newDebt.amount, 'subtract');
     }
 
     if (returnRef) {
-        return docRefPromise;
+        return { id: newDebt.id };
     }
-  }, [user, firestore, transactionsColRef, activeProject]);
+  }, [user, activeProject, updateAccountBalance]);
 
-  const updateTransaction = useCallback(async (originalTransaction: Transaction, updatedData: Partial<Transaction>) => {
-    if (!user || !firestore || !transactionsColRef) return;
-
-    const transactionRef = doc(transactionsColRef, originalTransaction.id);
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            // 1. Revert original transaction's effect on balance
-            if (originalTransaction.type === 'income' && originalTransaction.accountId) {
-                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', originalTransaction.accountId);
-                const accDoc = await transaction.get(accRef);
-                const newBalance = (accDoc.data()?.balance || 0) - originalTransaction.amount;
-                transaction.update(accRef, { balance: newBalance });
-            } else if (originalTransaction.type === 'expense' && originalTransaction.accountId) {
-                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', originalTransaction.accountId);
-                const accDoc = await transaction.get(accRef);
-                const newBalance = (accDoc.data()?.balance || 0) + originalTransaction.amount;
-                transaction.update(accRef, { balance: newBalance });
-            }
-
-            // 2. Apply new transaction's effect on balance
-            const newAmount = updatedData.amount ?? originalTransaction.amount;
-            const newType = updatedData.type ?? originalTransaction.type;
-            const newAccountId = updatedData.accountId ?? originalTransaction.accountId;
-
-            if (newType === 'income' && newAccountId) {
-                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', newAccountId);
-                const accDoc = await transaction.get(accRef);
-                const newBalance = (accDoc.data()?.balance || 0) + newAmount;
-                transaction.update(accRef, { balance: newBalance });
-            } else if (newType === 'expense' && newAccountId) {
-                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', newAccountId);
-                const accDoc = await transaction.get(accRef);
-                const newBalance = (accDoc.data()?.balance || 0) - newAmount;
-                transaction.update(accRef, { balance: newBalance });
-            }
-
-            // 3. Update the transaction document itself
-            transaction.update(transactionRef, updatedData);
-        });
-    } catch (e) {
-        console.error("Update transaction failed:", e);
-    }
-}, [user, firestore, transactionsColRef]);
-
-const deleteTransaction = useCallback(async (transactionToDelete: Transaction) => {
-    if (!user || !firestore || !transactionsColRef) return;
-
-    const transactionRef = doc(transactionsColRef, transactionToDelete.id);
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            // Revert balance change
-             if (transactionToDelete.type === 'income' && transactionToDelete.accountId) {
-                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', transactionToDelete.accountId);
-                const accDoc = await transaction.get(accRef);
-                if(accDoc.exists()) {
-                    const newBalance = accDoc.data().balance - transactionToDelete.amount;
-                    transaction.update(accRef, { balance: newBalance });
-                }
-            } else if (transactionToDelete.type === 'expense' && transactionToDelete.accountId) {
-                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', transactionToDelete.accountId);
-                const accDoc = await transaction.get(accRef);
-                if(accDoc.exists()) {
-                    const newBalance = accDoc.data().balance + transactionToDelete.amount;
-                    transaction.update(accRef, { balance: newBalance });
-                }
-            }
-            // Delete the transaction doc
-            transaction.delete(transactionRef);
-        });
-    } catch (e) {
-        console.error("Delete transaction failed:", e);
-    }
-}, [user, firestore, transactionsColRef]);
-
-
-  const addDebt = useCallback(async (debt: Omit<Debt, 'id' | 'date' | 'userId' | 'projectId'>, returnRef = false): Promise<DocumentReference | void> => {
-    if (!user || !debtsColRef || !firestore || !debt.accountId || !activeProject) return;
-
-    const newDebt: any = {
-      ...debt,
-      userId: user.uid,
-      projectId: activeProject.id,
-      date: serverTimestamp() as Timestamp,
-    };
+  const updateDebt = useCallback((originalDebt: Debt, updatedData: Partial<Debt>) => {
+    const amountDifference = (updatedData.amount ?? originalDebt.amount) - originalDebt.amount;
     
-    if (debt.dueDate) {
-      newDebt.dueDate = Timestamp.fromDate(new Date(debt.dueDate));
-    }
-    
-    const docRefPromise = addDocumentNonBlocking(debtsColRef, newDebt);
-
-    // When a debt is created, the money moves.
-    // 'creditor' (I owe someone) implies money came INTO my account (e.g. taking a loan).
-    // 'debtor' (Someone owes me) implies money went OUT of my account (e.g. loaning someone money).
-    if (debt.type === 'creditor') { 
-      updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'add');
-    } else if (debt.type === 'debtor') { 
-      updateAccountBalance(firestore, user.uid, debt.accountId, debt.amount, 'subtract');
+    if (amountDifference !== 0 && originalDebt.accountId) {
+        if (originalDebt.type === 'creditor') {
+            updateAccountBalance(originalDebt.accountId, amountDifference, 'add');
+        } else {
+            updateAccountBalance(originalDebt.accountId, amountDifference, 'subtract');
+        }
     }
 
-    if (returnRef) {
-        return docRefPromise;
+    setDebts(prev => prev.map(d => (d.id === originalDebt.id ? { ...d, ...updatedData } : d)));
+  }, [updateAccountBalance]);
+
+  const deleteDebt = useCallback((debtToDelete: Debt) => {
+    if (debtToDelete.accountId) {
+        if (debtToDelete.type === 'creditor') {
+            updateAccountBalance(debtToDelete.accountId, debtToDelete.amount, 'subtract');
+        } else {
+            updateAccountBalance(debtToDelete.accountId, debtToDelete.amount, 'add');
+        }
     }
-
-  }, [user, firestore, debtsColRef, activeProject]);
-
-  const updateDebt = useCallback(async (originalDebt: Debt, updatedData: Partial<Debt>) => {
-    if (!user || !firestore || !debtsColRef) return;
-    
-    const debtRef = doc(debtsColRef, originalDebt.id);
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const newAmount = updatedData.amount ?? originalDebt.amount;
-            const amountDifference = newAmount - originalDebt.amount;
-            
-            // If amount has changed, update the associated bank account balance
-            if (amountDifference !== 0 && originalDebt.accountId) {
-                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', originalDebt.accountId);
-                const accDoc = await transaction.get(accRef);
-
-                if(accDoc.exists()) {
-                    let newBalance;
-                    // For creditor, an increase in debt means more money received.
-                    // For debtor, an increase in debt means more money given out.
-                    if (originalDebt.type === 'creditor') {
-                        newBalance = accDoc.data().balance + amountDifference;
-                    } else { // debtor
-                        newBalance = accDoc.data().balance - amountDifference;
-                    }
-                    transaction.update(accRef, { balance: newBalance });
-                }
-            }
-
-            // Update the debt document
-            const finalUpdateData = { ...updatedData };
-            if (finalUpdateData.dueDate && !(finalUpdateData.dueDate instanceof Timestamp)) {
-                finalUpdateData.dueDate = Timestamp.fromDate(new Date(finalUpdateData.dueDate));
-            }
-            transaction.update(debtRef, finalUpdateData);
-        });
-    } catch(e) {
-        console.error("Update debt failed:", e);
-    }
-  }, [user, firestore, debtsColRef]);
-
-  const deleteDebt = useCallback(async (debtToDelete: Debt) => {
-      if (!user || !firestore || !debtsColRef) return;
-
-      const debtRef = doc(debtsColRef, debtToDelete.id);
-      
-      try {
-        await runTransaction(firestore, async (transaction) => {
-            // Revert the initial balance change from creating the debt
-            if (debtToDelete.accountId) {
-                const accRef = doc(firestore, 'users', user.uid, 'bankAccounts', debtToDelete.accountId);
-                const accDoc = await transaction.get(accRef);
-
-                if (accDoc.exists()) {
-                    let newBalance;
-                    // To delete a creditor debt, revert the money you received.
-                    if (debtToDelete.type === 'creditor') {
-                        newBalance = accDoc.data().balance - debtToDelete.amount;
-                    } else { // To delete a debtor debt, revert the money you gave out.
-                        newBalance = accDoc.data().balance + debtToDelete.amount;
-                    }
-                    transaction.update(accRef, { balance: newBalance });
-                }
-            }
-            // Delete the debt document
-            transaction.delete(debtRef);
-        });
-      } catch(e) {
-        console.error("Delete debt failed:", e);
-      }
-  }, [user, firestore, debtsColRef]);
+    setDebts(prev => prev.filter(d => d.id !== debtToDelete.id));
+  }, [updateAccountBalance]);
 
   const addRepayment = useCallback((debt: Debt, amount: number, accountId: string) => {
-    if (!user || !debtsColRef || !firestore || !transactionsColRef || !activeProject) return;
-    
-    const debtRef = doc(debtsColRef, debt.id);
-    const newDebtAmount = debt.amount - amount;
+    updateDebt(debt, { amount: debt.amount - amount });
 
-    // Non-blocking update to the debt amount
-    updateDocumentNonBlocking(debtRef, { amount: newDebtAmount });
-
-    // Add a corresponding transaction log for the repayment
-    const repaymentTransaction = {
-      type: 'repayment' as const,
-      amount: amount,
+    addTransaction({
+      type: 'repayment',
+      amount,
       category: 'Debt Repayment',
       description: `Payment for debt: ${debt.name}`,
-      date: serverTimestamp() as Timestamp,
-      userId: user.uid,
-      projectId: activeProject.id,
       debtId: debt.id,
       accountId: accountId,
-    };
-    addDocumentNonBlocking(transactionsColRef, repaymentTransaction);
+    });
     
-    // Update the bank account balance based on the debt type
-    // If it's a creditor (I owe them), I am paying them back, so money SUBTRACTS from my account.
-    // If it's a debtor (they owe me), they are paying me back, so money ADDS to my account.
     if (debt.type === 'creditor') {
-      updateAccountBalance(firestore, user.uid, accountId, amount, 'subtract');
-    } else { // 'debtor'
-      updateAccountBalance(firestore, user.uid, accountId, amount, 'add');
+      updateAccountBalance(accountId, amount, 'subtract');
+    } else {
+      updateAccountBalance(accountId, amount, 'add');
     }
-  }, [user, firestore, debtsColRef, transactionsColRef, activeProject]);
+  }, [addTransaction, updateDebt, updateAccountBalance]);
 
-  const addBankAccount = useCallback((account: Omit<BankAccount, 'id'| 'userId'>) => {
-    if (!user || !bankAccountsColRef) return;
-    const isFirstAccount = !bankAccounts || bankAccounts.length === 0;
+  const addBankAccount = useCallback((account: Omit<BankAccount, 'id' | 'userId'>) => {
+    if (!user) return;
+    const isFirstAccount = bankAccounts.length === 0;
     const newAccount = {
       ...account,
+      id: crypto.randomUUID(),
       userId: user.uid,
       isPrimary: isFirstAccount,
-    }
-    addDocumentNonBlocking(bankAccountsColRef, newAccount);
-  }, [user, bankAccountsColRef, bankAccounts]);
+    };
+    setBankAccounts(prev => [...prev, newAccount]);
+  }, [user, bankAccounts]);
 
-  const setCurrency = useCallback((currency: string) => {
-    if (!userDocRef) return;
-    setDocumentNonBlocking(userDocRef, { currency }, { merge: true });
-  }, [userDocRef]);
+  const setCurrency = useCallback((newCurrency: string) => {
+    setCurrencyState(newCurrency);
+  }, []);
 
   const setPrimaryBankAccount = useCallback((accountId: string) => {
-    if (!user || !bankAccountsColRef || !bankAccounts || !firestore) return;
-  
-    const batch = writeBatch(firestore);
-  
-    bankAccounts.forEach(account => {
-      const accountRef = doc(bankAccountsColRef, account.id);
-      if (account.id === accountId) {
-        batch.update(accountRef, { isPrimary: true });
-      } else if (account.isPrimary) {
-        batch.update(accountRef, { isPrimary: false });
-      }
-    });
-  
-    batch.commit().catch(error => {
-      console.error("Failed to set primary bank account:", error);
-    });
-  
-  }, [user, firestore, bankAccountsColRef, bankAccounts]);
-  
+    setBankAccounts(prev =>
+      prev.map(acc => ({
+        ...acc,
+        isPrimary: acc.id === accountId,
+      }))
+    );
+  }, []);
+
   const getTransactionById = useCallback((id: string) => {
-      return transactions?.find(t => t.id === id);
-  }, [transactions]);
+      const projectTransactions = transactions.filter(t => t.projectId === activeProject?.id);
+      return projectTransactions.find(t => t.id === id);
+  }, [transactions, activeProject]);
 
   const getDebtById = useCallback((id: string) => {
-      return debts?.find(d => d.id === id);
-  }, [debts]);
+      const projectDebts = debts.filter(d => d.projectId === activeProject?.id);
+      return projectDebts.find(d => d.id === id);
+  }, [debts, activeProject]);
+  
+  const filteredTransactions = useMemo(() => {
+    return activeProject ? transactions.filter(t => t.projectId === activeProject.id) : [];
+  }, [transactions, activeProject]);
+  
+  const filteredDebts = useMemo(() => {
+    return activeProject ? debts.filter(d => d.projectId === activeProject.id) : [];
+  }, [debts, activeProject]);
 
-
-  const isLoading = isUserLoading || isUserSettingsLoading || isProjectsLoading || isTransactionsLoading || isDebtsLoading || isBankAccountsLoading;
 
   const contextValue = useMemo(() => ({
-    projects: projects || [],
+    projects,
     activeProject,
     setActiveProject,
-    transactions: transactions || [],
-    debts: debts || [],
-    bankAccounts: bankAccounts || [],
-    currency: userSettings?.currency || 'INR',
+    transactions: filteredTransactions,
+    debts: filteredDebts,
+    bankAccounts,
+    currency,
     addTransaction,
     updateTransaction,
     deleteTransaction,
@@ -406,26 +345,27 @@ const deleteTransaction = useCallback(async (transactionToDelete: Transaction) =
     setCurrency,
     setPrimaryBankAccount,
     addProject,
-    isLoading,
+    isLoading: isLoading,
     getTransactionById,
     getDebtById,
   }), [
       projects,
       activeProject,
-      transactions, 
-      debts, 
-      bankAccounts, 
-      userSettings, 
-      addTransaction, 
-      updateTransaction, 
-      deleteTransaction, 
-      addDebt, 
-      updateDebt, 
-      deleteDebt, 
-      addRepayment, 
-      addBankAccount, 
-      setCurrency, 
-      setPrimaryBankAccount, 
+      setActiveProject,
+      filteredTransactions,
+      filteredDebts,
+      bankAccounts,
+      currency,
+      addTransaction,
+      updateTransaction,
+      deleteTransaction,
+      addDebt,
+      updateDebt,
+      deleteDebt,
+      addRepayment,
+      addBankAccount,
+      setCurrency,
+      setPrimaryBankAccount,
       addProject,
       isLoading,
       getTransactionById,

@@ -9,17 +9,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useFirestore, useUser } from '@/firebase';
-import {
-  collection,
-  serverTimestamp,
-  Timestamp,
-  query,
-  orderBy,
-} from 'firebase/firestore';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from '@/firebase';
 import type { ChatMessage as ChatMessageType, Debt, Transaction } from '@/lib/types';
-import { useMemoFirebase } from '@/firebase/provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
@@ -30,11 +21,55 @@ import EditEntryForm from './EditEntryForm';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
+// Hook to manage chat history in local storage
+const useChatHistory = () => {
+    const { user } = useUser();
+    const storageKey = user ? `financeflow_chat_${user.uid}` : null;
+    const [messages, setMessages] = useState<ChatMessageType[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (storageKey) {
+            setIsLoading(true);
+            try {
+                const storedMessages = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                setMessages(storedMessages);
+            } catch (e) {
+                setMessages([]);
+            } finally {
+                setIsLoading(false);
+            }
+        } else {
+            setMessages([]);
+            setIsLoading(false);
+        }
+    }, [storageKey]);
+
+    const addMessage = (message: Omit<ChatMessageType, 'id' | 'timestamp'>) => {
+        const newMessage: ChatMessageType = {
+            ...message,
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+        };
+
+        setMessages(prevMessages => {
+            const updatedMessages = [...prevMessages, newMessage];
+            if (storageKey) {
+                localStorage.setItem(storageKey, JSON.stringify(updatedMessages));
+            }
+            return updatedMessages;
+        });
+        return newMessage;
+    };
+    
+    return { messages, addMessage, isLoading };
+};
+
+
 export default function AIChat() {
   const { user } = useUser();
-  const firestore = useFirestore();
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const { 
     addTransaction, 
     addDebt, 
@@ -50,6 +85,8 @@ export default function AIChat() {
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
+  const { messages, addMessage, isLoading: isMessagesLoading } = useChatHistory();
+
   const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
 
@@ -58,18 +95,6 @@ export default function AIChat() {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [repaymentDialogOpen, setRepaymentDialogOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-
-  const chatHistoryRef = useMemoFirebase(
-    () => (user ? collection(firestore, 'users', user.uid, 'chatHistory') : null),
-    [firestore, user]
-  );
-
-  const chatHistoryQuery = useMemoFirebase(
-    () => (chatHistoryRef ? query(chatHistoryRef, orderBy('timestamp', 'asc')) : null),
-    [chatHistoryRef]
-  );
-  
-  const { data: messages, isLoading: isMessagesLoading } = useCollection<ChatMessageType>(chatHistoryQuery);
 
   const { debtors, creditors } = useMemo(() => {
     return {
@@ -91,7 +116,7 @@ export default function AIChat() {
         }, 100);
       }
     }
-  }, [messages, isLoading]);
+  }, [messages, isAiLoading]);
 
   useEffect(() => {
     if (!repaymentPopoverOpen) {
@@ -156,18 +181,17 @@ export default function AIChat() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !chatHistoryRef || !messages) return;
+    if (!input.trim() || isAiLoading) return;
 
     const userMessageContent = input;
     setInput('');
 
-    addDocumentNonBlocking(chatHistoryRef, {
+    addMessage({
       role: 'user',
       content: userMessageContent,
-      timestamp: serverTimestamp() as Timestamp,
     });
 
-    setIsLoading(true);
+    setIsAiLoading(true);
 
     try {
       const financialData = JSON.stringify({ transactions, debts, bankAccounts });
@@ -176,7 +200,7 @@ export default function AIChat() {
       const lastMessage = messages[messages.length - 1];
 
       if (lastMessage?.timestamp) {
-        const lastMessageDate = lastMessage.timestamp.toDate();
+        const lastMessageDate = new Date(lastMessage.timestamp);
         const now = new Date();
         const timeDiffMinutes = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60);
 
@@ -280,7 +304,6 @@ export default function AIChat() {
       const assistantMessage: Partial<ChatMessageType> = {
         role: 'assistant',
         content: assistantResponse,
-        timestamp: serverTimestamp() as Timestamp,
       };
 
       if (newEntryId && newEntryType) {
@@ -288,17 +311,16 @@ export default function AIChat() {
         assistantMessage.entryType = newEntryType;
       }
 
-      addDocumentNonBlocking(chatHistoryRef, assistantMessage);
+      addMessage(assistantMessage as Omit<ChatMessageType, 'id' | 'timestamp'>);
 
     } catch (error) {
       console.error('AI Chat Error:', error);
-      addDocumentNonBlocking(chatHistoryRef, {
+      addMessage({
         role: 'assistant',
         content: "Sorry, I couldn't understand that. Please try rephrasing, for example: 'Lunch for 250 rupees' or 'What is my total income?'.",
-        timestamp: serverTimestamp() as Timestamp,
       });
     } finally {
-      setIsLoading(false);
+      setIsAiLoading(false);
     }
   };
   
@@ -411,7 +433,7 @@ export default function AIChat() {
                 )}
               </div>
             ))}
-            {isLoading && (
+            {isAiLoading && (
               <div className="flex items-start gap-3">
                 <Avatar className="h-8 w-8 border bg-white">
                   <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
@@ -469,11 +491,11 @@ export default function AIChat() {
                 value={input}
                 onChange={handleInputChange}
                 placeholder="Type your message..."
-                disabled={isLoading || isMessagesLoading}
+                disabled={isAiLoading || isMessagesLoading}
                 autoComplete='off'
                 className="flex-1 rounded-full bg-background"
             />
-            <Button type="submit" size="icon" disabled={isLoading || isMessagesLoading || !input.trim()} className="rounded-full flex-shrink-0">
+            <Button type="submit" size="icon" disabled={isAiLoading || isMessagesLoading || !input.trim()} className="rounded-full flex-shrink-0">
               <Send className="h-4 w-4" />
               <span className="sr-only">Send</span>
             </Button>
