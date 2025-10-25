@@ -27,7 +27,7 @@ const taskSchema = z.object({
   description: z.string().optional(),
   status: z.enum(['todo', 'in-progress', 'done']),
   dueDate: z.date().optional(),
-  dueTime: z.string().optional().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:mm)"),
+  dueTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:mm)").optional().or(z.literal('')),
   hobbyId: z.string().optional(),
 });
 
