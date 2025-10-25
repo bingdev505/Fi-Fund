@@ -19,6 +19,7 @@ import RepaymentForm from './RepaymentForm';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import EditEntryForm from './EditEntryForm';
+import EntryForm from './EntryForm';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
@@ -117,6 +118,7 @@ export default function AIChat() {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [repaymentDialogOpen, setRepaymentDialogOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
 
   const { debtors, creditors } = useMemo(() => {
     return {
@@ -407,6 +409,7 @@ export default function AIChat() {
 
   return (
     <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
+    <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
     <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
     <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
       <div className="absolute inset-0 flex flex-col bg-muted/40">
@@ -513,10 +516,19 @@ export default function AIChat() {
                 autoComplete='off'
                 className="flex-1 rounded-full bg-background"
             />
-            <Button type="submit" size="icon" disabled={isAiLoading || isMessagesLoading || !input.trim()} className="rounded-full flex-shrink-0">
-              <Send className="h-4 w-4" />
-              <span className="sr-only">Send</span>
-            </Button>
+            {input.trim() ? (
+              <Button type="submit" size="icon" disabled={isAiLoading || isMessagesLoading} className="rounded-full flex-shrink-0">
+                <Send className="h-4 w-4" />
+                <span className="sr-only">Send</span>
+              </Button>
+            ) : (
+                <DialogTrigger asChild>
+                    <Button type="button" size="icon" className="rounded-full flex-shrink-0">
+                        <PlusCircle className="h-4 w-4" />
+                        <span className="sr-only">Add Transaction</span>
+                    </Button>
+              </DialogTrigger>
+            )}
           </form>
         </div>
       </div>
@@ -542,6 +554,12 @@ export default function AIChat() {
               </AlertDialogFooter>
           </AlertDialogContent>
       )}
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Add a New Transaction</DialogTitle>
+            </DialogHeader>
+            <EntryForm onFinished={() => setIsTransactionFormOpen(false)} />
+        </DialogContent>
     </Dialog>
     </AlertDialog>
       {selectedDebt && (
@@ -556,7 +574,6 @@ export default function AIChat() {
         </DialogContent>
       )}
     </Dialog>
+    </Dialog>
   );
 }
-
-    
