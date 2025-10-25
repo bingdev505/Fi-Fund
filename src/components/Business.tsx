@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import type { Project } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 export default function Business() {
   const { isLoading, projects, deleteProject, bankAccounts, currency } = useFinancials();
@@ -38,26 +39,52 @@ export default function Business() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   };
 
-  const projectBalances = useMemo(() => {
+  const { projectTree, projectBalances } = useMemo(() => {
     const balances = new Map<string, number>();
     const totalBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
 
+    const tree: (Project & { children: Project[], level: number })[] = [];
+    const projectMap = new Map(projects.map(p => [p.id, { ...p, children: [], level: 0 }]));
+
+    projects.forEach(p => {
+      const projectNode = projectMap.get(p.id)!;
+      if (p.parentProjectId && projectMap.has(p.parentProjectId)) {
+        const parentNode = projectMap.get(p.parentProjectId)!;
+        parentNode.children.push(projectNode);
+        projectNode.level = parentNode.level + 1;
+      }
+    });
+    
+    projects.forEach(p => {
+        if (!p.parentProjectId) {
+            tree.push(projectMap.get(p.id)!);
+        }
+    });
+
+    const flattenedTree: (Project & { level: number })[] = [];
+    function flatten(nodes: (Project & { children: Project[], level: number })[]) {
+        nodes.sort((a,b) => a.name.localeCompare(b.name)).forEach(node => {
+            flattenedTree.push({ ...node });
+            if (node.children.length > 0) {
+                flatten(node.children);
+            }
+        });
+    }
+
+    flatten(tree);
+    
+    // Simple balance logic: for "All Business" it's the total. For others, it's a placeholder.
+    // A real implementation would link bank accounts to projects.
     projects.forEach(p => {
         if (p.name === 'All Business') {
             balances.set(p.id, totalBalance);
         } else {
-            // This is a simplified balance calculation based on transactions associated with a project.
-            // A more robust solution might involve linking bank accounts to projects.
-            const projectBankAccounts = bankAccounts; // In a more complex app, you'd filter accounts by project
-            const balance = projectBankAccounts.reduce((sum, acc) => {
-                // This is a placeholder logic. Real logic would depend on how accounts are associated with projects.
-                // For now, let's just show a portion of the total balance for demonstration.
-                return sum;
-            }, 0);
-            balances.set(p.id, balance);
+            balances.set(p.id, 0); // Placeholder
         }
     });
-    return balances;
+
+    return { projectTree: flattenedTree, projectBalances: balances };
+
   }, [projects, bankAccounts, currency]);
 
 
@@ -87,22 +114,16 @@ export default function Business() {
               ) : projects.length > 0 ? (
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
-                    {projects.map(project => (
+                    {projectTree.map(project => (
                       <li key={project.id} className="flex items-center justify-between p-4 group hover:bg-muted/50">
                         <div className="flex items-center gap-4">
                             <Folder className="h-6 w-6 text-muted-foreground" />
-                            <div>
-                              <span className="font-medium">{project.name}</span>
-                              {project.parentProjectId && (
-                                <p className="text-xs text-muted-foreground">
-                                  Sub-business of: {projects.find(p => p.id === project.parentProjectId)?.name}
-                                </p>
-                              )}
+                            <div style={{ marginLeft: `${project.level * 1.5}rem`}}>
+                              <span className={cn("font-medium", project.level > 0 && "text-sm")}>{project.name}</span>
                             </div>
                         </div>
                         <div className='flex items-center gap-4'>
                           <div className="font-semibold text-right">
-                              {/* Balance display logic will be more meaningful when accounts are tied to projects */}
                               {project.name === 'All Business' ? formatCurrency(projectBalances.get(project.id) || 0) : 'N/A'}
                           </div>
                           {project.name !== 'All Business' && (
