@@ -30,6 +30,7 @@ import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import type { Transaction, Debt } from '@/lib/types';
+import { useMemo } from 'react';
 
 const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor']),
@@ -69,11 +70,11 @@ const formSchema = z.object({
 
 type EditEntryFormProps = {
     entry: Transaction | Debt;
-    onFinished: () => void;
+    onFinished: (updatedEntry: Transaction | Debt) => void;
 }
 
 export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps) {
-  const { updateTransaction, updateDebt, currency, bankAccounts } = useFinancials();
+  const { updateTransaction, updateDebt, currency, bankAccounts, categories: customCategories, clients } = useFinancials();
   const { toast } = useToast();
   
   const isTransaction = 'category' in entry;
@@ -93,24 +94,29 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
 
   const watchedEntryType = form.watch('entryType');
 
-  const categories =
-    watchedEntryType === 'income'
-      ? INCOME_CATEGORIES
-      : watchedEntryType === 'expense'
-      ? EXPENSE_CATEGORIES
-      : [];
+  const categories = useMemo(() => {
+    const baseCategories = watchedEntryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    const projectCategories = customCategories.filter(c => c.type === watchedEntryType).map(c => c.name);
+    return [...baseCategories, ...projectCategories];
+  }, [watchedEntryType, customCategories]);
+
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const { category, ...data } = values;
     
+    let updatedEntry;
     if (isTransaction) {
-      updateTransaction(entry as Transaction, { ...data, category });
+      const finalTransaction = { ...entry, ...data, category } as Transaction;
+      updateTransaction(entry as Transaction, finalTransaction);
+      updatedEntry = finalTransaction;
       toast({ title: "Transaction Updated" });
     } else {
-      updateDebt(entry as Debt, { ...data, name: category, dueDate: data.dueDate?.toISOString() });
+      const finalDebt = { ...entry, ...data, name: category, dueDate: data.dueDate?.toISOString() } as Debt;
+      updateDebt(entry as Debt, finalDebt);
+      updatedEntry = finalDebt;
       toast({ title: "Debt Updated" });
     }
-    onFinished();
+    onFinished(updatedEntry);
   }
 
   // Transfers cannot be edited from this form

@@ -61,8 +61,28 @@ const useChatHistory = () => {
         });
         return newMessage;
     };
+
+    const updateMessage = (updatedMessage: ChatMessageType) => {
+        setMessages(prevMessages => {
+            const updatedMessages = prevMessages.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg);
+            if (storageKey) {
+                localStorage.setItem(storageKey, JSON.stringify(updatedMessages));
+            }
+            return updatedMessages;
+        });
+    };
+
+    const deleteMessage = (messageId: string) => {
+        setMessages(prevMessages => {
+            const updatedMessages = prevMessages.filter(msg => msg.id !== messageId);
+            if (storageKey) {
+                localStorage.setItem(storageKey, JSON.stringify(updatedMessages));
+            }
+            return updatedMessages;
+        });
+    };
     
-    return { messages, addMessage, isLoading };
+    return { messages, addMessage, updateMessage, deleteMessage, isLoading };
 };
 
 
@@ -81,11 +101,13 @@ export default function AIChat() {
     getDebtById,
     deleteTransaction,
     deleteDebt,
+    updateTransaction,
+    updateDebt,
   } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  const { messages, addMessage, isLoading: isMessagesLoading } = useChatHistory();
+  const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading } = useChatHistory();
 
   const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
@@ -151,14 +173,9 @@ export default function AIChat() {
   };
 
   const handleEditClick = (message: ChatMessageType) => {
-    if (!message.transactionId || !message.entryType) return;
+    if (!message.transactionId) return;
     
-    let entry;
-    if (message.entryType === 'income' || message.entryType === 'expense') {
-        entry = getTransactionById(message.transactionId);
-    } else if (message.entryType === 'creditor' || message.entryType === 'debtor') {
-        entry = getDebtById(message.transactionId);
-    }
+    const entry = getDebtById(message.transactionId) || getTransactionById(message.transactionId);
 
     if (entry) {
         setEditingEntry(entry);
@@ -168,6 +185,8 @@ export default function AIChat() {
   const handleDelete = () => {
     if (!deletingEntry) return;
 
+    const messageToDelete = messages.find(m => m.transactionId === deletingEntry?.id);
+
     if ('category' in deletingEntry) {
       deleteTransaction(deletingEntry as Transaction);
       toast({ title: "Transaction Deleted" });
@@ -175,7 +194,31 @@ export default function AIChat() {
       deleteDebt(deletingEntry as Debt);
       toast({ title: "Debt Deleted" });
     }
+
+    if (messageToDelete) {
+        deleteMessage(messageToDelete.id);
+    }
+
     setDeletingEntry(null);
+  };
+
+  const handleEditFinished = (originalEntry: Transaction | Debt, updatedEntry: Transaction | Debt) => {
+    const messageToUpdate = messages.find(m => m.transactionId === originalEntry.id);
+    if (messageToUpdate) {
+        let newContent = '';
+        if (updatedEntry.type === 'income' || updatedEntry.type === 'expense') {
+            const tx = updatedEntry as Transaction;
+            const accountName = bankAccounts.find(ba => ba.id === tx.accountId)?.name || 'an account';
+            newContent = `${tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} of ${formatCurrency(tx.amount)} in ${tx.category} logged to ${accountName}.`
+        } else {
+            const debt = updatedEntry as Debt;
+            const accountName = bankAccounts.find(ba => ba.id === debt.accountId)?.name || 'an account';
+            newContent = `${debt.type.charAt(0).toUpperCase() + debt.type.slice(1)} of ${formatCurrency(debt.amount)} for ${debt.name} logged against ${accountName}.`
+        }
+
+        updateMessage({ ...messageToUpdate, content: newContent });
+    }
+    setEditingEntry(null);
   };
 
 
@@ -507,7 +550,7 @@ export default function AIChat() {
               <DialogHeader>
                   <DialogTitle>Edit Entry</DialogTitle>
               </DialogHeader>
-              <EditEntryForm entry={editingEntry} onFinished={() => setEditingEntry(null)} />
+              <EditEntryForm entry={editingEntry} onFinished={(updatedEntry) => handleEditFinished(editingEntry, updatedEntry)} />
           </DialogContent>
       )}
       {deletingEntry && (
