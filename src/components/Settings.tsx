@@ -6,7 +6,7 @@ import { CURRENCIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Settings() {
-  const { currency, setCurrency } = useFinancials();
+  const { currency, setCurrency, projects, defaultProject, setDefaultProject } = useFinancials();
   const { toast } = useToast();
 
   function handleCurrencyChange(value: string) {
@@ -17,15 +17,27 @@ export default function Settings() {
     });
   }
 
+  function handleDefaultProjectChange(value: string) {
+    const project = projects.find(p => p.id === value);
+    if (project) {
+        setDefaultProject(project);
+        toast({
+            title: 'Default Business Updated',
+            description: `${project.name} is now your default business.`,
+        });
+    }
+  }
+
   return (
     <div className="p-4 md:p-8 space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Currency Settings</CardTitle>
-          <CardDescription>Select your preferred currency for the application.</CardDescription>
+          <CardTitle>Application Settings</CardTitle>
+          <CardDescription>Manage your application preferences.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <div className="w-full max-w-xs">
+             <h3 className="text-lg font-medium mb-2">Currency</h3>
             <Select onValueChange={handleCurrencyChange} defaultValue={currency}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a currency" />
@@ -37,6 +49,22 @@ export default function Settings() {
                   </SelectItem>
                 ))}
               </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full max-w-xs">
+            <h3 className="text-lg font-medium mb-2">Default Business</h3>
+            <Select onValueChange={handleDefaultProjectChange} defaultValue={defaultProject?.id}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Select a default business" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Business</SelectItem>
+                    {projects.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
             </Select>
           </div>
         </CardContent>

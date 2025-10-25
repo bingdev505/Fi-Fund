@@ -8,6 +8,8 @@ interface FinancialContextType {
   projects: Project[];
   activeProject: Project | null;
   setActiveProject: (project: Project | null) => void;
+  defaultProject: Project | null;
+  setDefaultProject: (project: Project | null) => void;
   addProject: (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => void;
   updateProject: (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => void;
   deleteProject: (projectId: string) => void;
@@ -64,6 +66,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   // Keys for local storage
   const projectsKey = useLocalStorageKey('projects');
   const activeProjectKey = useLocalStorageKey('activeProject');
+  const defaultProjectKey = useLocalStorageKey('defaultProject');
   const transactionsKey = useLocalStorageKey('transactions');
   const debtsKey = useLocalStorageKey('debts');
   const bankAccountsKey = useLocalStorageKey('bankAccounts');
@@ -74,6 +77,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   // State management for all data
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [activeProject, _setActiveProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
+  const [defaultProject, _setDefaultProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [allDebts, setAllDebts] = useState<Debt[]>([]);
   const [allBankAccounts, setAllBankAccounts] = useState<BankAccount[]>([]);
@@ -93,7 +97,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
     try {
       const storedProjects = projectsKey ? JSON.parse(localStorage.getItem(projectsKey) || '[]') : [];
+      const storedDefaultProject = defaultProjectKey ? JSON.parse(localStorage.getItem(defaultProjectKey) || 'null') : null;
+      let activeProjectToSet = storedDefaultProject;
+
       const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
+      if (storedActiveProject) {
+        activeProjectToSet = storedActiveProject;
+      }
+      
       const storedTransactions = transactionsKey ? JSON.parse(localStorage.getItem(transactionsKey) || '[]') : [];
       const storedDebts = debtsKey ? JSON.parse(localStorage.getItem(debtsKey) || '[]') : [];
       const storedBankAccounts = bankAccountsKey ? JSON.parse(localStorage.getItem(bankAccountsKey) || '[]') : [];
@@ -102,10 +113,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       const storedCategories = categoriesKey ? JSON.parse(localStorage.getItem(categoriesKey) || '[]') : [];
       
       setAllProjects(storedProjects);
-      if (storedActiveProject && (storedActiveProject.id === 'all' || storedProjects.some((p: Project) => p.id === storedActiveProject.id))) {
-        _setActiveProject(storedActiveProject);
+      
+      if (activeProjectToSet && (activeProjectToSet.id === 'all' || storedProjects.some((p: Project) => p.id === activeProjectToSet.id))) {
+        _setActiveProject(activeProjectToSet);
       } else {
         _setActiveProject(ALL_BUSINESS_PROJECT);
+      }
+       if (storedDefaultProject && (storedDefaultProject.id === 'all' || storedProjects.some((p: Project) => p.id === storedDefaultProject.id))) {
+        _setDefaultProject(storedDefaultProject);
+      } else {
+        _setDefaultProject(ALL_BUSINESS_PROJECT);
       }
 
       setAllTransactions(storedTransactions);
@@ -120,6 +137,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       // Initialize with empty/default values if parsing fails
       setAllProjects([]);
       _setActiveProject(ALL_BUSINESS_PROJECT);
+      _setDefaultProject(ALL_BUSINESS_PROJECT);
       setAllTransactions([]);
       setAllDebts([]);
       setAllBankAccounts([]);
@@ -129,7 +147,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user, isUserLoading, projectsKey, activeProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey, clientsKey, categoriesKey]);
+  }, [user, isUserLoading, projectsKey, activeProjectKey, defaultProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey, clientsKey, categoriesKey]);
 
   const setActiveProject = useCallback((project: Project | null) => {
     const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
@@ -138,6 +156,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(activeProjectKey, JSON.stringify(projectToSet));
     }
   }, [activeProjectKey]);
+  
+  const setDefaultProject = useCallback((project: Project | null) => {
+    const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
+    _setDefaultProject(projectToSet);
+    if (defaultProjectKey) {
+      localStorage.setItem(defaultProjectKey, JSON.stringify(projectToSet));
+    }
+  }, [defaultProjectKey]);
 
   // Write to local storage whenever state changes
   useEffect(() => { if (projectsKey) localStorage.setItem(projectsKey, JSON.stringify(allProjects)); }, [allProjects, projectsKey]);
@@ -316,7 +342,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const filteredCategories = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCategories.filter(cat => cat.projectId === activeProject.id) : allCategories, [allCategories, activeProject]);
 
   const contextValue = useMemo(() => ({
-    projects: allProjects, activeProject, setActiveProject, addProject, updateProject, deleteProject,
+    projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
     transactions: filteredTransactions, allTransactions: allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
     debts: filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
     bankAccounts: allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
@@ -325,7 +351,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     currency, setCurrency,
     isLoading: isLoading,
   }), [
-      allProjects, activeProject, setActiveProject, addProject, updateProject, deleteProject,
+      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
       filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
       filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
       allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
