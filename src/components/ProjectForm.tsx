@@ -16,9 +16,12 @@ import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const projectSchema = z.object({
-  name: z.string().min(2, 'Project name must be at least 2 characters'),
+  name: z.string().min(2, 'Business name must be at least 2 characters'),
+  parentProjectId: z.string().optional(),
+  googleSheetId: z.string().optional(),
 });
 
 type ProjectFormProps = {
@@ -26,21 +29,23 @@ type ProjectFormProps = {
 }
 
 export default function ProjectForm({ onFinished }: ProjectFormProps) {
-  const { addProject } = useFinancials();
+  const { addProject, projects } = useFinancials();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof projectSchema>>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       name: '',
+      parentProjectId: '',
+      googleSheetId: '',
     },
   });
 
   function onSubmit(values: z.infer<typeof projectSchema>) {
-    addProject(values.name);
+    addProject(values);
     toast({
-      title: 'Project Added',
-      description: `Project "${values.name}" has been created.`,
+      title: 'Business Added',
+      description: `Business "${values.name}" has been created.`,
     });
     form.reset();
     onFinished();
@@ -48,7 +53,7 @@ export default function ProjectForm({ onFinished }: ProjectFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-sm">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -62,6 +67,45 @@ export default function ProjectForm({ onFinished }: ProjectFormProps) {
             </FormItem>
           )}
         />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+            control={form.control}
+            name="parentProjectId"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Parent Business (Optional)</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a parent business" />
+                    </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                    {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+            control={form.control}
+            name="googleSheetId"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Google Sheet ID (Optional)</FormLabel>
+                <FormControl>
+                    <Input placeholder="Enter Google Sheet ID" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
         <Button type="submit" className="w-full">
           <PlusCircle className="mr-2 h-4 w-4" />
           Create Business

@@ -22,7 +22,7 @@ interface FinancialContextType {
   addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
   setCurrency: (currency: string) => void;
   setPrimaryBankAccount: (accountId: string) => void;
-  addProject: (projectName: string) => void;
+  addProject: (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => void;
   isLoading: boolean;
   getTransactionById: (id: string) => Transaction | undefined;
   getDebtById: (id: string) => Debt | undefined;
@@ -131,11 +131,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [currency, currencyKey]);
 
   // Data manipulation functions
-  const addProject = useCallback((projectName: string) => {
+  const addProject = useCallback((projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => {
     if (!user) return;
     const newProject = {
+      ...projectData,
       id: crypto.randomUUID(),
-      name: projectName,
       userId: user.uid,
       createdAt: new Date().toISOString(),
     };

@@ -50,6 +50,8 @@ export type Project = {
   userId: string;
   name: string;
   createdAt: LocalTimestamp;
+  parentProjectId?: string;
+  googleSheetId?: string;
 }
 
 export type ChatMessage = {
