@@ -14,6 +14,9 @@ import {
   PlusCircle,
   Folder,
   Briefcase,
+  Users,
+  Tag,
+  ChevronRight,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -39,6 +42,7 @@ import type { Project } from '@/lib/types';
 import { Separator } from './ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import ProjectForm from './ProjectForm';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
 
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -49,6 +53,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { projects, activeProject, setActiveProject, isLoading: isFinancialsLoading } = useFinancials();
   const [open, setOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
+  const [isBusinessMenuOpen, setIsBusinessMenuOpen] = useState(pathname.startsWith('/business'));
 
 
   useEffect(() => {
@@ -60,9 +65,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: '/overview', icon: LayoutDashboard, label: 'Overview' },
     { href: '/entries', icon: BookUser, label: 'Entries' },
-    { href: '/business', icon: Briefcase, label: 'Business' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },
+  ];
+
+  const businessNavItems = [
+    { href: '/business', label: 'Dashboard', icon: Briefcase },
+    { href: '/business/clients', label: 'Clients', icon: Users },
+    { href: '/business/categories', label: 'Categories', icon: Tag },
   ];
 
   const handleLogout = async () => {
@@ -90,6 +100,44 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     setActiveProject(project);
     setOpen(false);
   }
+  
+  const NavContent = () => (
+    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+      {navItems.map((item) => (
+        <Link
+          key={item.label}
+          href={item.href}
+          className={cn("flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}
+        >
+          <item.icon className="h-5 w-5" />
+          {item.label}
+        </Link>
+      ))}
+      <Collapsible open={isBusinessMenuOpen} onOpenChange={setIsBusinessMenuOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname.startsWith('/business') })}
+          >
+            <div className="flex items-center gap-3">
+              <Briefcase className="h-5 w-5" />
+              <span>Business</span>
+            </div>
+            <ChevronRight className={cn("h-5 w-5 transition-transform", isBusinessMenuOpen && "rotate-90")} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="ml-7 mt-2 flex flex-col gap-1 border-l pl-4">
+            {businessNavItems.map(item => (
+              <Link key={item.label} href={item.href} className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}>
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </nav>
+  );
 
   return (
     <Dialog open={addProjectOpen} onOpenChange={setAddProjectOpen}>
@@ -105,18 +153,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <div className="flex-1">
-            <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-              {navItems.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={cn("flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+            <NavContent />
           </div>
         </div>
       </div>
@@ -143,19 +180,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <span className="">FinanceFlow</span>
                   </Link>
               </SheetHeader>
-              <nav className="grid gap-2 text-lg font-medium p-4">
-                {navItems.map((item) => (
-                   <SheetClose asChild key={item.label}>
-                      <Link
-                        href={item.href}
-                        className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary", { "bg-sidebar-accent text-primary": pathname === item.href })}
-                      >
-                        <item.icon className="h-5 w-5" />
-                        {item.label}
-                      </Link>
-                    </SheetClose>
-                ))}
+              <div className="p-4">
+                <NavContent />
+              </div>
                  <Separator className="my-2 bg-sidebar-border" />
+                 <nav className="grid gap-2 p-4">
                  <SheetClose asChild>
                     <Link
                         href={'/settings'}
@@ -245,7 +274,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <div className="flex-1 relative bg-muted/40">
+        <div className="flex-1 relative bg-muted/40 p-4 md:p-6">
             {children}
         </div>
       </div>

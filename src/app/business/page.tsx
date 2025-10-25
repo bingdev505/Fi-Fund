@@ -1,6 +1,11 @@
 'use client';
 import Business from '@/components/Business';
+import AppShell from '@/components/AppShell';
 
 export default function BusinessDashboardPage() {
-  return <Business />;
+  return (
+    <AppShell>
+      <Business />
+    </AppShell>
+  );
 }
