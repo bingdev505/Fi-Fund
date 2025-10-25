@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import type { Task } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -31,7 +31,7 @@ const taskSchema = z.object({
   hobbyId: z.string().optional(),
 });
 
-function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => void }) {
+export function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => void }) {
   const { addTask, updateTask, hobbies } = useFinancials();
   const { toast } = useToast();
   
@@ -60,7 +60,7 @@ function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => 
     const taskData = {
       ...values,
       dueDate: finalDueDate?.toISOString(),
-      hobbyId: values.hobbyId === '' ? undefined : values.hobbyId,
+      hobbyId: values.hobbyId,
     };
     delete (taskData as any).dueTime; // remove temporary field
 
@@ -170,11 +170,12 @@ function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => 
           render={({ field }) => (
             <FormItem>
               <FormLabel>Link to Hobby (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select onValueChange={field.onChange} value={field.value || ''}>
                 <FormControl>
                   <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  <SelectItem value="">None</SelectItem>
                   {hobbies.map(hobby => (
                     <SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem>
                   ))}
@@ -354,5 +355,3 @@ export default function Tasks() {
     </Dialog>
   );
 }
-
-    
