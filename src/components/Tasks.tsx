@@ -60,6 +60,7 @@ function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => 
     const taskData = {
       ...values,
       dueDate: finalDueDate?.toISOString(),
+      hobbyId: values.hobbyId === '' ? undefined : values.hobbyId,
     };
     delete (taskData as any).dueTime; // remove temporary field
 
@@ -174,7 +175,6 @@ function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => 
                   <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
                   {hobbies.map(hobby => (
                     <SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem>
                   ))}
@@ -354,3 +354,5 @@ export default function Tasks() {
     </Dialog>
   );
 }
+
+    
