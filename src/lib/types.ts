@@ -94,3 +94,12 @@ export type Task = {
   dueDate?: LocalTimestamp;
   hobbyId?: string;
 };
+
+export type HobbySession = {
+  id: string;
+  userId: string;
+  hobbyId: string;
+  date: LocalTimestamp;
+  duration: number; // in minutes
+  notes?: string;
+};

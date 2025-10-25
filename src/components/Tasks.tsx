@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, PlusCircle, ListTodo, Pencil, Trash2, CalendarIcon } from 'lucide-react';
+import { Loader2, PlusCircle, ListTodo, Pencil, Trash2, CalendarIcon, Check, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -18,36 +18,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, setHours, setMinutes } from 'date-fns';
 import { Badge } from './ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 const taskSchema = z.object({
   name: z.string().min(2, 'Task name must be at least 2 characters'),
   description: z.string().optional(),
   status: z.enum(['todo', 'in-progress', 'done']),
   dueDate: z.date().optional(),
+  dueTime: z.string().optional().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:mm)"),
   hobbyId: z.string().optional(),
 });
 
 function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => void }) {
   const { addTask, updateTask, hobbies } = useFinancials();
   const { toast } = useToast();
+  
+  const defaultDueDate = task?.dueDate ? new Date(task.dueDate) : undefined;
+  const defaultDueTime = task?.dueDate ? format(new Date(task.dueDate), 'HH:mm') : '';
+
   const form = useForm<z.infer<typeof taskSchema>>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
       name: task?.name || '',
       description: task?.description || '',
       status: task?.status || 'todo',
-      dueDate: task?.dueDate ? new Date(task.dueDate) : undefined,
+      dueDate: defaultDueDate,
+      dueTime: defaultDueTime,
       hobbyId: task?.hobbyId || '',
     },
   });
 
   function onSubmit(values: z.infer<typeof taskSchema>) {
+    let finalDueDate: Date | undefined = values.dueDate;
+    if (finalDueDate && values.dueTime) {
+      const [hours, minutes] = values.dueTime.split(':').map(Number);
+      finalDueDate = setHours(setMinutes(finalDueDate, minutes), hours);
+    }
+
     const taskData = {
       ...values,
-      dueDate: values.dueDate?.toISOString(),
+      dueDate: finalDueDate?.toISOString(),
     };
+    delete (taskData as any).dueTime; // remove temporary field
+
     if (task) {
       updateTask(task.id, taskData);
       toast({ title: 'Task Updated' });
@@ -135,6 +150,19 @@ function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => 
                 )}
             />
         </div>
+         <FormField
+            control={form.control}
+            name="dueTime"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Due Time (Optional)</FormLabel>
+                    <FormControl>
+                        <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
         <FormField
           control={form.control}
           name="hobbyId"
@@ -146,6 +174,7 @@ function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => 
                   <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  <SelectItem value="">None</SelectItem>
                   {hobbies.map(hobby => (
                     <SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem>
                   ))}
@@ -174,7 +203,7 @@ const getStatusBadgeVariant = (status: Task['status']) => {
 
 
 export default function Tasks() {
-  const { isLoading, tasks, hobbies, deleteTask } = useFinancials();
+  const { isLoading, tasks, hobbies, deleteTask, updateTask } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -199,12 +228,18 @@ export default function Tasks() {
     setDeletingTask(null);
   };
 
+  const handleStatusChange = (task: Task, status: Task['status']) => {
+      updateTask(task.id, { status });
+      toast({ title: "Task Updated", description: `Task "${task.name}" moved to ${status}.`});
+  }
+
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
       setFormOpen(open);
       if (!open) setEditingTask(null);
     }}>
       <AlertDialog>
+        <TooltipProvider>
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -228,26 +263,61 @@ export default function Tasks() {
                   {tasks.map(task => (
                     <li key={task.id} className="flex items-start justify-between p-4 group hover:bg-muted/50">
                       <div className="flex items-start gap-4">
-                        <ListTodo className="h-6 w-6 text-primary mt-1" />
+                        <ListTodo className="h-6 w-6 text-primary mt-1 flex-shrink-0" />
                         <div>
                           <p className="font-medium">{task.name}</p>
                           <p className="text-sm text-muted-foreground">{task.description}</p>
-                          <div className="flex items-center gap-2 mt-2 text-xs">
+                          <div className="flex items-center flex-wrap gap-2 mt-2 text-xs">
                             <Badge variant={getStatusBadgeVariant(task.status)}>{task.status.replace('-', ' ')}</Badge>
-                            {task.dueDate && <span>Due: {format(new Date(task.dueDate), 'PPP')}</span>}
+                            {task.dueDate && 
+                              <div className='flex items-center gap-1'>
+                                <CalendarIcon className='h-3 w-3'/>
+                                <span>{format(new Date(task.dueDate), 'PPP p')}</span>
+                              </div>
+                            }
                             {task.hobbyId && <Badge variant="secondary">{getHobbyName(task.hobbyId)}</Badge>}
                           </div>
                         </div>
                       </div>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(task)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => setDeletingTask(task)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center flex-shrink-0 ml-4">
+                          {task.status !== 'in-progress' && (
+                              <Tooltip>
+                                  <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" onClick={() => handleStatusChange(task, 'in-progress')}>
+                                          <Clock className="h-4 w-4" />
+                                      </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Mark as In Progress</p></TooltipContent>
+                              </Tooltip>
+                          )}
+                          {task.status !== 'done' && (
+                              <Tooltip>
+                                  <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" onClick={() => handleStatusChange(task, 'done')}>
+                                          <Check className="h-4 w-4 text-green-600" />
+                                      </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Mark as Done</p></TooltipContent>
+                              </Tooltip>
+                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(task)}>
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Edit Task</p></TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={() => setDeletingTask(task)}>
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Delete Task</p></TooltipContent>
+                          </Tooltip>
                       </div>
                     </li>
                   ))}
@@ -260,6 +330,7 @@ export default function Tasks() {
             )}
           </CardContent>
         </Card>
+        </TooltipProvider>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>

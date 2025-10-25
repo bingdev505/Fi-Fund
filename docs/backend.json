@@ -29,6 +29,21 @@
       },
       "required": ["id", "userId", "name", "status"]
     },
+    "HobbySession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Hobby Session",
+      "description": "Represents a single session of a hobby, tracking time spent.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the hobby session." },
+        "userId": { "type": "string", "description": "Reference to the User who logged this session." },
+        "hobbyId": { "type": "string", "description": "Reference to the Hobby this session is for." },
+        "date": { "type": "string", "format": "date-time", "description": "The date of the hobby session." },
+        "duration": { "type": "number", "description": "The duration of the session in minutes." },
+        "notes": { "type": "string", "description": "Optional notes about the session." }
+      },
+      "required": ["id", "userId", "hobbyId", "date", "duration"]
+    },
     "ChatMessage": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Chat Message",
@@ -242,6 +257,19 @@
           "params": [
             { "name": "userId", "description": "The unique identifier of the user." },
             { "name": "taskId", "description": "The unique identifier of the task entry." }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/hobbies/{hobbyId}/sessions/{sessionId}",
+        "definition": {
+          "entityName": "HobbySession",
+          "schema": { "$ref": "#/backend/entities/HobbySession" },
+          "description": "Stores logged sessions for a specific hobby.",
+          "params": [
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "hobbyId", "description": "The unique identifier of the hobby." },
+            { "name": "sessionId", "description": "The unique identifier of the session." }
           ]
         }
       }
