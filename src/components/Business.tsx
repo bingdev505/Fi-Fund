@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, Folder, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Folder, Pencil, Trash2, PlusCircle } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
 import { useState, useMemo } from 'react';
@@ -95,7 +95,10 @@ export default function Business() {
                 <CardTitle>Manage Businesses</CardTitle>
                 <CardDescription>Add or manage your businesses (projects).</CardDescription>
               </div>
-              <Button onClick={handleAddClick}>Add New Business</Button>
+              <Button onClick={handleAddClick}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Business
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -137,7 +140,7 @@ export default function Business() {
                 </div>
               ) : (
                 <div className="text-center py-10 border-dashed border-2 rounded-md">
-                  <p className="text-muted-foreground text-sm">You haven't added any businesses yet.</p>
+                  <p className="text-muted-foreground">You haven't added any businesses yet.</p>
                 </div>
               )}
             </div>
