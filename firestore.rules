@@ -1,90 +1,192 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset is configured to deny all access for prototyping purposes. When the application
- * is ready for production, the rules can be updated to implement more specific access control.
+ * @fileoverview Firestore Security Rules for the application.
  *
- * Core Philosophy: Deny all access until specific rules are implemented.
- * Data Structure: Data is nested under /users/{userId}, but no access is granted at this time.
- * Key Security Decisions: All read and write operations are denied to ensure no data is exposed during
- * prototyping.
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Users can only
+ * read and write data associated with their own user ID. This ensures
+ * data privacy and prevents unauthorized access.
+ *
+ * Data Structure:
+ * All data is nested under /users/{userId}, which enforces clear
+ * ownership. Subcollections like /transactions, /debts, /bankAccounts,
+ * and /chatHistory further organize user-specific data.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own user document.
+ * - Users can only manage data (transactions, debts, bank accounts,
+ *   chat history) associated with their user ID.
+ * - No public listing of any collections is allowed, as all collections
+ *   contain private, user-specific data.
+ * - In general, the prototyping philosophy favors strict authorization
+ *   over data validation; therefore, data shapes are not heavily validated.
+ *
+ * Denormalization for Authorization:
+ * The 'userId' field within each document is used to enforce ownership.
+ * This avoids costly `get()` operations to verify ownership against a
+ * separate user document.
+ *
+ * Structural Segregation:
+ * There is no data intended to be both private and public. Everything
+ * is under /users/{userId}, ensuring data isolation.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Denies all access to user documents during prototyping.
+     * @description Grants access to user profile information.
      * @path /users/{userId}
-     * @allow None - All operations are denied.
-     * @deny Any operation.
-     * @principle Deny all access during prototyping.
+     * @allow (get) User with matching UID can read their own profile.
+     * @allow (create) User with matching UID can create their own profile.
+     * @allow (update) User with matching UID can update their own profile.
+     * @allow (delete) User with matching UID can delete their own profile.
+     * @deny (get) User tries to read another user's profile.
+     * @deny (create) User tries to create a profile with a mismatched UID.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      allow get: if false;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Denies all access to transaction documents during prototyping.
+     * @description Grants access to user's transaction history.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow None - All operations are denied.
-     * @deny Any operation.
-     * @principle Deny all access during prototyping.
+     * @allow (get) User with matching UID can read their own transaction.
+     * @allow (create) User with matching UID can create their own transaction.
+     * @allow (update) User with matching UID can update their own transaction.
+     * @allow (delete) User with matching UID can delete their own transaction.
+     * @deny (get) User tries to read another user's transaction.
+     * @deny (create) User tries to create a transaction with a mismatched UID.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/transactions/{transactionId} {
-      allow get: if false;
+       function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+        function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Denies all access to debt documents during prototyping.
+     * @description Grants access to user's debt information.
      * @path /users/{userId}/debts/{debtId}
-     * @allow None - All operations are denied.
-     * @deny Any operation.
-     * @principle Deny all access during prototyping.
+     * @allow (get) User with matching UID can read their own debt.
+     * @allow (create) User with matching UID can create their own debt.
+     * @allow (update) User with matching UID can update their own debt.
+     * @allow (delete) User with matching UID can delete their own debt.
+     * @deny (get) User tries to read another user's debt.
+     * @deny (create) User tries to create a debt with a mismatched UID.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/debts/{debtId} {
-      allow get: if false;
+       function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Denies all access to bank account documents during prototyping.
+     * @description Grants access to user's bank account information.
      * @path /users/{userId}/bankAccounts/{accountId}
-     * @allow None - All operations are denied.
-     * @deny Any operation.
-     * @principle Deny all access during prototyping.
+     * @allow (get) User with matching UID can read their own bank account.
+     * @allow (create) User with matching UID can create their own bank account.
+     * @allow (update) User with matching UID can update their own bank account.
+     * @allow (delete) User with matching UID can delete their own bank account.
+     * @deny (get) User tries to read another user's bank account.
+     * @deny (create) User tries to create a bank account with a mismatched UID.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/bankAccounts/{accountId} {
-      allow get: if false;
+       function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Denies all access to chat message documents during prototyping.
+     * @description Grants access to user's chat history.
      * @path /users/{userId}/chatHistory/{messageId}
-     * @allow None - All operations are denied.
-     * @deny Any operation.
-     * @principle Deny all access during prototyping.
+     * @allow (get) User with matching UID can read their own chat history.
+     * @allow (create) User with matching UID can create their own chat history.
+     * @allow (update) User with matching UID can update their own chat history.
+     * @allow (delete) User with matching UID can delete their own chat history.
+     * @deny (get) User tries to read another user's chat history.
+     * @deny (create) User tries to create a chat history with a mismatched UID.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/chatHistory/{messageId} {
-      allow get: if false;
+       function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
   }
 }
