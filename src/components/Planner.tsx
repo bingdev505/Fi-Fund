@@ -330,7 +330,6 @@ export function TaskForm({ task, onFinished }: { task?: Task | null, onFinished:
                   <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
                   {hobbies.map(hobby => (
                     <SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem>
                   ))}
@@ -377,7 +376,6 @@ export default function Planner() {
   const getHobbyName = (hobbyId?: string) => hobbies.find(h => h.id === hobbyId)?.name;
   
   // Hobby handlers
-  const handleAddHobbyClick = () => { setEditingHobby(null); setHobbyFormOpen(true); };
   const handleEditHobbyClick = (hobby: Hobby) => { setEditingHobby(hobby); setHobbyFormOpen(true); };
   const handleDeleteHobby = () => {
     if (!deletingHobby) return;
@@ -396,7 +394,6 @@ export default function Planner() {
   };
 
   // Task handlers
-  const handleAddTaskClick = () => { setEditingTask(null); setTaskFormOpen(true); };
   const handleEditTaskClick = (task: Task) => { setEditingTask(task); setTaskFormOpen(true); };
   const handleDeleteTask = () => {
     if (!deletingTask) return;
@@ -411,7 +408,7 @@ export default function Planner() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+       <div className="flex justify-end">
           <DropdownMenu>
               <DropdownMenuTrigger asChild>
                   <Button><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
