@@ -260,7 +260,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Personal / No Business</SelectItem>
+                      <SelectItem value="personal">Personal / No Business</SelectItem>
                     {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -450,7 +450,6 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                     <SelectItem value="">Personal / No Client</SelectItem>
                     {filteredClients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
@@ -531,5 +530,3 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
-
-    
