@@ -6,7 +6,7 @@ export type LocalTimestamp = string;
 export type Transaction = {
   id: string;
   userId: string;
-  projectId: string;
+  projectId?: string;
   type: 'income' | 'expense' | 'transfer' | 'repayment';
   category: string;
   amount: number;
@@ -22,7 +22,7 @@ export type Transaction = {
 export type Debt = {
   id:string;
   userId: string;
-  projectId: string;
+  projectId?: string;
   type: 'creditor' | 'debtor';
   name: string; // This will now be the client's name from the Client list
   clientId: string; // Link to the Client
@@ -103,3 +103,5 @@ export type HobbySession = {
   duration: number; // in minutes
   notes?: string;
 };
+
+    

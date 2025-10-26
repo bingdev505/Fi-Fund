@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 
 const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor', 'transfer']),
@@ -42,6 +42,7 @@ const formSchema = z.object({
   fromAccountId: z.string().optional(), // for transfer
   toAccountId: z.string().optional(), // for transfer
   clientId: z.string().optional(), // to associate income/expense to client
+  projectId: z.string().optional(), // to associate with a business
 }).refine(data => {
     if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.accountId) {
         return false;
@@ -92,7 +93,18 @@ type EntryFormProps = {
 
 
 export default function EntryForm({ onFinished }: EntryFormProps) {
-  const { addTransaction, addDebt, currency, bankAccounts, clients, categories: customCategories, addClient, addCategory } = useFinancials();
+  const { 
+    addTransaction, 
+    addDebt, 
+    currency, 
+    bankAccounts, 
+    clients, 
+    categories: customCategories, 
+    addClient, 
+    addCategory,
+    projects,
+    activeProject
+  } = useFinancials();
   const { toast } = useToast();
 
   const formatCurrency = (amount: number) => {
@@ -112,16 +124,29 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       toAccountId: '',
       clientId: '',
       dueDate: undefined,
+      projectId: activeProject && activeProject.id !== 'all' ? activeProject.id : '',
     },
   });
 
   const entryType = form.watch('entryType');
+  const selectedProjectId = form.watch('projectId');
 
-  const categories = useMemo(() => {
+  const filteredClients = useMemo(() => {
+    if (!selectedProjectId) return clients;
+    return clients.filter(c => c.projectId === selectedProjectId);
+  }, [clients, selectedProjectId]);
+
+  const filteredCategories = useMemo(() => {
     const baseCategories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-    const projectCategories = customCategories.filter(c => c.type === entryType).map(c => c.name);
+    const projectCategories = customCategories
+        .filter(c => (!selectedProjectId || c.projectId === selectedProjectId) && c.type === entryType)
+        .map(c => c.name);
     return [...new Set([...baseCategories, ...projectCategories])];
-  }, [entryType, customCategories]);
+  }, [entryType, customCategories, selectedProjectId]);
+  
+   useEffect(() => {
+    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : '');
+  }, [activeProject, form]);
 
 
   function onSubmit(values: z.infer<typeof formSchema>) {
@@ -130,8 +155,8 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     if (entryType === 'income' || entryType === 'expense' || entryType === 'transfer') {
       
       // Auto-create category if it's new
-      if (data.category && !categories.includes(data.category) && (entryType === 'income' || entryType === 'expense')) {
-        addCategory({ name: data.category, type: entryType });
+      if (data.category && !filteredCategories.includes(data.category) && (entryType === 'income' || entryType === 'expense')) {
+        addCategory({ name: data.category, type: entryType }, data.projectId);
       }
 
       addTransaction({
@@ -143,6 +168,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         fromAccountId: data.fromAccountId,
         toAccountId: data.toAccountId,
         clientId: data.clientId,
+        projectId: data.projectId,
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
@@ -154,9 +180,9 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         return;
       }
       
-      let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase());
+      let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && c.projectId === data.projectId);
       if (!client) {
-          client = addClient({ name: data.clientName! });
+          client = addClient({ name: data.clientName! }, data.projectId);
       }
 
       addDebt({
@@ -167,6 +193,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         description: data.description,
         dueDate: data.dueDate,
         accountId: data.accountId!,
+        projectId: data.projectId,
       });
       toast({
         title: `${entryType === 'creditor' ? 'Loan Taken' : 'Loan Given'} added`,
@@ -180,6 +207,31 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+            control={form.control}
+            name="projectId"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Business (Optional)</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a business" />
+                    </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                    <SelectItem value="">Personal</SelectItem>
+                    {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -293,10 +345,10 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                 <FormItem>
                   <FormLabel>Category</FormLabel>
                     <FormControl>
-                        <Input list="category-suggestions" placeholder="Type or select a category" {...field} />
+                        <Input list="category-suggestions" placeholder="Type or select a category" {...field} value={field.value || ''} />
                     </FormControl>
                     <datalist id="category-suggestions">
-                        {categories.map((cat) => (
+                        {filteredCategories.map((cat) => (
                             <option key={cat} value={cat} />
                         ))}
                     </datalist>
@@ -342,10 +394,10 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                           {entryType === 'creditor' ? "Lender (Creditor)" : "Borrower (Debtor)"}
                           </FormLabel>
                           <FormControl>
-                            <Input list="client-suggestions" placeholder="Type or select a client" {...field} />
+                            <Input list="client-suggestions" placeholder="Type or select a client" {...field} value={field.value || ''} />
                           </FormControl>
                            <datalist id="client-suggestions">
-                                {clients.map((client) => (
+                                {filteredClients.map((client) => (
                                     <option key={client.id} value={client.name} />
                                 ))}
                             </datalist>
@@ -380,7 +432,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           </div>
         )}
 
-        {(entryType === 'income' || entryType === 'expense') && clients.length > 0 && (
+        {(entryType === 'income' || entryType === 'expense') && filteredClients.length > 0 && (
           <FormField
             control={form.control}
             name="clientId"
@@ -394,7 +446,8 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {clients.map((client) => (
+                    <SelectItem value="">None</SelectItem>
+                    {filteredClients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
                       </SelectItem>
