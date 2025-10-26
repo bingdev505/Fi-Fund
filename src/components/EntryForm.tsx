@@ -122,7 +122,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       fromAccountId: '',
       toAccountId: '',
       dueDate: undefined,
-      projectId: activeProject && activeProject.id !== 'all' ? activeProject.id : '',
+      projectId: activeProject && activeProject.id !== 'all' ? activeProject.id : undefined,
     },
   });
 
@@ -143,7 +143,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   }, [entryType, customCategories, selectedProjectId]);
   
    useEffect(() => {
-    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : '');
+    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
   }, [activeProject, form]);
 
 
@@ -262,7 +262,6 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Personal / No Business</SelectItem>
                     {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
