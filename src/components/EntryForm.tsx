@@ -30,20 +30,18 @@ import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useMemo, useEffect } from 'react';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor', 'transfer']),
   amount: z.coerce.number().positive('Amount must be positive'),
   category: z.string().optional(),
-  clientName: z.string().optional(), // For debts - can be new or existing
+  clientName: z.string().optional(), // For debts OR for income/expense
   description: z.string().min(3, 'Description must be at least 3 characters'),
   dueDate: z.date().optional(),
   accountId: z.string().optional(), // for income/expense/debts
   fromAccountId: z.string().optional(), // for transfer
   toAccountId: z.string().optional(), // for transfer
-  clientId: z.string().optional(), // to associate income/expense to client
-  projectId: z.string().optional(), // to associate with a business
+  projectId: z.string().optional(),
 }).refine(data => {
     if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.accountId) {
         return false;
@@ -123,7 +121,6 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       accountId: '',
       fromAccountId: '',
       toAccountId: '',
-      clientId: '',
       dueDate: undefined,
       projectId: activeProject && activeProject.id !== 'all' ? activeProject.id : '',
     },
@@ -155,6 +152,17 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
 
     const projectId = data.projectId === '' ? undefined : data.projectId;
 
+    let finalClientId: string | undefined;
+
+    // Handle client creation/selection for all types that use clientName
+    if (data.clientName) {
+        let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && (!c.projectId || c.projectId === projectId));
+        if (!client) {
+            client = addClient({ name: data.clientName! }, projectId);
+        }
+        finalClientId = client.id;
+    }
+
     if (entryType === 'income' || entryType === 'expense' || entryType === 'transfer') {
       
       // Auto-create category if it's new
@@ -170,7 +178,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         accountId: data.accountId,
         fromAccountId: data.fromAccountId,
         toAccountId: data.toAccountId,
-        clientId: data.clientId === '' ? undefined : data.clientId,
+        clientId: finalClientId,
         projectId: projectId,
       });
       toast({
@@ -178,21 +186,16 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         description: `${formatCurrency(data.amount)} has been logged.`,
       });
     } else { // creditor or debtor
-      if (!data.clientName) {
-        toast({ variant: 'destructive', title: 'Client name is required.' });
+      if (!data.clientName || !finalClientId) {
+        toast({ variant: 'destructive', title: 'Client name is required for loans.' });
         return;
       }
       
-      let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && (!c.projectId || c.projectId === projectId));
-      if (!client) {
-          client = addClient({ name: data.clientName! }, projectId);
-      }
-
       addDebt({
         type: entryType,
         amount: data.amount,
-        name: client.name,
-        clientId: client.id,
+        name: data.clientName,
+        clientId: finalClientId,
         description: data.description,
         dueDate: data.dueDate,
         accountId: data.accountId!,
@@ -200,7 +203,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       });
       toast({
         title: `${entryType === 'creditor' ? 'Loan Taken' : 'Loan Given'} added`,
-        description: `Debt related to ${client.name} for ${formatCurrency(data.amount)} has been logged.`,
+        description: `Debt related to ${data.clientName} for ${formatCurrency(data.amount)} has been logged.`,
       });
     }
     form.reset();
@@ -222,7 +225,6 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     ...form.getValues(),
                     entryType: value as any,
                     category: '',
-                    clientId: '',
                     clientName: '',
                     accountId: '',
                     fromAccountId: '',
@@ -260,7 +262,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="personal">Personal / No Business</SelectItem>
+                      <SelectItem value="">Personal / No Business</SelectItem>
                     {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -439,26 +441,20 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         {(entryType === 'income' || entryType === 'expense') && (
           <FormField
             control={form.control}
-            name="clientId"
+            name="clientName"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Client (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ''}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Personal / No Client" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {filteredClients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
+                <FormItem>
+                    <FormLabel>Client (Optional)</FormLabel>
+                    <FormControl>
+                        <Input list="client-suggestions" placeholder="Type or select a client" {...field} value={field.value || ''} />
+                    </FormControl>
+                    <datalist id="client-suggestions">
+                        {filteredClients.map((client) => (
+                            <option key={client.id} value={client.name} />
+                        ))}
+                    </datalist>
+                    <FormMessage />
+                </FormItem>
             )}
           />
         )}
