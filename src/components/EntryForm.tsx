@@ -133,7 +133,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   const selectedProjectId = form.watch('projectId');
 
   const filteredClients = useMemo(() => {
-    if (!selectedProjectId || selectedProjectId === 'personal-no-business') return clients.filter(c => !c.projectId);
+    if (!selectedProjectId) return clients.filter(c => !c.projectId);
     return clients.filter(c => c.projectId === selectedProjectId);
   }, [clients, selectedProjectId]);
 
@@ -146,14 +146,14 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   }, [entryType, customCategories, selectedProjectId]);
   
    useEffect(() => {
-    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal-no-business');
+    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : '');
   }, [activeProject, form]);
 
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
 
-    const projectId = data.projectId === 'personal-no-business' ? undefined : data.projectId;
+    const projectId = data.projectId === '' ? undefined : data.projectId;
 
     if (entryType === 'income' || entryType === 'expense' || entryType === 'transfer') {
       
@@ -170,7 +170,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         accountId: data.accountId,
         fromAccountId: data.fromAccountId,
         toAccountId: data.toAccountId,
-        clientId: data.clientId === 'personal-no-client' ? undefined : data.clientId,
+        clientId: data.clientId === '' ? undefined : data.clientId,
         projectId: projectId,
       });
       toast({
@@ -214,58 +214,34 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           control={form.control}
           name="entryType"
           render={({ field }) => (
-            <FormItem className="space-y-3">
+            <FormItem>
               <FormLabel>Entry Type</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    form.reset({
-                      ...form.getValues(),
-                      entryType: value as any,
-                      category: '',
-                      clientId: '',
-                      clientName: '',
-                      accountId: '',
-                      fromAccountId: '',
-                      toAccountId: '',
-                    });
-                  }}
-                  defaultValue={field.value}
-                  className="grid grid-cols-2 lg:grid-cols-3 gap-4"
-                >
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="expense" />
-                    </FormControl>
-                    <FormLabel className="font-normal">Expense</FormLabel>
-                  </FormItem>
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="income" />
-                    </FormControl>
-                    <FormLabel className="font-normal">Income</FormLabel>
-                  </FormItem>
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="creditor" />
-                    </FormControl>
-                    <FormLabel className="font-normal">Loan Taken</FormLabel>
-                  </FormItem>
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="debtor" />
-                    </FormControl>
-                    <FormLabel className="font-normal">Loan Given</FormLabel>
-                  </FormItem>
-                   <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="transfer" />
-                    </FormControl>
-                    <FormLabel className="font-normal">Bank Transfer</FormLabel>
-                  </FormItem>
-                </RadioGroup>
-              </FormControl>
+              <Select onValueChange={(value) => {
+                  field.onChange(value);
+                  form.reset({
+                    ...form.getValues(),
+                    entryType: value as any,
+                    category: '',
+                    clientId: '',
+                    clientName: '',
+                    accountId: '',
+                    fromAccountId: '',
+                    toAccountId: '',
+                  });
+              }} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="creditor">Loan Taken (Creditor)</SelectItem>
+                    <SelectItem value="debtor">Loan Given (Debtor)</SelectItem>
+                    <SelectItem value="transfer">Bank Transfer</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -284,7 +260,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="personal-no-business">Personal / No Business</SelectItem>
+                      <SelectItem value="">Personal / No Business</SelectItem>
                     {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -419,7 +395,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     render={({ field }) => (
                       <FormItem>
                           <FormLabel>
-                          {entryType === 'creditor' ? "Lender (Creditor)" : "Borrower (Debtor)"}
+                            {entryType === 'creditor' ? "Creditor Name" : "Debtor Name"}
                           </FormLabel>
                           <FormControl>
                             <Input list="client-suggestions" placeholder="Type or select a client" {...field} value={field.value || ''} />
@@ -474,7 +450,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                     <SelectItem value="personal-no-client">Personal / No Client</SelectItem>
+                     <SelectItem value="">Personal / No Client</SelectItem>
                     {filteredClients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
@@ -555,3 +531,5 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
+
+    
