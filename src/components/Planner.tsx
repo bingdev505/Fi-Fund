@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 // Hobby Form
 const hobbySchema = z.object({
@@ -410,6 +411,23 @@ export default function Planner() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+          <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => { setEditingHobby(null); setHobbyFormOpen(true); }}>
+                      <Heart className="mr-2 h-4 w-4" />
+                      <span>Hobby</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => { setEditingTask(null); setTaskFormOpen(true); }}>
+                      <ListTodo className="mr-2 h-4 w-4" />
+                      <span>Task</span>
+                  </DropdownMenuItem>
+              </DropdownMenuContent>
+          </DropdownMenu>
+      </div>
       <Dialog open={hobbyFormOpen} onOpenChange={(open) => { setHobbyFormOpen(open); if (!open) setEditingHobby(null); }}>
       <Dialog open={!!sessionForm} onOpenChange={(open) => !open && setSessionForm(null)}>
       <Dialog open={taskFormOpen} onOpenChange={(open) => { setTaskFormOpen(open); if (!open) setEditingTask(null); }}>
@@ -423,9 +441,6 @@ export default function Planner() {
                     <CardTitle>My Hobbies</CardTitle>
                     <CardDescription>Keep track of your hobbies and log time spent on them.</CardDescription>
                   </div>
-                  <Button onClick={handleAddHobbyClick}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Hobby
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -506,9 +521,6 @@ export default function Planner() {
                     <CardTitle>My Tasks</CardTitle>
                     <CardDescription>Manage your to-do list.</CardDescription>
                   </div>
-                  <Button onClick={handleAddTaskClick}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Task
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
