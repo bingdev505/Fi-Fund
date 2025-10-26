@@ -262,7 +262,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setAllClients(prev => [...prev, fallbackClient]);
         return fallbackClient;
     }
-    const newClient = { ...clientData, id: crypto.randomUUID(), projectId: projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : '') };
+    const newClient = { ...clientData, id: crypto.randomUUID(), projectId: projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : '') || '' };
     setAllClients(prev => [...prev, newClient]);
     return newClient;
 }, [user, activeProject]);
@@ -277,11 +277,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addCategory = useCallback((categoryData: Omit<Category, 'id' | 'projectId'>, projectId?: string) => {
     if (!user) return;
-    const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : '');
-    if (!finalProjectId) {
-      console.warn("Cannot add category without a project ID");
-      return;
-    }
+    const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : '') || '';
     const newCategory = { ...categoryData, id: crypto.randomUUID(), projectId: finalProjectId };
     setAllCategories(prev => [...prev, newCategory]);
   }, [user, activeProject]);
@@ -447,8 +443,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   
   const filteredTransactions = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTransactions.filter(t => t.projectId === activeProject.id) : allTransactions.filter(t => !t.projectId), [allTransactions, activeProject]);
   const filteredDebts = useMemo(() => (activeProject && activeProject.id !== 'all') ? allDebts.filter(d => d.projectId === activeProject.id) : allDebts.filter(d => !d.projectId), [allDebts, activeProject]);
-  const filteredClients = useMemo(() => (activeProject && activeProject.id !== 'all') ? allClients.filter(c => c.projectId === activeProject.id) : [], [allClients, activeProject]);
-  const filteredCategories = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCategories.filter(c => c.projectId === activeProject.id) : [], [allCategories, activeProject]);
+  const filteredClients = useMemo(() => (activeProject && activeProject.id !== 'all') ? allClients.filter(c => c.projectId === activeProject.id) : allClients.filter(c => !c.projectId), [allClients, activeProject]);
+  const filteredCategories = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCategories.filter(c => c.projectId === activeProject.id) : allCategories.filter(c => !c.projectId), [allCategories, activeProject]);
 
   const contextValue = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
@@ -482,5 +478,3 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     </FinancialContext.Provider>
   );
 }
-
-    

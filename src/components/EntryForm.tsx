@@ -30,6 +30,7 @@ import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useMemo, useEffect } from 'react';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor', 'transfer']),
@@ -132,7 +133,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   const selectedProjectId = form.watch('projectId');
 
   const filteredClients = useMemo(() => {
-    if (!selectedProjectId) return clients;
+    if (!selectedProjectId) return clients.filter(c => !c.projectId);
     return clients.filter(c => c.projectId === selectedProjectId);
   }, [clients, selectedProjectId]);
 
@@ -180,7 +181,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         return;
       }
       
-      let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && c.projectId === data.projectId);
+      let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && (!c.projectId || c.projectId === data.projectId));
       if (!client) {
           client = addClient({ name: data.clientName! }, data.projectId);
       }
@@ -206,20 +207,82 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="entryType"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <FormLabel>Entry Type</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.reset({
+                      ...form.getValues(),
+                      entryType: value as any,
+                      category: '',
+                      clientId: '',
+                      clientName: '',
+                      accountId: '',
+                      fromAccountId: '',
+                      toAccountId: '',
+                    });
+                  }}
+                  defaultValue={field.value}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem value="expense" />
+                    </FormControl>
+                    <FormLabel className="font-normal">Expense</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem value="income" />
+                    </FormControl>
+                    <FormLabel className="font-normal">Income</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem value="creditor" />
+                    </FormControl>
+                    <FormLabel className="font-normal">Loan Taken</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem value="debtor" />
+                    </FormControl>
+                    <FormLabel className="font-normal">Loan Given</FormLabel>
+                  </FormItem>
+                   <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem value="transfer" />
+                    </FormControl>
+                    <FormLabel className="font-normal">Bank Transfer</FormLabel>
+                  </FormItem>
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
             control={form.control}
             name="projectId"
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Business (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                     <FormControl>
                     <SelectTrigger>
-                        <SelectValue placeholder="Select a business" />
+                        <SelectValue placeholder="Personal / No Business" />
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="">Personal / No Business</SelectItem>
                     {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -231,42 +294,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                 </FormItem>
             )}
             />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="entryType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Entry Type</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    form.setValue('category', '');
-                    form.setValue('clientId', undefined);
-                    form.setValue('clientName', '');
-                    form.setValue('accountId', undefined);
-                    form.setValue('fromAccountId', undefined);
-                    form.setValue('toAccountId', undefined);
-                  }}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an entry type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="expense">Expense</SelectItem>
-                    <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="creditor">I Owe (Loan Taken)</SelectItem>
-                    <SelectItem value="debtor">They Owe (Loan Given)</SelectItem>
-                    <SelectItem value="transfer">Bank Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+
           <FormField
             control={form.control}
             name="amount"
@@ -280,7 +308,6 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               </FormItem>
             )}
           />
-        </div>
 
         {entryType === 'transfer' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -290,7 +317,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>From Account</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select an account" />
@@ -314,7 +341,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>To Account</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select an account" />
@@ -361,7 +388,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>Account</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
                     <FormControl>
                         <SelectTrigger>
                         <SelectValue placeholder="Select an account" />
@@ -410,7 +437,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Account</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                         <FormControl>
                             <SelectTrigger>
                             <SelectValue placeholder="Select an account" />
@@ -431,20 +458,21 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           </div>
         )}
 
-        {(entryType === 'income' || entryType === 'expense') && filteredClients.length > 0 && (
+        {(entryType === 'income' || entryType === 'expense') && (
           <FormField
             control={form.control}
             name="clientId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Client (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a client" />
+                      <SelectValue placeholder="Personal / No Client" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                     <SelectItem value="">Personal / No Client</SelectItem>
                     {filteredClients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
@@ -525,5 +553,3 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
-
-    
