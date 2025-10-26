@@ -133,7 +133,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   const selectedProjectId = form.watch('projectId');
 
   const filteredClients = useMemo(() => {
-    if (!selectedProjectId) return clients.filter(c => !c.projectId);
+    if (!selectedProjectId || selectedProjectId === 'personal-no-business') return clients.filter(c => !c.projectId);
     return clients.filter(c => c.projectId === selectedProjectId);
   }, [clients, selectedProjectId]);
 
@@ -146,18 +146,20 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   }, [entryType, customCategories, selectedProjectId]);
   
    useEffect(() => {
-    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : '');
+    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal-no-business');
   }, [activeProject, form]);
 
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
 
+    const projectId = data.projectId === 'personal-no-business' ? undefined : data.projectId;
+
     if (entryType === 'income' || entryType === 'expense' || entryType === 'transfer') {
       
       // Auto-create category if it's new
       if (data.category && !filteredCategories.includes(data.category) && (entryType === 'income' || entryType === 'expense')) {
-        addCategory({ name: data.category, type: entryType }, data.projectId);
+        addCategory({ name: data.category, type: entryType }, projectId);
       }
 
       addTransaction({
@@ -168,8 +170,8 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         accountId: data.accountId,
         fromAccountId: data.fromAccountId,
         toAccountId: data.toAccountId,
-        clientId: data.clientId,
-        projectId: data.projectId,
+        clientId: data.clientId === 'personal-no-client' ? undefined : data.clientId,
+        projectId: projectId,
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
@@ -181,9 +183,9 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         return;
       }
       
-      let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && (!c.projectId || c.projectId === data.projectId));
+      let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && (!c.projectId || c.projectId === projectId));
       if (!client) {
-          client = addClient({ name: data.clientName! }, data.projectId);
+          client = addClient({ name: data.clientName! }, projectId);
       }
 
       addDebt({
@@ -194,7 +196,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         description: data.description,
         dueDate: data.dueDate,
         accountId: data.accountId!,
-        projectId: data.projectId,
+        projectId: projectId,
       });
       toast({
         title: `${entryType === 'creditor' ? 'Loan Taken' : 'Loan Given'} added`,
@@ -230,7 +232,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     });
                   }}
                   defaultValue={field.value}
-                  className="grid grid-cols-2 gap-4"
+                  className="grid grid-cols-2 lg:grid-cols-3 gap-4"
                 >
                   <FormItem className="flex items-center space-x-3 space-y-0">
                     <FormControl>
