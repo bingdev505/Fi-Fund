@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // --- Unified Plan Form ---
 const planSchema = z.object({
@@ -152,8 +153,8 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
         
         {watchedPlanType === 'hobby' && (
           <div className="space-y-4 p-4 border rounded-md">
-            <FormField control={form.control} name="hobbyName" render={({ field }) => ( <FormItem> <FormLabel>Hobby Name</FormLabel> <FormControl><Input placeholder="e.g. Hiking" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-            <FormField control={form.control} name="hobbyDescription" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl><Textarea placeholder="e.g. Exploring trails and mountains." {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+            <FormField control={form.control} name="hobbyName" render={({ field }) => ( <FormItem> <FormLabel>Hobby Name</FormLabel> <FormControl><Input placeholder="e.g. Hiking" {...field} value={field.value || ''} /></FormControl> <FormMessage /> </FormItem> )} />
+            <FormField control={form.control} name="hobbyDescription" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl><Textarea placeholder="e.g. Exploring trails and mountains." {...field} value={field.value || ''} /></FormControl> <FormMessage /> </FormItem> )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="hobbyTime" render={({ field }) => ( <FormItem> <FormLabel>Time (Optional)</FormLabel> <FormControl><Input type="time" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
               <FormField control={form.control} name="hobbyRepeat" render={({ field }) => ( <FormItem> <FormLabel>Repeat</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl> <SelectContent> {repeatOptions.map(opt => <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>)} </SelectContent> </Select> <FormMessage/> </FormItem> )}/>
@@ -163,8 +164,8 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
 
         {watchedPlanType === 'task' && (
           <div className="space-y-4 p-4 border rounded-md">
-            <FormField control={form.control} name="taskName" render={({ field }) => ( <FormItem> <FormLabel>Task Name</FormLabel> <FormControl><Input placeholder="e.g. Plan hiking trip" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
-            <FormField control={form.control} name="taskDescription" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl><Textarea placeholder="e.g. Research trails, book campsite..." {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
+            <FormField control={form.control} name="taskName" render={({ field }) => ( <FormItem> <FormLabel>Task Name</FormLabel> <FormControl><Input placeholder="e.g. Plan hiking trip" {...field} value={field.value || ''} /></FormControl> <FormMessage /> </FormItem> )}/>
+            <FormField control={form.control} name="taskDescription" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl><Textarea placeholder="e.g. Research trails, book campsite..." {...field} value={field.value || ''}/></FormControl> <FormMessage /> </FormItem> )}/>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="taskStatus" render={({ field }) => ( <FormItem> <FormLabel>Status</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl> <SelectContent> <SelectItem value="todo">To Do</SelectItem> <SelectItem value="in-progress">In Progress</SelectItem> <SelectItem value="done">Done</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
               <FormField control={form.control} name="taskDueDate" render={({ field }) => ( <FormItem className="flex flex-col"> <FormLabel>Due Date (Optional)</FormLabel> <Popover> <PopoverTrigger asChild> <FormControl> <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}> {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>} <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" /> </Button> </FormControl> </PopoverTrigger> <PopoverContent className="w-auto p-0" align="start"> <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus /> </PopoverContent> </Popover> <FormMessage /> </FormItem> )}/>
@@ -262,7 +263,7 @@ function SessionForm({ hobby, session, onFinished }: { hobby: Hobby, session?: H
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Notes (Optional)</FormLabel>
-                            <FormControl><Textarea placeholder="e.g. Reached the summit!" {...field} /></FormControl>
+                            <FormControl><Textarea placeholder="e.g. Reached the summit!" {...field} value={field.value || ''} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -288,7 +289,8 @@ export default function Planner() {
   const { toast } = useToast();
   
   // State for Forms
-  const [planForm, setPlanForm] = useState<{ plan?: Hobby | Task | null } | null>(null);
+  const [planFormOpen, setPlanFormOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<Hobby | Task | null>(null);
   const [sessionForm, setSessionForm] = useState<{ hobby: Hobby, session?: HobbySession | null } | null>(null);
   
   // State for Deletions
@@ -299,7 +301,14 @@ export default function Planner() {
   const getHobbyName = (hobbyId?: string) => hobbies.find(h => h.id === hobbyId)?.name;
   
   // Handlers
-  const handleEditPlanClick = (plan: Hobby | Task) => setPlanForm({ plan });
+  const handleEditPlanClick = (plan: Hobby | Task) => {
+    setEditingPlan(plan);
+    setPlanFormOpen(true);
+  }
+  const handleAddPlanClick = () => {
+    setEditingPlan(null);
+    setPlanFormOpen(true);
+  }
   const handleDeleteHobby = () => {
     if (!deletingHobby) return;
     deleteHobby(deletingHobby.id);
@@ -329,10 +338,13 @@ export default function Planner() {
   return (
     <div className="space-y-6">
        <div className="flex justify-end">
-         <Button onClick={() => setPlanForm({})}><PlusCircle className="mr-2 h-4 w-4" /> Add Plan</Button>
+         <Button onClick={handleAddPlanClick}><PlusCircle className="mr-2 h-4 w-4" /> Add Plan</Button>
       </div>
 
-      <Dialog open={!!planForm} onOpenChange={(open) => !open && setPlanForm(null)}>
+      <Dialog open={planFormOpen} onOpenChange={(open) => {
+        setPlanFormOpen(open);
+        if (!open) setEditingPlan(null);
+      }}>
       <Dialog open={!!sessionForm} onOpenChange={(open) => !open && setSessionForm(null)}>
         <AlertDialog>
           <TooltipProvider>
@@ -496,7 +508,7 @@ export default function Planner() {
         </AlertDialog>
 
         {/* Dialogs for Forms */}
-        <DialogContent><DialogHeader><DialogTitle>{planForm?.plan ? 'Edit' : 'Add a New'} Plan</DialogTitle></DialogHeader><PlanForm plan={planForm?.plan} onFinished={() => setPlanForm(null)} /></DialogContent>
+        <DialogContent><DialogHeader><DialogTitle>{editingPlan ? 'Edit' : 'Add a New'} Plan</DialogTitle></DialogHeader><PlanForm plan={editingPlan} onFinished={() => setPlanFormOpen(false)} /></DialogContent>
         {sessionForm?.hobby && (<DialogContent><DialogHeader><DialogTitle>{sessionForm.session ? 'Edit' : 'Log'} Session for {sessionForm.hobby.name}</DialogTitle></DialogHeader><SessionForm hobby={sessionForm.hobby} session={sessionForm.session} onFinished={() => setSessionForm(null)} /></DialogContent>)}
       </Dialog>
       </Dialog>
