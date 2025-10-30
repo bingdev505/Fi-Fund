@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import type { Hobby, HobbySession, Task } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -173,9 +173,9 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date (Optional)</FormLabel>
-                    <FormControl>
-                      <Popover>
-                        <PopoverTrigger asChild>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
                           <Button
                             variant={'outline'}
                             className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}
@@ -183,12 +183,12 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
                             {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                             <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                        </PopoverContent>
-                      </Popover>
-                    </FormControl>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
