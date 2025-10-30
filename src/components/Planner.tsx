@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // --- Unified Plan Form ---
 const planSchema = z.object({
@@ -54,8 +53,8 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
   const { toast } = useToast();
 
   const isEditing = !!plan;
-  const planType = isEditing ? ('time' in plan ? 'hobby' : 'task') : 'task';
-  const isHobby = isEditing && 'time' in plan;
+  const planType = isEditing ? (('description' in plan && 'time' in plan) ? 'hobby' : 'task') : 'task';
+  const isHobby = isEditing && ('description' in plan && 'time' in plan);
   const isTask = isEditing && !isHobby;
 
   const form = useForm<z.infer<typeof planSchema>>({
@@ -345,7 +344,25 @@ export default function Planner() {
         setPlanFormOpen(open);
         if (!open) setEditingPlan(null);
       }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? 'Edit' : 'Add a New'} Plan</DialogTitle>
+          </DialogHeader>
+          <PlanForm plan={editingPlan} onFinished={() => setPlanFormOpen(false)} />
+        </DialogContent>
+      </Dialog>
+      
       <Dialog open={!!sessionForm} onOpenChange={(open) => !open && setSessionForm(null)}>
+        {sessionForm?.hobby && (
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{sessionForm.session ? 'Edit' : 'Log'} Session for {sessionForm.hobby.name}</DialogTitle>
+            </DialogHeader>
+            <SessionForm hobby={sessionForm.hobby} session={sessionForm.session} onFinished={() => setSessionForm(null)} />
+          </DialogContent>
+        )}
+      </Dialog>
+        
         <AlertDialog>
           <TooltipProvider>
             {/* Hobbies Section */}
@@ -506,12 +523,6 @@ export default function Planner() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {/* Dialogs for Forms */}
-        <DialogContent><DialogHeader><DialogTitle>{editingPlan ? 'Edit' : 'Add a New'} Plan</DialogTitle></DialogHeader><PlanForm plan={editingPlan} onFinished={() => setPlanFormOpen(false)} /></DialogContent>
-        {sessionForm?.hobby && (<DialogContent><DialogHeader><DialogTitle>{sessionForm.session ? 'Edit' : 'Log'} Session for {sessionForm.hobby.name}</DialogTitle></DialogHeader><SessionForm hobby={sessionForm.hobby} session={sessionForm.session} onFinished={() => setSessionForm(null)} /></DialogContent>)}
-      </Dialog>
-      </Dialog>
     </div>
   );
 }
