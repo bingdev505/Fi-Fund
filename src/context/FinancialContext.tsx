@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
-import type { Transaction, Debt, BankAccount, UserSettings, Project, Client, Category } from '@/lib/types';
+import type { Transaction, Debt, BankAccount, UserSettings, Project, Client, Category, Task } from '@/lib/types';
 import { useUser } from '@/firebase';
 
 interface FinancialContextType {
@@ -44,6 +44,11 @@ interface FinancialContextType {
   updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'projectId'>>) => void;
   deleteCategory: (categoryId: string) => void;
   
+  tasks: Task[];
+  addTask: (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => void;
+  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => void;
+  deleteTask: (taskId: string) => void;
+
   currency: string;
   setCurrency: (currency: string) => void;
   isLoading: boolean;
@@ -73,6 +78,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const currencyKey = useLocalStorageKey('currency');
   const clientsKey = useLocalStorageKey('clients');
   const categoriesKey = useLocalStorageKey('categories');
+  const tasksKey = useLocalStorageKey('tasks');
+
 
   // State management for all data
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -83,6 +90,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [allBankAccounts, setAllBankAccounts] = useState<BankAccount[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   
   const [currency, setCurrencyState] = useState<string>('INR');
   const [isLoading, setIsLoading] = useState(true);
@@ -113,6 +121,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setAllDebts([]);
         setAllClients([]);
         setAllCategories([]);
+        setAllTasks([]);
         setCurrencyState('INR');
 
       } else {
@@ -132,6 +141,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         const storedCurrency = currencyKey ? localStorage.getItem(currencyKey) || 'INR' : 'INR';
         const storedClients = clientsKey ? JSON.parse(localStorage.getItem(clientsKey) || '[]') : [];
         const storedCategories = categoriesKey ? JSON.parse(localStorage.getItem(categoriesKey) || '[]') : [];
+        const storedTasks = tasksKey ? JSON.parse(localStorage.getItem(tasksKey) || '[]') : [];
         
         setAllProjects(storedProjects);
         
@@ -151,6 +161,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setAllBankAccounts(storedBankAccounts);
         setAllClients(storedClients);
         setAllCategories(storedCategories);
+        setAllTasks(storedTasks);
         setCurrencyState(storedCurrency);
       }
     } catch (error) {
@@ -164,11 +175,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllBankAccounts([]);
       setAllClients([]);
       setAllCategories([]);
+      setAllTasks([]);
       setCurrencyState('INR');
     } finally {
       setIsLoading(false);
     }
-  }, [user, isUserLoading, projectsKey, activeProjectKey, defaultProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey, clientsKey, categoriesKey]);
+  }, [user, isUserLoading, projectsKey, activeProjectKey, defaultProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey, clientsKey, categoriesKey, tasksKey]);
 
   const setActiveProject = useCallback((project: Project | null) => {
     const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
@@ -194,6 +206,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (currencyKey) localStorage.setItem(currencyKey, currency); }, [currency, currencyKey]);
   useEffect(() => { if (clientsKey) localStorage.setItem(clientsKey, JSON.stringify(allClients)); }, [allClients, clientsKey]);
   useEffect(() => { if (categoriesKey) localStorage.setItem(categoriesKey, JSON.stringify(allCategories)); }, [allCategories, categoriesKey]);
+  useEffect(() => { if (tasksKey) localStorage.setItem(tasksKey, JSON.stringify(allTasks)); }, [allTasks, tasksKey]);
 
   // Data manipulation functions
   const addProject = useCallback((projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => {
@@ -215,6 +228,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setAllDebts(prev => prev.filter(d => d.projectId !== projectId));
     setAllClients(prev => prev.filter(c => c.projectId !== projectId));
     setAllCategories(prev => prev.filter(cat => cat.projectId !== projectId));
+    setAllTasks(prev => prev.filter(t => t.projectId !== projectId));
     if (activeProject?.id === projectId) {
       setActiveProject(ALL_BUSINESS_PROJECT);
     }
@@ -361,11 +375,27 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const getDebtById = useCallback((id: string) => {
       return allDebts.find(d => d.id === id);
   }, [allDebts]);
+
+    const addTask = useCallback((taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => {
+    if (!user) return;
+    const newTask = { ...taskData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
+    setAllTasks(prev => [...prev, newTask]);
+  }, [user]);
+
+  const updateTask = useCallback((taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => {
+    setAllTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...taskData } : t));
+  }, []);
+
+  const deleteTask = useCallback((taskId: string) => {
+    setAllTasks(prev => prev.filter(t => t.id !== taskId));
+  }, []);
   
   const filteredTransactions = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTransactions.filter(t => t.projectId === activeProject.id) : allTransactions.filter(t => !t.projectId), [allTransactions, activeProject]);
   const filteredDebts = useMemo(() => (activeProject && activeProject.id !== 'all') ? allDebts.filter(d => d.projectId === activeProject.id) : allDebts.filter(d => !d.projectId), [allDebts, activeProject]);
   const filteredClients = useMemo(() => (activeProject && activeProject.id !== 'all') ? allClients.filter(c => c.projectId === activeProject.id) : allClients.filter(c => !c.projectId), [allClients, activeProject]);
   const filteredCategories = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCategories.filter(c => c.projectId === activeProject.id) : allCategories.filter(c => !c.projectId), [allCategories, activeProject]);
+  const filteredTasks = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTasks.filter(t => t.projectId === activeProject.id) : allTasks.filter(t => !t.projectId), [allTasks, activeProject]);
+
 
   const contextValue = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
@@ -374,6 +404,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     bankAccounts: allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
     clients: filteredClients, addClient, updateClient, deleteClient,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
+    tasks: filteredTasks, addTask, updateTask, deleteTask,
     currency, setCurrency,
     isLoading: isLoading,
   }), [
@@ -383,6 +414,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
       filteredClients, addClient, updateClient, deleteClient,
       filteredCategories, addCategory, updateCategory, deleteCategory,
+      filteredTasks, addTask, updateTask, deleteTask,
       currency, setCurrency,
       isLoading
     ]);

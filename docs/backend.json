@@ -126,6 +126,23 @@
         "type": { "type": "string", "enum": ["income", "expense"], "description": "The type of the category." }
       },
       "required": ["id", "projectId", "name", "type"]
+    },
+     "Task": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Task",
+      "description": "Represents a task to be tracked by a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the task." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this task." },
+        "projectId": { "type": "string", "description": "Optional reference to the Project this task belongs to." },
+        "name": { "type": "string", "description": "The name or title of the task." },
+        "description": { "type": "string", "description": "A detailed description of the task." },
+        "status": { "type": "string", "enum": ["todo", "in-progress", "done"], "description": "The current status of the task." },
+        "dueDate": { "type": "string", "format": "date-time", "description": "The date when the task is due." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The date when the task was created." }
+      },
+      "required": ["id", "userId", "name", "status", "createdAt"]
     }
   },
   "auth": {
@@ -189,6 +206,18 @@
           "params": [
             { "name": "userId", "description": "The unique identifier of the user." },
             { "name": "messageId", "description": "The unique identifier of the chat message." }
+          ]
+        }
+      },
+       {
+        "path": "/users/{userId}/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": { "$ref": "#/backend/entities/Task" },
+          "description": "Stores tasks for a specific user.",
+          "params": [
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "taskId", "description": "The unique identifier of the task." }
           ]
         }
       }

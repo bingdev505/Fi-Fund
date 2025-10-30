@@ -77,3 +77,14 @@ export type Category = {
   name: string;
   type: 'income' | 'expense';
 };
+
+export type Task = {
+  id: string;
+  userId: string;
+  projectId?: string;
+  name: string;
+  description?: string;
+  status: 'todo' | 'in-progress' | 'done';
+  dueDate?: LocalTimestamp;
+  createdAt: LocalTimestamp;
+};
