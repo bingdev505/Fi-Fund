@@ -26,17 +26,13 @@ export function initializeFirebase() {
     }
   }
   // On the server, we don't initialize Firebase.
-  // We will use the Admin SDK instead.
   return { app, auth, firestore };
 }
 
-export const getAuth = () => auth;
-export const getFirestore = () => firestore;
-
 // Export the functions to be used in the providers
 export {
-  // These are re-exported for convenience
   FirebaseProvider,
+  FirebaseClientProvider,
   useFirebaseApp,
   useAuth,
   useFirestore,

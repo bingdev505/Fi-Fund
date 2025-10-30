@@ -1,7 +1,7 @@
 'use client';
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { FirebaseClientProvider } from "@/firebase/client-provider";
+import { FirebaseClientProvider } from "@/firebase/provider";
 
 export default function RootLayout({
   children,
