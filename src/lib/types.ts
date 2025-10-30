@@ -101,6 +101,7 @@ export type Hobby = {
 export type Credential = {
   id: string;
   userId: string;
+  projectId?: string;
   siteName: string;
   username: string;
   password?: string;

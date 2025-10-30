@@ -253,6 +253,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setAllClients(prev => prev.filter(c => c.projectId !== projectId));
     setAllCategories(prev => prev.filter(cat => cat.projectId !== projectId));
     setAllTasks(prev => prev.filter(t => t.projectId !== projectId));
+    setAllCredentials(prev => prev.filter(c => c.projectId !== projectId));
     if (activeProject?.id === projectId) {
       setActiveProject(ALL_BUSINESS_PROJECT);
     }
@@ -430,12 +431,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addCredential = useCallback((credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => {
     if (!user) return;
-    const newCredential = { ...credentialData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
+    const { projectId, ...restData } = credentialData;
+    const finalData = { ...restData, projectId: projectId === '' ? undefined : projectId };
+    const newCredential = { ...finalData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
     setAllCredentials(prev => [...prev, newCredential]);
   }, [user]);
 
   const updateCredential = useCallback((credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => {
-    setAllCredentials(prev => prev.map(c => c.id === credentialId ? { ...c, ...credentialData } : c));
+    const { projectId, ...restData } = credentialData;
+    const finalData = { ...restData, projectId: projectId === '' ? undefined : projectId };
+    setAllCredentials(prev => prev.map(c => c.id === credentialId ? { ...c, ...finalData } : c));
   }, []);
   
   const deleteCredential = useCallback((credentialId: string) => {

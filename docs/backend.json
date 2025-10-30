@@ -167,6 +167,7 @@
       "properties": {
         "id": { "type": "string", "description": "Unique identifier for the credential." },
         "userId": { "type": "string", "description": "Reference to the User who owns this credential." },
+        "projectId": { "type": "string", "description": "Optional reference to the Project this credential belongs to." },
         "siteName": { "type": "string", "description": "The name of the website or service." },
         "username": { "type": "string", "description": "The username for the account." },
         "password": { "type": "string", "description": "The password for the account." },
