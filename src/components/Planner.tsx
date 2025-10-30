@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Switch } from './ui/switch';
 
 // --- Unified Plan Form ---
 const planSchema = z.object({
@@ -40,12 +41,18 @@ const planSchema = z.object({
   taskDueTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:mm)").optional().or(z.literal('')),
   taskHobbyId: z.string().optional(),
   taskRepeat: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(),
+  createHobbyForTask: z.boolean().optional(),
+  newHobbyName: z.string().optional(),
+  newHobbyDescription: z.string().optional(),
 }).refine(data => !(data.planType === 'hobby' && !data.hobbyName), {
   message: "Hobby name is required.",
   path: ["hobbyName"],
 }).refine(data => !(data.planType === 'task' && !data.taskName), {
   message: "Task name is required.",
   path: ["taskName"],
+}).refine(data => !(data.createHobbyForTask && !data.newHobbyName), {
+  message: "New hobby name is required.",
+  path: ["newHobbyName"],
 });
 
 function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished: () => void }) {
@@ -72,10 +79,15 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
       taskDueTime: isTask && (plan as Task).dueDate ? format(new Date((plan as Task).dueDate!), 'HH:mm') : '',
       taskHobbyId: isTask ? (plan as Task).hobbyId : '',
       taskRepeat: isTask ? (plan as Task).repeat || 'none' : 'none',
+      createHobbyForTask: false,
+      newHobbyName: '',
+      newHobbyDescription: '',
     },
   });
 
   const watchedPlanType = form.watch('planType');
+  const watchedCreateHobby = form.watch('createHobbyForTask');
+
 
   function onSubmit(values: z.infer<typeof planSchema>) {
     if (values.planType === 'hobby') {
@@ -98,12 +110,25 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
         const [hours, minutes] = values.taskDueTime.split(':').map(Number);
         finalDueDate = setHours(setMinutes(finalDueDate, minutes), hours);
       }
+
+      let hobbyId = values.taskHobbyId;
+      if (values.createHobbyForTask && values.newHobbyName) {
+          const newHobby = addHobby({
+              name: values.newHobbyName,
+              description: values.newHobbyDescription || '',
+              repeat: 'none',
+              time: '',
+          });
+          hobbyId = newHobby.id;
+      }
+
+
       const taskData = {
         name: values.taskName!,
         description: values.taskDescription!,
         status: values.taskStatus!,
         dueDate: finalDueDate?.toISOString(),
-        hobbyId: values.taskHobbyId,
+        hobbyId: hobbyId,
         repeat: values.taskRepeat!,
       };
       if (isEditing && isTask) {
@@ -174,17 +199,17 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date (Optional)</FormLabel>
                     <Popover>
-                      <PopoverTrigger asChild>
                         <FormControl>
-                          <Button
-                            variant={'outline'}
-                            className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}
-                          >
-                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                            <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant={'outline'}
+                                className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}
+                                >
+                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
                         </FormControl>
-                      </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
                       </PopoverContent>
@@ -198,7 +223,33 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
               <FormField control={form.control} name="taskDueTime" render={({ field }) => ( <FormItem> <FormLabel>Due Time (Optional)</FormLabel> <FormControl><Input type="time" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
               <FormField control={form.control} name="taskRepeat" render={({ field }) => ( <FormItem> <FormLabel>Repeat</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl> <SelectContent> {repeatOptions.map(opt => <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>)} </SelectContent> </Select> <FormMessage/> </FormItem> )}/>
             </div>
-            <FormField control={form.control} name="taskHobbyId" render={({ field }) => ( <FormItem> <FormLabel>Link to Hobby (Optional)</FormLabel> <Select onValueChange={field.onChange} value={field.value || ''}> <FormControl> <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger> </FormControl> <SelectContent> {hobbies.map(hobby => (<SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem> ))} </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
+            
+            <FormField
+                control={form.control}
+                name="createHobbyForTask"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                        <FormLabel>Create new hobby for this task?</FormLabel>
+                    </div>
+                    <FormControl>
+                        <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                    </FormItem>
+                )}
+                />
+
+            {watchedCreateHobby ? (
+                <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                    <FormField control={form.control} name="newHobbyName" render={({ field }) => ( <FormItem> <FormLabel>New Hobby Name</FormLabel> <FormControl><Input placeholder="e.g. Woodworking" {...field} value={field.value || ''} /></FormControl> <FormMessage /> </FormItem> )} />
+                    <FormField control={form.control} name="newHobbyDescription" render={({ field }) => ( <FormItem> <FormLabel>New Hobby Description (Optional)</FormLabel> <FormControl><Textarea placeholder="e.g. Building furniture" {...field} value={field.value || ''} /></FormControl> <FormMessage /> </FormItem> )} />
+                </div>
+            ) : (
+                <FormField control={form.control} name="taskHobbyId" render={({ field }) => ( <FormItem> <FormLabel>Link to Hobby (Optional)</FormLabel> <Select onValueChange={field.onChange} value={field.value || ''}> <FormControl> <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger> </FormControl> <SelectContent> {hobbies.map(hobby => (<SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem> ))} </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
+            )}
           </div>
         )}
 
@@ -252,19 +303,19 @@ function SessionForm({ hobby, session, onFinished }: { hobby: Hobby, session?: H
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                                 <FormLabel>Date</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
+                                <FormControl>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
                                             <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
                                                 {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                             </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                        </PopoverContent>
+                                    </Popover>
+                                </FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -361,7 +412,7 @@ export default function Planner() {
 
   return (
     <div className="space-y-6">
-      <Dialog open={planFormOpen} onOpenChange={(open) => {
+       <Dialog open={planFormOpen} onOpenChange={(open) => {
         setPlanFormOpen(open);
         if (!open) setEditingPlan(null);
       }}>
