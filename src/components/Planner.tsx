@@ -89,7 +89,7 @@ function HobbyForm({ hobby, onFinished }: { hobby?: Hobby | null, onFinished: ()
   );
 }
 
-// Task Form (re-integrated from previous implementation)
+// Task Form
 const taskSchema = z.object({
   name: z.string().min(2, 'Task name must be at least 2 characters'),
   description: z.string().optional(),
@@ -145,7 +145,32 @@ function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => 
         <FormField name="description" control={form.control} render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g. Research trails..." {...field} /></FormControl><FormMessage /></FormItem>)} />
         <div className="grid grid-cols-2 gap-4">
             <FormField control={form.control} name="status" render={({ field }) => ( <FormItem> <FormLabel>Status</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl> <SelectContent> <SelectItem value="todo">To Do</SelectItem> <SelectItem value="in-progress">In Progress</SelectItem> <SelectItem value="done">Done</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
-            <FormField control={form.control} name="dueDate" render={({ field }) => ( <FormItem className="flex flex-col"> <FormLabel>Due Date</FormLabel> <FormControl> <Popover> <PopoverTrigger asChild> <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}> {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>} <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" /> </Button> </PopoverTrigger> <PopoverContent className="w-auto p-0" align="start"> <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus /> </PopoverContent> </Popover> </FormControl> <FormMessage /> </FormItem> )}/>
+            <FormField
+              control={form.control}
+              name="dueDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Due Date</FormLabel>
+                  <FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={'outline'}
+                          className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}
+                        >
+                          {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                          <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
         </div>
          <FormField control={form.control} name="dueTime" render={({ field }) => ( <FormItem> <FormLabel>Due Time</FormLabel> <FormControl><Input type="time" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
         <FormField control={form.control} name="hobbyId" render={({ field }) => ( <FormItem> <FormLabel>Link to Hobby</FormLabel> <Select onValueChange={field.onChange} value={field.value || ''}> <FormControl> <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger> </FormControl> <SelectContent> <SelectItem value="no-hobby-linked">None</SelectItem> {hobbies.map(hobby => (<SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem>))} </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
