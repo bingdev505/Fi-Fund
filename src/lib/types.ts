@@ -83,6 +83,8 @@ export type Hobby = {
   userId: string;
   name: string;
   description: string;
+  time?: string; // e.g. "14:30"
+  repeat?: 'none' | 'daily' | 'weekly' | 'monthly';
 };
 
 export type Task = {
@@ -93,6 +95,7 @@ export type Task = {
   status: 'todo' | 'in-progress' | 'done';
   dueDate?: LocalTimestamp;
   hobbyId?: string;
+  repeat?: 'none' | 'daily' | 'weekly' | 'monthly';
 };
 
 export type HobbySession = {

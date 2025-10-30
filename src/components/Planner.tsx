@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, PlusCircle, Heart, Pencil, Trash2, Clock, Calendar, Notebook, ListTodo, CalendarIcon as CalendarTaskIcon, Check } from 'lucide-react';
+import { Loader2, PlusCircle, Heart, Pencil, Trash2, Clock, Calendar, Notebook, ListTodo, CalendarIcon as CalendarTaskIcon, Check, Repeat } from 'lucide-react';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -22,72 +22,169 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
-// Hobby Form
-const hobbySchema = z.object({
-  name: z.string().min(2, 'Hobby name must be at least 2 characters'),
-  description: z.string().optional(),
+// --- Unified Plan Form ---
+const planSchema = z.object({
+  planType: z.enum(['hobby', 'task']),
+  // Hobby fields
+  hobbyName: z.string().optional(),
+  hobbyDescription: z.string().optional(),
+  hobbyTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:mm)").optional().or(z.literal('')),
+  hobbyRepeat: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(),
+  // Task fields
+  taskName: z.string().optional(),
+  taskDescription: z.string().optional(),
+  taskStatus: z.enum(['todo', 'in-progress', 'done']).optional(),
+  taskDueDate: z.date().optional(),
+  taskDueTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:mm)").optional().or(z.literal('')),
+  taskHobbyId: z.string().optional(),
+  taskRepeat: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(),
+}).refine(data => !(data.planType === 'hobby' && !data.hobbyName), {
+  message: "Hobby name is required.",
+  path: ["hobbyName"],
+}).refine(data => !(data.planType === 'task' && !data.taskName), {
+  message: "Task name is required.",
+  path: ["taskName"],
 });
 
-function HobbyForm({ hobby, onFinished }: { hobby?: Hobby | null, onFinished: () => void }) {
-  const { addHobby, updateHobby } = useFinancials();
+function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished: () => void }) {
+  const { addHobby, updateHobby, addTask, updateTask, hobbies } = useFinancials();
   const { toast } = useToast();
-  const form = useForm<z.infer<typeof hobbySchema>>({
-    resolver: zodResolver(hobbySchema),
+
+  const isEditing = !!plan;
+  const planType = isEditing ? ('time' in plan ? 'hobby' : 'task') : 'task';
+  const isHobby = isEditing && 'time' in plan;
+  const isTask = isEditing && !isHobby;
+
+  const form = useForm<z.infer<typeof planSchema>>({
+    resolver: zodResolver(planSchema),
     defaultValues: {
-      name: hobby?.name || '',
-      description: hobby?.description || '',
+      planType: planType,
+      hobbyName: isHobby ? (plan as Hobby).name : '',
+      hobbyDescription: isHobby ? (plan as Hobby).description : '',
+      hobbyTime: isHobby ? (plan as Hobby).time : '',
+      hobbyRepeat: isHobby ? (plan as Hobby).repeat || 'none' : 'none',
+      taskName: isTask ? (plan as Task).name : '',
+      taskDescription: isTask ? (plan as Task).description : '',
+      taskStatus: isTask ? (plan as Task).status || 'todo' : 'todo',
+      taskDueDate: isTask && (plan as Task).dueDate ? new Date((plan as Task).dueDate!) : undefined,
+      taskDueTime: isTask && (plan as Task).dueDate ? format(new Date((plan as Task).dueDate!), 'HH:mm') : '',
+      taskHobbyId: isTask ? (plan as Task).hobbyId : '',
+      taskRepeat: isTask ? (plan as Task).repeat || 'none' : 'none',
     },
   });
 
-  function onSubmit(values: z.infer<typeof hobbySchema>) {
-    if (hobby) {
-      updateHobby(hobby.id, values);
-      toast({ title: 'Hobby Updated' });
-    } else {
-      addHobby(values);
-      toast({ title: 'Hobby Added' });
+  const watchedPlanType = form.watch('planType');
+
+  function onSubmit(values: z.infer<typeof planSchema>) {
+    if (values.planType === 'hobby') {
+      const hobbyData = {
+        name: values.hobbyName!,
+        description: values.hobbyDescription!,
+        time: values.hobbyTime!,
+        repeat: values.hobbyRepeat!,
+      };
+      if (isEditing && isHobby) {
+        updateHobby(plan.id, hobbyData);
+        toast({ title: 'Hobby Updated' });
+      } else {
+        addHobby(hobbyData);
+        toast({ title: 'Hobby Added' });
+      }
+    } else { // planType === 'task'
+      let finalDueDate: Date | undefined = values.taskDueDate;
+      if (finalDueDate && values.taskDueTime) {
+        const [hours, minutes] = values.taskDueTime.split(':').map(Number);
+        finalDueDate = setHours(setMinutes(finalDueDate, minutes), hours);
+      }
+      const taskData = {
+        name: values.taskName!,
+        description: values.taskDescription!,
+        status: values.taskStatus!,
+        dueDate: finalDueDate?.toISOString(),
+        hobbyId: values.taskHobbyId,
+        repeat: values.taskRepeat!,
+      };
+      if (isEditing && isTask) {
+        updateTask(plan.id, taskData);
+        toast({ title: 'Task Updated' });
+      } else {
+        addTask(taskData);
+        toast({ title: 'Task Added' });
+      }
     }
     onFinished();
   }
+  
+  const repeatOptions: ('none' | 'daily' | 'weekly' | 'monthly')[] = ['none', 'daily', 'weekly', 'monthly'];
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="name"
+          name="planType"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Hobby Name</FormLabel>
+            <FormItem className="space-y-3">
+              <FormLabel>What do you want to plan?</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. Hiking" {...field} />
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="flex items-center space-x-4"
+                  disabled={isEditing}
+                >
+                  <FormItem className="flex items-center space-x-2 space-y-0">
+                    <FormControl><RadioGroupItem value="task" /></FormControl>
+                    <FormLabel className="font-normal">Task</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-2 space-y-0">
+                    <FormControl><RadioGroupItem value="hobby" /></FormControl>
+                    <FormLabel className="font-normal">Hobby</FormLabel>
+                  </FormItem>
+                </RadioGroup>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea placeholder="e.g. Exploring trails and mountains." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        
+        {watchedPlanType === 'hobby' && (
+          <div className="space-y-4 p-4 border rounded-md">
+            <FormField control={form.control} name="hobbyName" render={({ field }) => ( <FormItem> <FormLabel>Hobby Name</FormLabel> <FormControl><Input placeholder="e.g. Hiking" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+            <FormField control={form.control} name="hobbyDescription" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl><Textarea placeholder="e.g. Exploring trails and mountains." {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="hobbyTime" render={({ field }) => ( <FormItem> <FormLabel>Time (Optional)</FormLabel> <FormControl><Input type="time" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
+              <FormField control={form.control} name="hobbyRepeat" render={({ field }) => ( <FormItem> <FormLabel>Repeat</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl> <SelectContent> {repeatOptions.map(opt => <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>)} </SelectContent> </Select> <FormMessage/> </FormItem> )}/>
+            </div>
+          </div>
+        )}
+
+        {watchedPlanType === 'task' && (
+          <div className="space-y-4 p-4 border rounded-md">
+            <FormField control={form.control} name="taskName" render={({ field }) => ( <FormItem> <FormLabel>Task Name</FormLabel> <FormControl><Input placeholder="e.g. Plan hiking trip" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
+            <FormField control={form.control} name="taskDescription" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl><Textarea placeholder="e.g. Research trails, book campsite..." {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="taskStatus" render={({ field }) => ( <FormItem> <FormLabel>Status</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl> <SelectContent> <SelectItem value="todo">To Do</SelectItem> <SelectItem value="in-progress">In Progress</SelectItem> <SelectItem value="done">Done</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
+              <FormField control={form.control} name="taskDueDate" render={({ field }) => ( <FormItem className="flex flex-col"> <FormLabel>Due Date (Optional)</FormLabel> <Popover> <PopoverTrigger asChild> <FormControl> <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}> {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>} <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" /> </Button> </FormControl> </PopoverTrigger> <PopoverContent className="w-auto p-0" align="start"> <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus /> </PopoverContent> </Popover> <FormMessage /> </FormItem> )}/>
+            </div>
+             <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="taskDueTime" render={({ field }) => ( <FormItem> <FormLabel>Due Time (Optional)</FormLabel> <FormControl><Input type="time" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
+              <FormField control={form.control} name="taskRepeat" render={({ field }) => ( <FormItem> <FormLabel>Repeat</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl> <SelectContent> {repeatOptions.map(opt => <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>)} </SelectContent> </Select> <FormMessage/> </FormItem> )}/>
+            </div>
+            <FormField control={form.control} name="taskHobbyId" render={({ field }) => ( <FormItem> <FormLabel>Link to Hobby (Optional)</FormLabel> <Select onValueChange={field.onChange} value={field.value || ''}> <FormControl> <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger> </FormControl> <SelectContent> {hobbies.map(hobby => (<SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem> ))} </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
+          </div>
+        )}
+
         <Button type="submit" className="w-full">
-          {hobby ? 'Save Changes' : 'Add Hobby'}
+          {isEditing ? 'Save Changes' : 'Add to Planner'}
         </Button>
       </form>
     </Form>
   );
 }
+
 
 // Session Form
 const sessionSchema = z.object({
@@ -176,177 +273,6 @@ function SessionForm({ hobby, session, onFinished }: { hobby: Hobby, session?: H
     );
 }
 
-// Task Form
-const taskSchema = z.object({
-  name: z.string().min(2, 'Task name must be at least 2 characters'),
-  description: z.string().optional(),
-  status: z.enum(['todo', 'in-progress', 'done']),
-  dueDate: z.date().optional(),
-  dueTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:mm)").optional().or(z.literal('')),
-  hobbyId: z.string().optional(),
-});
-
-export function TaskForm({ task, onFinished }: { task?: Task | null, onFinished: () => void }) {
-  const { addTask, updateTask, hobbies } = useFinancials();
-  const { toast } = useToast();
-  
-  const defaultDueDate = task?.dueDate ? new Date(task.dueDate) : undefined;
-  const defaultDueTime = task?.dueDate ? format(new Date(task.dueDate), 'HH:mm') : '';
-
-  const form = useForm<z.infer<typeof taskSchema>>({
-    resolver: zodResolver(taskSchema),
-    defaultValues: {
-      name: task?.name || '',
-      description: task?.description || '',
-      status: task?.status || 'todo',
-      dueDate: defaultDueDate,
-      dueTime: defaultDueTime,
-      hobbyId: task?.hobbyId || '',
-    },
-  });
-
-  function onSubmit(values: z.infer<typeof taskSchema>) {
-    let finalDueDate: Date | undefined = values.dueDate;
-    if (finalDueDate && values.dueTime) {
-      const [hours, minutes] = values.dueTime.split(':').map(Number);
-      finalDueDate = setHours(setMinutes(finalDueDate, minutes), hours);
-    }
-
-    const taskData = {
-      ...values,
-      dueDate: finalDueDate?.toISOString(),
-      hobbyId: values.hobbyId,
-    };
-    delete (taskData as any).dueTime; // remove temporary field
-
-    if (task) {
-      updateTask(task.id, taskData);
-      toast({ title: 'Task Updated' });
-    } else {
-      addTask(taskData);
-      toast({ title: 'Task Added' });
-    }
-    onFinished();
-  }
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Task Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Plan hiking trip" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea placeholder="e.g. Research trails, book campsite..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="todo">To Do</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="done">Done</SelectItem>
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-                control={form.control}
-                name="dueDate"
-                render={({ field }) => (
-                <FormItem className="flex flex-col">
-                    <FormLabel>Due Date (Optional)</FormLabel>
-                    <Popover>
-                    <PopoverTrigger asChild>
-                        <FormControl>
-                        <Button
-                            variant={'outline'}
-                            className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}
-                        >
-                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                            <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                        </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                    </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-        </div>
-         <FormField
-            control={form.control}
-            name="dueTime"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Due Time (Optional)</FormLabel>
-                    <FormControl>
-                        <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField
-          control={form.control}
-          name="hobbyId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Link to Hobby (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value || ''}>
-                <FormControl>
-                  <SelectTrigger><SelectValue placeholder="Select a hobby" /></SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {hobbies.map(hobby => (
-                    <SelectItem key={hobby.id} value={hobby.id}>{hobby.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full">
-          {task ? 'Save Changes' : 'Add Task'}
-        </Button>
-      </form>
-    </Form>
-  );
-}
-
 // Status Badge
 const getStatusBadgeVariant = (status: Task['status']) => {
     switch (status) {
@@ -361,22 +287,19 @@ export default function Planner() {
   const { isLoading, hobbies, hobbySessions, tasks, deleteHobby, deleteHobbySession, deleteTask, updateTask } = useFinancials();
   const { toast } = useToast();
   
-  // State for Hobbies
-  const [hobbyFormOpen, setHobbyFormOpen] = useState(false);
+  // State for Forms
+  const [planForm, setPlanForm] = useState<{ plan?: Hobby | Task | null } | null>(null);
   const [sessionForm, setSessionForm] = useState<{ hobby: Hobby, session?: HobbySession | null } | null>(null);
-  const [editingHobby, setEditingHobby] = useState<Hobby | null>(null);
+  
+  // State for Deletions
   const [deletingHobby, setDeletingHobby] = useState<Hobby | null>(null);
   const [deletingSession, setDeletingSession] = useState<HobbySession | null>(null);
-  
-  // State for Tasks
-  const [taskFormOpen, setTaskFormOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
 
   const getHobbyName = (hobbyId?: string) => hobbies.find(h => h.id === hobbyId)?.name;
   
-  // Hobby handlers
-  const handleEditHobbyClick = (hobby: Hobby) => { setEditingHobby(hobby); setHobbyFormOpen(true); };
+  // Handlers
+  const handleEditPlanClick = (plan: Hobby | Task) => setPlanForm({ plan });
   const handleDeleteHobby = () => {
     if (!deletingHobby) return;
     deleteHobby(deletingHobby.id);
@@ -392,9 +315,6 @@ export default function Planner() {
   const getHobbySessions = (hobbyId: string) => {
       return hobbySessions.filter(s => s.hobbyId === hobbyId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
-
-  // Task handlers
-  const handleEditTaskClick = (task: Task) => { setEditingTask(task); setTaskFormOpen(true); };
   const handleDeleteTask = () => {
     if (!deletingTask) return;
     deleteTask(deletingTask.id);
@@ -409,25 +329,11 @@ export default function Planner() {
   return (
     <div className="space-y-6">
        <div className="flex justify-end">
-          <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                  <Button><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                  <DropdownMenuItem onSelect={() => { setEditingHobby(null); setHobbyFormOpen(true); }}>
-                      <Heart className="mr-2 h-4 w-4" />
-                      <span>Hobby</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => { setEditingTask(null); setTaskFormOpen(true); }}>
-                      <ListTodo className="mr-2 h-4 w-4" />
-                      <span>Task</span>
-                  </DropdownMenuItem>
-              </DropdownMenuContent>
-          </DropdownMenu>
+         <Button onClick={() => setPlanForm({})}><PlusCircle className="mr-2 h-4 w-4" /> Add Plan</Button>
       </div>
-      <Dialog open={hobbyFormOpen} onOpenChange={(open) => { setHobbyFormOpen(open); if (!open) setEditingHobby(null); }}>
+
+      <Dialog open={!!planForm} onOpenChange={(open) => !open && setPlanForm(null)}>
       <Dialog open={!!sessionForm} onOpenChange={(open) => !open && setSessionForm(null)}>
-      <Dialog open={taskFormOpen} onOpenChange={(open) => { setTaskFormOpen(open); if (!open) setEditingTask(null); }}>
         <AlertDialog>
           <TooltipProvider>
             {/* Hobbies Section */}
@@ -459,10 +365,14 @@ export default function Planner() {
                                               {hobby.name}
                                           </CardTitle>
                                           <p className="text-sm text-muted-foreground mt-1">{hobby.description}</p>
+                                           <div className="flex items-center flex-wrap gap-2 mt-2 text-xs">
+                                              {hobby.time && <Badge variant="outline">{hobby.time}</Badge>}
+                                              {hobby.repeat && hobby.repeat !== 'none' && <Badge variant="outline" className='flex items-center gap-1'><Repeat className="h-3 w-3" /> {hobby.repeat}</Badge>}
+                                           </div>
                                       </div>
                                       <div className="flex items-center">
                                           <div className="opacity-0 group-hover/hobby:opacity-100 transition-opacity flex items-center">
-                                              <Button variant="ghost" size="icon" onClick={() => handleEditHobbyClick(hobby)}><Pencil className="h-4 w-4" /></Button>
+                                              <Button variant="ghost" size="icon" onClick={() => handleEditPlanClick(hobby)}><Pencil className="h-4 w-4" /></Button>
                                               <AlertDialogTrigger asChild>
                                                   <Button variant="ghost" size="icon" onClick={() => setDeletingHobby(hobby)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                               </AlertDialogTrigger>
@@ -542,6 +452,7 @@ export default function Planner() {
                                   </div>
                                 }
                                 {task.hobbyId && <Badge variant="secondary">{getHobbyName(task.hobbyId)}</Badge>}
+                                {task.repeat && task.repeat !== 'none' && <Badge variant="outline" className='flex items-center gap-1'><Repeat className="h-3 w-3" /> {task.repeat}</Badge>}
                               </div>
                             </div>
                           </div>
@@ -552,7 +463,7 @@ export default function Planner() {
                               {task.status !== 'done' && (
                                   <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleStatusChange(task, 'done')}><Check className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Mark as Done</p></TooltipContent></Tooltip>
                               )}
-                              <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleEditTaskClick(task)}><Pencil className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Edit Task</p></TooltipContent></Tooltip>
+                              <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleEditPlanClick(task)}><Pencil className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Edit Task</p></TooltipContent></Tooltip>
                               <Tooltip><TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="ghost" size="icon" onClick={() => setDeletingTask(task)}><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger></TooltipTrigger><TooltipContent><p>Delete Task</p></TooltipContent></Tooltip>
                           </div>
                         </li>
@@ -585,11 +496,8 @@ export default function Planner() {
         </AlertDialog>
 
         {/* Dialogs for Forms */}
-        <DialogContent><DialogHeader><DialogTitle>{editingHobby ? 'Edit' : 'Add'} Hobby</DialogTitle></DialogHeader><HobbyForm hobby={editingHobby} onFinished={() => setHobbyFormOpen(false)} /></DialogContent>
+        <DialogContent><DialogHeader><DialogTitle>{planForm?.plan ? 'Edit' : 'Add a New'} Plan</DialogTitle></DialogHeader><PlanForm plan={planForm?.plan} onFinished={() => setPlanForm(null)} /></DialogContent>
         {sessionForm?.hobby && (<DialogContent><DialogHeader><DialogTitle>{sessionForm.session ? 'Edit' : 'Log'} Session for {sessionForm.hobby.name}</DialogTitle></DialogHeader><SessionForm hobby={sessionForm.hobby} session={sessionForm.session} onFinished={() => setSessionForm(null)} /></DialogContent>)}
-        <DialogContent><DialogHeader><DialogTitle>{editingTask ? 'Edit' : 'Add'} Task</DialogTitle></DialogHeader><TaskForm task={editingTask} onFinished={() => { setTaskFormOpen(false); setEditingTask(null); }} /></DialogContent>
-      
-      </Dialog>
       </Dialog>
       </Dialog>
     </div>
