@@ -77,34 +77,3 @@ export type Category = {
   name: string;
   type: 'income' | 'expense';
 };
-
-export type Hobby = {
-  id: string;
-  userId: string;
-  name: string;
-  description: string;
-  time?: string; // e.g. "14:30"
-  repeat?: 'none' | 'daily' | 'weekly' | 'monthly';
-};
-
-export type Task = {
-  id: string;
-  userId: string;
-  name: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'done';
-  dueDate?: LocalTimestamp;
-  hobbyId?: string;
-  repeat?: 'none' | 'daily' | 'weekly' | 'monthly';
-};
-
-export type HobbySession = {
-  id: string;
-  userId: string;
-  hobbyId: string;
-  date: LocalTimestamp;
-  duration: number; // in minutes
-  notes?: string;
-};
-
-    

@@ -21,7 +21,6 @@ import {
   HandCoins,
   ArrowRightLeft,
   Wallet,
-  ListChecks,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -72,7 +71,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: '/overview', icon: LayoutDashboard, label: 'Overview' },
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },
-    { href: '/planner', icon: ListChecks, label: 'Planner' },
   ];
   
   const financeNavItems = [
