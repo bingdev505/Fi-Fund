@@ -158,6 +158,22 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "The date when the hobby was created." }
       },
       "required": ["id", "userId", "name", "createdAt"]
+    },
+    "Credential": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Credential",
+      "description": "Represents a stored credential (password, TOTP secret) for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the credential." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this credential." },
+        "siteName": { "type": "string", "description": "The name of the website or service." },
+        "username": { "type": "string", "description": "The username for the account." },
+        "password": { "type": "string", "description": "The password for the account." },
+        "totpSecret": { "type": "string", "description": "The Time-based One-Time Password (TOTP) secret key for 2FA." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The date when the credential was created." }
+      },
+      "required": ["id", "userId", "siteName", "username", "createdAt"]
     }
   },
   "auth": {
@@ -245,6 +261,18 @@
           "params": [
             { "name": "userId", "description": "The unique identifier of the user." },
             { "name": "hobbyId", "description": "The unique identifier of the hobby." }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/credentials/{credentialId}",
+        "definition": {
+          "entityName": "Credential",
+          "schema": { "$ref": "#/backend/entities/Credential" },
+          "description": "Stores secure credentials for a specific user.",
+          "params": [
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "credentialId", "description": "The unique identifier of the credential." }
           ]
         }
       }

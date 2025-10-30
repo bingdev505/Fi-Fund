@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
-import type { Transaction, Debt, BankAccount, UserSettings, Project, Client, Category, Task } from '@/lib/types';
+import type { Transaction, Debt, BankAccount, UserSettings, Project, Client, Category, Task, Hobby, Credential } from '@/lib/types';
 import { useUser } from '@/firebase';
 
 interface FinancialContextType {
@@ -48,6 +48,16 @@ interface FinancialContextType {
   addTask: (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => void;
   updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => void;
   deleteTask: (taskId: string) => void;
+  
+  hobbies: Hobby[];
+  addHobby: (hobbyData: Omit<Hobby, 'id' | 'userId' | 'createdAt'>) => void;
+  updateHobby: (hobbyId: string, hobbyData: Partial<Omit<Hobby, 'id' | 'userId' | 'createdAt'>>) => void;
+  deleteHobby: (hobbyId: string) => void;
+  
+  credentials: Credential[];
+  addCredential: (credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => void;
+  updateCredential: (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => void;
+  deleteCredential: (credentialId: string) => void;
 
   currency: string;
   setCurrency: (currency: string) => void;
@@ -79,6 +89,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const clientsKey = useLocalStorageKey('clients');
   const categoriesKey = useLocalStorageKey('categories');
   const tasksKey = useLocalStorageKey('tasks');
+  const hobbiesKey = useLocalStorageKey('hobbies');
+  const credentialsKey = useLocalStorageKey('credentials');
 
 
   // State management for all data
@@ -91,6 +103,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [allHobbies, setAllHobbies] = useState<Hobby[]>([]);
+  const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
   
   const [currency, setCurrencyState] = useState<string>('INR');
   const [isLoading, setIsLoading] = useState(true);
@@ -122,6 +136,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setAllClients([]);
         setAllCategories([]);
         setAllTasks([]);
+        setAllHobbies([]);
+        setAllCredentials([]);
         setCurrencyState('INR');
 
       } else {
@@ -142,6 +158,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         const storedClients = clientsKey ? JSON.parse(localStorage.getItem(clientsKey) || '[]') : [];
         const storedCategories = categoriesKey ? JSON.parse(localStorage.getItem(categoriesKey) || '[]') : [];
         const storedTasks = tasksKey ? JSON.parse(localStorage.getItem(tasksKey) || '[]') : [];
+        const storedHobbies = hobbiesKey ? JSON.parse(localStorage.getItem(hobbiesKey) || '[]') : [];
+        const storedCredentials = credentialsKey ? JSON.parse(localStorage.getItem(credentialsKey) || '[]') : [];
         
         setAllProjects(storedProjects);
         
@@ -162,6 +180,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setAllClients(storedClients);
         setAllCategories(storedCategories);
         setAllTasks(storedTasks);
+        setAllHobbies(storedHobbies);
+        setAllCredentials(storedCredentials);
         setCurrencyState(storedCurrency);
       }
     } catch (error) {
@@ -176,11 +196,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllClients([]);
       setAllCategories([]);
       setAllTasks([]);
+      setAllHobbies([]);
+      setAllCredentials([]);
       setCurrencyState('INR');
     } finally {
       setIsLoading(false);
     }
-  }, [user, isUserLoading, projectsKey, activeProjectKey, defaultProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey, clientsKey, categoriesKey, tasksKey]);
+  }, [user, isUserLoading, projectsKey, activeProjectKey, defaultProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey, clientsKey, categoriesKey, tasksKey, hobbiesKey, credentialsKey]);
 
   const setActiveProject = useCallback((project: Project | null) => {
     const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
@@ -207,6 +229,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (clientsKey) localStorage.setItem(clientsKey, JSON.stringify(allClients)); }, [allClients, clientsKey]);
   useEffect(() => { if (categoriesKey) localStorage.setItem(categoriesKey, JSON.stringify(allCategories)); }, [allCategories, categoriesKey]);
   useEffect(() => { if (tasksKey) localStorage.setItem(tasksKey, JSON.stringify(allTasks)); }, [allTasks, tasksKey]);
+  useEffect(() => { if (hobbiesKey) localStorage.setItem(hobbiesKey, JSON.stringify(allHobbies)); }, [allHobbies, hobbiesKey]);
+  useEffect(() => { if (credentialsKey) localStorage.setItem(credentialsKey, JSON.stringify(allCredentials)); }, [allCredentials, credentialsKey]);
 
   // Data manipulation functions
   const addProject = useCallback((projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => {
@@ -390,6 +414,34 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setAllTasks(prev => prev.filter(t => t.id !== taskId));
   }, []);
   
+  const addHobby = useCallback((hobbyData: Omit<Hobby, 'id' | 'userId' | 'createdAt'>) => {
+    if (!user) return;
+    const newHobby = { ...hobbyData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
+    setAllHobbies(prev => [...prev, newHobby]);
+  }, [user]);
+
+  const updateHobby = useCallback((hobbyId: string, hobbyData: Partial<Omit<Hobby, 'id' | 'userId' | 'createdAt'>>) => {
+    setAllHobbies(prev => prev.map(h => h.id === hobbyId ? { ...h, ...hobbyData } : h));
+  }, []);
+  
+  const deleteHobby = useCallback((hobbyId: string) => {
+    setAllHobbies(prev => prev.filter(h => h.id !== hobbyId));
+  }, []);
+
+  const addCredential = useCallback((credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => {
+    if (!user) return;
+    const newCredential = { ...credentialData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
+    setAllCredentials(prev => [...prev, newCredential]);
+  }, [user]);
+
+  const updateCredential = useCallback((credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => {
+    setAllCredentials(prev => prev.map(c => c.id === credentialId ? { ...c, ...credentialData } : c));
+  }, []);
+  
+  const deleteCredential = useCallback((credentialId: string) => {
+    setAllCredentials(prev => prev.filter(c => c.id !== credentialId));
+  }, []);
+  
   const filteredTransactions = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTransactions.filter(t => t.projectId === activeProject.id) : allTransactions.filter(t => !t.projectId), [allTransactions, activeProject]);
   const filteredDebts = useMemo(() => (activeProject && activeProject.id !== 'all') ? allDebts.filter(d => d.projectId === activeProject.id) : allDebts.filter(d => !d.projectId), [allDebts, activeProject]);
   const filteredClients = useMemo(() => (activeProject && activeProject.id !== 'all') ? allClients.filter(c => c.projectId === activeProject.id) : allClients.filter(c => !c.projectId), [allClients, activeProject]);
@@ -405,6 +457,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     clients: filteredClients, addClient, updateClient, deleteClient,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
+    hobbies: allHobbies, addHobby, updateHobby, deleteHobby,
+    credentials: allCredentials, addCredential, updateCredential, deleteCredential,
     currency, setCurrency,
     isLoading: isLoading,
   }), [
@@ -415,6 +469,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       filteredClients, addClient, updateClient, deleteClient,
       filteredCategories, addCategory, updateCategory, deleteCategory,
       filteredTasks, addTask, updateTask, deleteTask,
+      allHobbies, addHobby, updateHobby, deleteHobby,
+      allCredentials, addCredential, updateCredential, deleteCredential,
       currency, setCurrency,
       isLoading
     ]);
