@@ -98,7 +98,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Parent Business (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                     <FormControl>
                     <SelectTrigger>
                         <SelectValue placeholder="Select a parent business" />
@@ -123,7 +123,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
                 <FormItem>
                 <FormLabel>Google Sheet ID (Optional)</FormLabel>
                 <FormControl>
-                    <Input placeholder="Enter Google Sheet ID" {...field} />
+                    <Input placeholder="Enter Google Sheet ID" {...field} value={field.value || ''} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>

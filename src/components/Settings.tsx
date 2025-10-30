@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFinancials } from '@/hooks/useFinancials';
 import { CURRENCIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from './ui/button';
+import { Separator } from './ui/separator';
 
 export default function Settings() {
   const { currency, setCurrency, projects, defaultProject, setDefaultProject } = useFinancials();
@@ -67,6 +69,22 @@ export default function Settings() {
                 </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+            <CardTitle>Security</CardTitle>
+            <CardDescription>Manage your account security settings.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div>
+                <h3 className="text-lg font-medium">Two-Factor Authentication (2FA)</h3>
+                <p className="text-sm text-muted-foreground">Add an additional layer of security to your account.</p>
+            </div>
+            <Button disabled>Enable 2FA</Button>
+            <p className="text-xs text-muted-foreground">
+                Two-factor authentication is not yet available but is coming soon.
+            </p>
         </CardContent>
       </Card>
     </div>
