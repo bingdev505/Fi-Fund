@@ -3,7 +3,6 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { FinancialProvider } from '@/context/FinancialContext';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();

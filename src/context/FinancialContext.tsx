@@ -3,6 +3,8 @@
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
 import type { Transaction, Debt, BankAccount, UserSettings, Project, Client, Category, Task, Hobby, Credential } from '@/lib/types';
 import { useUser } from '@/firebase';
+import { supabase } from '@/lib/supabase_client';
+import { useToast } from '@/hooks/use-toast';
 
 interface FinancialContextType {
   projects: Project[];
@@ -10,54 +12,54 @@ interface FinancialContextType {
   setActiveProject: (project: Project | null) => void;
   defaultProject: Project | null;
   setDefaultProject: (project: Project | null) => void;
-  addProject: (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => void;
-  updateProject: (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => void;
-  deleteProject: (projectId: string) => void;
+  addProject: (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => Promise<Project>;
+  updateProject: (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  deleteProject: (projectId: string) => Promise<void>;
   
   transactions: Transaction[];
   allTransactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'userId'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => void;
-  deleteTransaction: (transaction: Transaction) => void;
+  updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => Promise<void>;
+  deleteTransaction: (transaction: Transaction) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
   
   debts: Debt[];
   addDebt: (debt: Omit<Debt, 'id' | 'date' | 'userId'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => void;
-  deleteDebt: (debt: Debt) => void;
-  addRepayment: (debt: Debt, amount: number, accountId: string) => void;
+  updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => Promise<void>;
+  deleteDebt: (debt: Debt) => Promise<void>;
+  addRepayment: (debt: Debt, amount: number, accountId: string) => Promise<void>;
   getDebtById: (id: string) => Debt | undefined;
 
   bankAccounts: BankAccount[];
-  addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => void;
-  updateBankAccount: (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'userId'>>) => void;
-  deleteBankAccount: (accountId: string) => void;
-  setPrimaryBankAccount: (accountId: string) => void;
+  addBankAccount: (account: Omit<BankAccount, 'id' | 'userId'>) => Promise<void>;
+  updateBankAccount: (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'userId'>>) => Promise<void>;
+  deleteBankAccount: (accountId: string) => Promise<void>;
+  setPrimaryBankAccount: (accountId: string) => Promise<void>;
   
   clients: Client[];
-  addClient: (clientData: Omit<Client, 'id' | 'projectId'>, projectId?: string) => Client;
-  updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id' | 'projectId'>>) => void;
-  deleteClient: (clientId: string) => void;
+  addClient: (clientData: Omit<Client, 'id'>, projectId?: string) => Promise<Client>;
+  updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id'>>) => Promise<void>;
+  deleteClient: (clientId: string) => Promise<void>;
 
   categories: Category[];
-  addCategory: (categoryData: Omit<Category, 'id' | 'projectId'>, projectId?: string) => void;
-  updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'projectId'>>) => void;
-  deleteCategory: (categoryId: string) => void;
+  addCategory: (categoryData: Omit<Category, 'id'>, projectId?: string) => Promise<void>;
+  updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id'>>) => Promise<void>;
+  deleteCategory: (categoryId: string) => Promise<void>;
   
   tasks: Task[];
-  addTask: (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => void;
-  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => void;
-  deleteTask: (taskId: string) => void;
+  addTask: (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
   
   hobbies: Hobby[];
-  addHobby: (hobbyData: Omit<Hobby, 'id' | 'userId' | 'createdAt'>) => void;
-  updateHobby: (hobbyId: string, hobbyData: Partial<Omit<Hobby, 'id' | 'userId' | 'createdAt'>>) => void;
-  deleteHobby: (hobbyId: string) => void;
+  addHobby: (hobbyData: Omit<Hobby, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+  updateHobby: (hobbyId: string, hobbyData: Partial<Omit<Hobby, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  deleteHobby: (hobbyId: string) => Promise<void>;
   
   credentials: Credential[];
-  addCredential: (credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => void;
-  updateCredential: (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => void;
-  deleteCredential: (credentialId: string) => void;
+  addCredential: (credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+  updateCredential: (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  deleteCredential: (credentialId: string) => Promise<void>;
 
   currency: string;
   setCurrency: (currency: string) => void;
@@ -66,7 +68,6 @@ interface FinancialContextType {
 
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
-// Hook to get a key for local storage, scoped to the user
 const useLocalStorageKey = (key: string) => {
   const { user } = useUser();
   return user ? `financeflow_${user.uid}_${key}` : null;
@@ -77,23 +78,12 @@ const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', userId:
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
 
-  // Keys for local storage
-  const projectsKey = useLocalStorageKey('projects');
   const activeProjectKey = useLocalStorageKey('activeProject');
   const defaultProjectKey = useLocalStorageKey('defaultProject');
-  const transactionsKey = useLocalStorageKey('transactions');
-  const debtsKey = useLocalStorageKey('debts');
-  const bankAccountsKey = useLocalStorageKey('bankAccounts');
   const currencyKey = useLocalStorageKey('currency');
-  const clientsKey = useLocalStorageKey('clients');
-  const categoriesKey = useLocalStorageKey('categories');
-  const tasksKey = useLocalStorageKey('tasks');
-  const hobbiesKey = useLocalStorageKey('hobbies');
-  const credentialsKey = useLocalStorageKey('credentials');
 
-
-  // State management for all data
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [activeProject, _setActiveProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
   const [defaultProject, _setDefaultProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
@@ -109,100 +99,94 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState<string>('INR');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Read from local storage on mount and when user changes
-  useEffect(() => {
-    if (!user || !projectsKey) {
-      setIsLoading(!isUserLoading);
-      return;
-    };
+  const fetchData = useCallback(async (userId: string) => {
     setIsLoading(true);
-
     try {
-      const storedProjectsJSON = localStorage.getItem(projectsKey);
-      const firstTimeUser = storedProjectsJSON === null;
+      const [
+        projects,
+        transactions,
+        debts,
+        bankAccounts,
+        clients,
+        categories,
+        tasks,
+        hobbies,
+        credentials
+      ] = await Promise.all([
+        supabase.from('projects').select('*').eq('userId', userId).then(res => res.data || []),
+        supabase.from('transactions').select('*').eq('userId', userId).then(res => res.data || []),
+        supabase.from('debts').select('*').eq('userId', userId).then(res => res.data || []),
+        supabase.from('bank_accounts').select('*').eq('userId', userId).then(res => res.data || []),
+        supabase.from('clients').select('*').eq('userId', userId).then(res => res.data || []),
+        supabase.from('categories').select('*').eq('userId', userId).then(res => res.data || []),
+        supabase.from('tasks').select('*').eq('userId', userId).then(res => res.data || []),
+        supabase.from('hobbies').select('*').eq('userId', userId).then(res => res.data || []),
+        supabase.from('credentials').select('*').eq('userId', userId).then(res => res.data || []),
+      ]);
 
-      if (firstTimeUser) {
-        // Create default data for a new user
-        const defaultAccountId = crypto.randomUUID();
-        const defaultAccount: BankAccount = { id: defaultAccountId, userId: user.uid, name: 'Primary Account', balance: 0, isPrimary: true };
-        
-        setAllBankAccounts([defaultAccount]);
-        
-        setAllProjects([]);
-        _setActiveProject(ALL_BUSINESS_PROJECT);
-        _setDefaultProject(ALL_BUSINESS_PROJECT);
-        setAllTransactions([]);
-        setAllDebts([]);
-        setAllClients([]);
-        setAllCategories([]);
-        setAllTasks([]);
-        setAllHobbies([]);
-        setAllCredentials([]);
-        setCurrencyState('INR');
+      setAllProjects(projects);
+      setAllTransactions(transactions);
+      setAllDebts(debts);
+      setAllBankAccounts(bankAccounts);
+      setAllClients(clients);
+      setAllCategories(categories);
+      setAllTasks(tasks);
+      setAllHobbies(hobbies);
+      setAllCredentials(credentials);
 
-      } else {
-        // Load existing user data
-        const storedProjects = storedProjectsJSON ? JSON.parse(storedProjectsJSON) : [];
-        const storedDefaultProject = defaultProjectKey ? JSON.parse(localStorage.getItem(defaultProjectKey) || 'null') : null;
-        let activeProjectToSet = storedDefaultProject;
-
-        const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
-        if (storedActiveProject) {
-          activeProjectToSet = storedActiveProject;
-        }
-        
-        const storedTransactions = transactionsKey ? JSON.parse(localStorage.getItem(transactionsKey) || '[]') : [];
-        const storedDebts = debtsKey ? JSON.parse(localStorage.getItem(debtsKey) || '[]') : [];
-        const storedBankAccounts = bankAccountsKey ? JSON.parse(localStorage.getItem(bankAccountsKey) || '[]') : [];
-        const storedCurrency = currencyKey ? localStorage.getItem(currencyKey) || 'INR' : 'INR';
-        const storedClients = clientsKey ? JSON.parse(localStorage.getItem(clientsKey) || '[]') : [];
-        const storedCategories = categoriesKey ? JSON.parse(localStorage.getItem(categoriesKey) || '[]') : [];
-        const storedTasks = tasksKey ? JSON.parse(localStorage.getItem(tasksKey) || '[]') : [];
-        const storedHobbies = hobbiesKey ? JSON.parse(localStorage.getItem(hobbiesKey) || '[]') : [];
-        const storedCredentials = credentialsKey ? JSON.parse(localStorage.getItem(credentialsKey) || '[]') : [];
-        
-        setAllProjects(storedProjects);
-        
-        if (activeProjectToSet && (activeProjectToSet.id === 'all' || storedProjects.some((p: Project) => p.id === activeProjectToSet.id))) {
-          _setActiveProject(activeProjectToSet);
-        } else {
-          _setActiveProject(ALL_BUSINESS_PROJECT);
-        }
-         if (storedDefaultProject && (storedDefaultProject.id === 'all' || storedProjects.some((p: Project) => p.id === storedDefaultProject.id))) {
-          _setDefaultProject(storedDefaultProject);
-        } else {
-          _setDefaultProject(ALL_BUSINESS_PROJECT);
-        }
-
-        setAllTransactions(storedTransactions);
-        setAllDebts(storedDebts);
-        setAllBankAccounts(storedBankAccounts);
-        setAllClients(storedClients);
-        setAllCategories(storedCategories);
-        setAllTasks(storedTasks);
-        setAllHobbies(storedHobbies);
-        setAllCredentials(storedCredentials);
-        setCurrencyState(storedCurrency);
+      if (bankAccounts.length === 0) {
+        const { data: newAccount } = await supabase.from('bank_accounts').insert({ userId: userId, name: 'Primary Account', balance: 0, isPrimary: true }).select().single();
+        if (newAccount) setAllBankAccounts([newAccount]);
       }
+
+      // Restore non-db state from local storage
+      const storedCurrency = currencyKey ? localStorage.getItem(currencyKey) || 'INR' : 'INR';
+      setCurrencyState(storedCurrency);
+      
+      const storedDefaultProject = defaultProjectKey ? JSON.parse(localStorage.getItem(defaultProjectKey) || 'null') : null;
+      let activeProjectToSet = storedDefaultProject;
+      const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
+      if (storedActiveProject) activeProjectToSet = storedActiveProject;
+      
+      if (activeProjectToSet && (activeProjectToSet.id === 'all' || projects.some((p: Project) => p.id === activeProjectToSet.id))) {
+        _setActiveProject(activeProjectToSet);
+      } else {
+        _setActiveProject(ALL_BUSINESS_PROJECT);
+      }
+       if (storedDefaultProject && (storedDefaultProject.id === 'all' || projects.some((p: Project) => p.id === storedDefaultProject.id))) {
+        _setDefaultProject(storedDefaultProject);
+      } else {
+        _setDefaultProject(ALL_BUSINESS_PROJECT);
+      }
+
     } catch (error) {
-      console.error("Failed to parse from local storage", error);
-      // Initialize with empty/default values if parsing fails
-      setAllProjects([]);
-      _setActiveProject(ALL_BUSINESS_PROJECT);
-      _setDefaultProject(ALL_BUSINESS_PROJECT);
-      setAllTransactions([]);
-      setAllDebts([]);
-      setAllBankAccounts([]);
-      setAllClients([]);
-      setAllCategories([]);
-      setAllTasks([]);
-      setAllHobbies([]);
-      setAllCredentials([]);
-      setCurrencyState('INR');
+      console.error("Error fetching data from Supabase:", error);
+      toast({ variant: 'destructive', title: 'Error fetching data', description: 'Could not load your financial data.' });
     } finally {
       setIsLoading(false);
     }
-  }, [user, isUserLoading, projectsKey, activeProjectKey, defaultProjectKey, transactionsKey, debtsKey, bankAccountsKey, currencyKey, clientsKey, categoriesKey, tasksKey, hobbiesKey, credentialsKey]);
+  }, [toast, currencyKey, defaultProjectKey, activeProjectKey]);
+
+  useEffect(() => {
+    if (user && !isUserLoading) {
+      fetchData(user.uid);
+      
+      const changes = supabase.channel('financial-changes')
+        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+            console.log('Change received!', payload);
+            fetchData(user.uid); // Refetch all data on any change
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(changes);
+      };
+    } else if (!isUserLoading) {
+      setIsLoading(false);
+    }
+  }, [user, isUserLoading, fetchData]);
+
+  useEffect(() => { if (currencyKey) localStorage.setItem(currencyKey, currency); }, [currency, currencyKey]);
 
   const setActiveProject = useCallback((project: Project | null) => {
     const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
@@ -220,232 +204,219 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [defaultProjectKey]);
 
-  // Write to local storage whenever state changes
-  useEffect(() => { if (projectsKey) localStorage.setItem(projectsKey, JSON.stringify(allProjects)); }, [allProjects, projectsKey]);
-  useEffect(() => { if (transactionsKey) localStorage.setItem(transactionsKey, JSON.stringify(allTransactions)); }, [allTransactions, transactionsKey]);
-  useEffect(() => { if (debtsKey) localStorage.setItem(debtsKey, JSON.stringify(allDebts)); }, [allDebts, debtsKey]);
-  useEffect(() => { if (bankAccountsKey) localStorage.setItem(bankAccountsKey, JSON.stringify(allBankAccounts)); }, [allBankAccounts, bankAccountsKey]);
-  useEffect(() => { if (currencyKey) localStorage.setItem(currencyKey, currency); }, [currency, currencyKey]);
-  useEffect(() => { if (clientsKey) localStorage.setItem(clientsKey, JSON.stringify(allClients)); }, [allClients, clientsKey]);
-  useEffect(() => { if (categoriesKey) localStorage.setItem(categoriesKey, JSON.stringify(allCategories)); }, [allCategories, categoriesKey]);
-  useEffect(() => { if (tasksKey) localStorage.setItem(tasksKey, JSON.stringify(allTasks)); }, [allTasks, tasksKey]);
-  useEffect(() => { if (hobbiesKey) localStorage.setItem(hobbiesKey, JSON.stringify(allHobbies)); }, [allHobbies, hobbiesKey]);
-  useEffect(() => { if (credentialsKey) localStorage.setItem(credentialsKey, JSON.stringify(allCredentials)); }, [allCredentials, credentialsKey]);
+  const addProject = async (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>): Promise<Project> => {
+    if (!user) throw new Error("User not authenticated");
+    const { data: newProject, error } = await supabase.from('projects').insert({ ...projectData, userId: user.uid }).select().single();
+    if (error) throw error;
+    return newProject;
+  };
 
-  // Data manipulation functions
-  const addProject = useCallback((projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => {
-    if (!user) return;
-    const newProject = { ...projectData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
-    setAllProjects(prev => [...prev, newProject]);
-    if (activeProject?.id === 'all') { 
-        setActiveProject(newProject); 
-    }
-  }, [user, activeProject, setActiveProject]);
+  const updateProject = async (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => {
+    const { error } = await supabase.from('projects').update(projectData).eq('id', projectId);
+    if (error) throw error;
+  };
 
-  const updateProject = useCallback((projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => {
-    setAllProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...projectData } : p));
-  }, []);
+  const deleteProject = async (projectId: string) => {
+    const { error } = await supabase.from('projects').delete().eq('id', projectId);
+    if (error) throw error;
+    if (activeProject?.id === projectId) setActiveProject(ALL_BUSINESS_PROJECT);
+  };
 
-  const deleteProject = useCallback((projectId: string) => {
-    setAllProjects(prev => prev.filter(p => p.id !== projectId));
-    setAllTransactions(prev => prev.filter(t => t.projectId !== projectId));
-    setAllDebts(prev => prev.filter(d => d.projectId !== projectId));
-    setAllClients(prev => prev.filter(c => c.projectId !== projectId));
-    setAllCategories(prev => prev.filter(cat => cat.projectId !== projectId));
-    setAllTasks(prev => prev.filter(t => t.projectId !== projectId));
-    setAllCredentials(prev => prev.filter(c => c.projectId !== projectId));
-    if (activeProject?.id === projectId) {
-      setActiveProject(ALL_BUSINESS_PROJECT);
-    }
-  }, [activeProject, setActiveProject]);
-
-  const addClient = useCallback((clientData: Omit<Client, 'id' | 'projectId'>, projectId?: string): Client => {
-    if (!user) {
-        const fallbackClient = { ...clientData, id: crypto.randomUUID(), projectId: projectId || '' };
-        setAllClients(prev => [...prev, fallbackClient]);
-        return fallbackClient;
-    }
-    const newClient = { ...clientData, id: crypto.randomUUID(), projectId: projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : '') || '' };
-    setAllClients(prev => [...prev, newClient]);
+  const addClient = async (clientData: Omit<Client, 'id'>, projectId?: string): Promise<Client> => {
+    if (!user) throw new Error("User not authenticated");
+    const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
+    const { data: newClient, error } = await supabase.from('clients').insert({ ...clientData, userId: user.uid, projectId: finalProjectId }).select().single();
+    if (error) throw error;
     return newClient;
-}, [user, activeProject]);
+  };
 
-  const updateClient = useCallback((clientId: string, clientData: Partial<Omit<Client, 'id' | 'projectId'>>) => {
-    setAllClients(prev => prev.map(c => c.id === clientId ? { ...c, ...clientData } : c));
-  }, []);
+  const updateClient = async (clientId: string, clientData: Partial<Omit<Client, 'id'>>) => {
+    const { error } = await supabase.from('clients').update(clientData).eq('id', clientId);
+    if (error) throw error;
+  };
 
-  const deleteClient = useCallback((clientId: string) => {
-    setAllClients(prev => prev.filter(c => c.id !== clientId));
-  }, []);
+  const deleteClient = async (clientId: string) => {
+    const { error } = await supabase.from('clients').delete().eq('id', clientId);
+    if (error) throw error;
+  };
 
-  const addCategory = useCallback((categoryData: Omit<Category, 'id' | 'projectId'>, projectId?: string) => {
+  const addCategory = async (categoryData: Omit<Category, 'id'>, projectId?: string) => {
     if (!user) return;
-    const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : '') || '';
-    const newCategory = { ...categoryData, id: crypto.randomUUID(), projectId: finalProjectId };
-    setAllCategories(prev => [...prev, newCategory]);
-  }, [user, activeProject]);
+    const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
+    const { error } = await supabase.from('categories').insert({ ...categoryData, userId: user.uid, projectId: finalProjectId });
+    if (error) throw error;
+  };
 
-  const updateCategory = useCallback((categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'projectId'>>) => {
-    setAllCategories(prev => prev.map(c => c.id === categoryId ? { ...c, ...categoryData } : c));
-  }, []);
+  const updateCategory = async (categoryId: string, categoryData: Partial<Omit<Category, 'id'>>) => {
+    const { error } = await supabase.from('categories').update(categoryData).eq('id', categoryId);
+    if (error) throw error;
+  };
   
-  const deleteCategory = useCallback((categoryId: string) => {
-    setAllCategories(prev => prev.filter(c => c.id !== categoryId));
-  }, []);
+  const deleteCategory = async (categoryId: string) => {
+    const { error } = await supabase.from('categories').delete().eq('id', categoryId);
+    if (error) throw error;
+  };
 
-  const updateAccountBalance = useCallback((accountId: string, amount: number, operation: 'add' | 'subtract') => {
-      setAllBankAccounts(prevAccounts => 
-        prevAccounts.map(acc => {
-          if (acc.id === accountId) {
-            return { ...acc, balance: operation === 'add' ? acc.balance + amount : acc.balance - amount };
-          }
-          return acc;
-        })
-      );
-  }, []);
+  const updateAccountBalance = useCallback(async (accountId: string, amount: number, operation: 'add' | 'subtract') => {
+      const account = allBankAccounts.find(a => a.id === accountId);
+      if (!account) return;
+      const newBalance = operation === 'add' ? account.balance + amount : account.balance - amount;
+      const { error } = await supabase.from('bank_accounts').update({ balance: newBalance }).eq('id', accountId);
+      if (error) console.error("Error updating balance:", error);
+  }, [allBankAccounts]);
 
-  const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id'| 'date' | 'userId'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user) return;
+  const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'date' | 'userId'>, returnRef = false): Promise<{ id: string } | void> => {
+    if (!user) throw new Error("User not authenticated");
+    const { data: newTransaction, error } = await supabase.from('transactions').insert({ ...transactionData, userId: user.uid, date: new Date().toISOString() }).select().single();
+    if (error) throw error;
     
-    const newTransaction = { ...transactionData, id: crypto.randomUUID(), userId: user.uid, date: new Date().toISOString() };
-    
-    setAllTransactions(prev => [...prev, newTransaction]);
-    
-    if (newTransaction.type === 'income' && newTransaction.accountId) { updateAccountBalance(newTransaction.accountId, newTransaction.amount, 'add'); } 
-    else if (newTransaction.type === 'expense' && newTransaction.accountId) { updateAccountBalance(newTransaction.accountId, newTransaction.amount, 'subtract'); } 
+    if (newTransaction.type === 'income' && newTransaction.accountId) { await updateAccountBalance(newTransaction.accountId, newTransaction.amount, 'add'); } 
+    else if (newTransaction.type === 'expense' && newTransaction.accountId) { await updateAccountBalance(newTransaction.accountId, newTransaction.amount, 'subtract'); } 
     else if (newTransaction.type === 'transfer' && newTransaction.fromAccountId && newTransaction.toAccountId) {
-        updateAccountBalance(newTransaction.fromAccountId, newTransaction.amount, 'subtract');
-        updateAccountBalance(newTransaction.toAccountId, newTransaction.amount, 'add');
+        await updateAccountBalance(newTransaction.fromAccountId, newTransaction.amount, 'subtract');
+        await updateAccountBalance(newTransaction.toAccountId, newTransaction.amount, 'add');
     }
     if (returnRef) { return { id: newTransaction.id }; }
-  }, [user, updateAccountBalance]);
+  };
 
-  const updateTransaction = useCallback((originalTransaction: Transaction, updatedData: Partial<Transaction>) => {
+  const updateTransaction = async (originalTransaction: Transaction, updatedData: Partial<Transaction>) => {
     if (originalTransaction.accountId) {
-      if (originalTransaction.type === 'income') updateAccountBalance(originalTransaction.accountId, originalTransaction.amount, 'subtract');
-      if (originalTransaction.type === 'expense') updateAccountBalance(originalTransaction.accountId, originalTransaction.amount, 'add');
+      if (originalTransaction.type === 'income') await updateAccountBalance(originalTransaction.accountId, originalTransaction.amount, 'subtract');
+      if (originalTransaction.type === 'expense') await updateAccountBalance(originalTransaction.accountId, originalTransaction.amount, 'add');
     }
+    const { error } = await supabase.from('transactions').update(updatedData).eq('id', originalTransaction.id);
+    if (error) throw error;
+
     const finalTransaction = { ...originalTransaction, ...updatedData };
     if (finalTransaction.accountId) {
-        if (finalTransaction.type === 'income') updateAccountBalance(finalTransaction.accountId, finalTransaction.amount, 'add');
-        if (finalTransaction.type === 'expense') updateAccountBalance(finalTransaction.accountId, finalTransaction.amount, 'subtract');
+        if (finalTransaction.type === 'income') await updateAccountBalance(finalTransaction.accountId, finalTransaction.amount, 'add');
+        if (finalTransaction.type === 'expense') await updateAccountBalance(finalTransaction.accountId, finalTransaction.amount, 'subtract');
     }
-    setAllTransactions(prev => prev.map(t => (t.id === originalTransaction.id ? finalTransaction : t)));
-  }, [updateAccountBalance]);
+  };
 
-  const deleteTransaction = useCallback((transactionToDelete: Transaction) => {
-     if (transactionToDelete.accountId) {
-        if (transactionToDelete.type === 'income') { updateAccountBalance(transactionToDelete.accountId, transactionToDelete.amount, 'subtract'); } 
-        else if (transactionToDelete.type === 'expense') { updateAccountBalance(transactionToDelete.accountId, transactionToDelete.amount, 'add'); }
+  const deleteTransaction = async (transactionToDelete: Transaction) => {
+    if (transactionToDelete.accountId) {
+        if (transactionToDelete.type === 'income') { await updateAccountBalance(transactionToDelete.accountId, transactionToDelete.amount, 'subtract'); } 
+        else if (transactionToDelete.type === 'expense') { await updateAccountBalance(transactionToDelete.accountId, transactionToDelete.amount, 'add'); }
     }
-    setAllTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
-  }, [updateAccountBalance]);
+    const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
+    if (error) throw error;
+  };
 
-  const addDebt = useCallback(async (debtData: Omit<Debt, 'id' | 'date' | 'userId'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user || !debtData.accountId) return;
-    const newDebt = { ...debtData, id: crypto.randomUUID(), userId: user.uid, date: new Date().toISOString() };
-    setAllDebts(prev => [...prev, newDebt]);
+  const addDebt = async (debtData: Omit<Debt, 'id' | 'date' | 'userId'>, returnRef = false): Promise<{ id: string } | void> => {
+    if (!user || !debtData.accountId) throw new Error("User not authenticated");
+    const { data: newDebt, error } = await supabase.from('debts').insert({ ...debtData, userId: user.uid, date: new Date().toISOString() }).select().single();
+    if (error) throw error;
 
-    if (newDebt.type === 'creditor') { updateAccountBalance(newDebt.accountId, newDebt.amount, 'add'); } 
-    else if (newDebt.type === 'debtor') { updateAccountBalance(newDebt.accountId, newDebt.amount, 'subtract'); }
+    if (newDebt.type === 'creditor') { await updateAccountBalance(newDebt.accountId, newDebt.amount, 'add'); } 
+    else if (newDebt.type === 'debtor') { await updateAccountBalance(newDebt.accountId, newDebt.amount, 'subtract'); }
     if (returnRef) { return { id: newDebt.id }; }
-  }, [user, updateAccountBalance]);
+  };
 
-  const updateDebt = useCallback((originalDebt: Debt, updatedData: Partial<Debt>) => {
+  const updateDebt = async (originalDebt: Debt, updatedData: Partial<Debt>) => {
     const amountDifference = (updatedData.amount ?? originalDebt.amount) - originalDebt.amount;
     if (amountDifference !== 0 && originalDebt.accountId) {
-        if (originalDebt.type === 'creditor') { updateAccountBalance(originalDebt.accountId, amountDifference, 'add'); } 
-        else { updateAccountBalance(originalDebt.accountId, amountDifference, 'subtract'); }
+        if (originalDebt.type === 'creditor') { await updateAccountBalance(originalDebt.accountId, amountDifference, 'add'); } 
+        else { await updateAccountBalance(originalDebt.accountId, amountDifference, 'subtract'); }
     }
-    setAllDebts(prev => prev.map(d => (d.id === originalDebt.id ? { ...d, ...updatedData } : d)));
-  }, [updateAccountBalance]);
+    const { error } = await supabase.from('debts').update(updatedData).eq('id', originalDebt.id);
+    if (error) throw error;
+  };
 
-  const deleteDebt = useCallback((debtToDelete: Debt) => {
+  const deleteDebt = async (debtToDelete: Debt) => {
     if (debtToDelete.accountId) {
-        if (debtToDelete.type === 'creditor') { updateAccountBalance(debtToDelete.accountId, debtToDelete.amount, 'subtract'); } 
-        else { updateAccountBalance(debtToDelete.accountId, debtToDelete.amount, 'add'); }
+        if (debtToDelete.type === 'creditor') { await updateAccountBalance(debtToDelete.accountId, debtToDelete.amount, 'subtract'); } 
+        else { await updateAccountBalance(debtToDelete.accountId, debtToDelete.amount, 'add'); }
     }
-    setAllDebts(prev => prev.filter(d => d.id !== debtToDelete.id));
-  }, [updateAccountBalance]);
+    const { error } = await supabase.from('debts').delete().eq('id', debtToDelete.id);
+    if (error) throw error;
+  };
 
-  const addRepayment = useCallback((debt: Debt, amount: number, accountId: string) => {
-    updateDebt(debt, { amount: debt.amount - amount });
-    addTransaction({ type: 'repayment', amount, category: 'Debt Repayment', description: `Payment for debt: ${debt.name}`, debtId: debt.id, accountId: accountId, projectId: debt.projectId });
-  }, [addTransaction, updateDebt]);
+  const addRepayment = async (debt: Debt, amount: number, accountId: string) => {
+    await updateDebt(debt, { amount: debt.amount - amount });
+    await addTransaction({ type: 'repayment', amount, category: 'Debt Repayment', description: `Payment for debt: ${debt.name}`, debtId: debt.id, accountId: accountId, projectId: debt.projectId });
+  };
 
-  const addBankAccount = useCallback((account: Omit<BankAccount, 'id' | 'userId'>) => {
+  const addBankAccount = async (account: Omit<BankAccount, 'id' | 'userId'>) => {
     if (!user) return;
-    const newAccount = { ...account, id: crypto.randomUUID(), userId: user.uid, isPrimary: allBankAccounts.length === 0 };
-    setAllBankAccounts(prev => [...prev, newAccount]);
-  }, [user, allBankAccounts]);
+    const { error } = await supabase.from('bank_accounts').insert({ ...account, userId: user.uid, isPrimary: allBankAccounts.length === 0 });
+    if (error) throw error;
+  };
 
-  const updateBankAccount = useCallback((accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'userId'>>) => {
-    setAllBankAccounts(prev => prev.map(acc => acc.id === accountId ? { ...acc, ...accountData } : acc));
-  }, []);
+  const updateBankAccount = async (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'userId'>>) => {
+    const { error } = await supabase.from('bank_accounts').update(accountData).eq('id', accountId);
+    if (error) throw error;
+  };
 
-  const deleteBankAccount = useCallback((accountId: string) => {
-    setAllBankAccounts(prev => prev.filter(acc => acc.id !== accountId));
-  }, []);
+  const deleteBankAccount = async (accountId: string) => {
+    const { error } = await supabase.from('bank_accounts').delete().eq('id', accountId);
+    if (error) throw error;
+  };
 
   const setCurrency = useCallback((newCurrency: string) => { setCurrencyState(newCurrency); }, []);
 
-  const setPrimaryBankAccount = useCallback((accountId: string) => {
-    setAllBankAccounts(prev => prev.map(acc => ({ ...acc, isPrimary: acc.id === accountId })));
-  }, []);
-
-  const getTransactionById = useCallback((id: string) => {
-      return allTransactions.find(t => t.id === id);
-  }, [allTransactions]);
-
-  const getDebtById = useCallback((id: string) => {
-      return allDebts.find(d => d.id === id);
-  }, [allDebts]);
-
-    const addTask = useCallback((taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => {
+  const setPrimaryBankAccount = async (accountId: string) => {
     if (!user) return;
-    const newTask = { ...taskData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
-    setAllTasks(prev => [...prev, newTask]);
-  }, [user]);
+    const updates = allBankAccounts.map(acc => 
+      supabase.from('bank_accounts').update({ isPrimary: acc.id === accountId }).eq('id', acc.id)
+    );
+    await Promise.all(updates);
+  };
 
-  const updateTask = useCallback((taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => {
-    setAllTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...taskData } : t));
-  }, []);
+  const getTransactionById = useCallback((id: string) => allTransactions.find(t => t.id === id), [allTransactions]);
+  const getDebtById = useCallback((id: string) => allDebts.find(d => d.id === id), [allDebts]);
 
-  const deleteTask = useCallback((taskId: string) => {
-    setAllTasks(prev => prev.filter(t => t.id !== taskId));
-  }, []);
-  
-  const addHobby = useCallback((hobbyData: Omit<Hobby, 'id' | 'userId' | 'createdAt'>) => {
+  const addTask = async (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => {
     if (!user) return;
-    const newHobby = { ...hobbyData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
-    setAllHobbies(prev => [...prev, newHobby]);
-  }, [user]);
+    const { error } = await supabase.from('tasks').insert({ ...taskData, userId: user.uid, createdAt: new Date().toISOString() });
+    if (error) throw error;
+  };
 
-  const updateHobby = useCallback((hobbyId: string, hobbyData: Partial<Omit<Hobby, 'id' | 'userId' | 'createdAt'>>) => {
-    setAllHobbies(prev => prev.map(h => h.id === hobbyId ? { ...h, ...hobbyData } : h));
-  }, []);
+  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => {
+    const { error } = await supabase.from('tasks').update(taskData).eq('id', taskId);
+    if (error) throw error;
+  };
+
+  const deleteTask = async (taskId: string) => {
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+    if (error) throw error;
+  };
   
-  const deleteHobby = useCallback((hobbyId: string) => {
-    setAllHobbies(prev => prev.filter(h => h.id !== hobbyId));
-  }, []);
+  const addHobby = async (hobbyData: Omit<Hobby, 'id' | 'userId' | 'createdAt'>) => {
+    if (!user) return;
+    const { error } = await supabase.from('hobbies').insert({ ...hobbyData, userId: user.uid, createdAt: new Date().toISOString() });
+    if (error) throw error;
+  };
 
-  const addCredential = useCallback((credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => {
+  const updateHobby = async (hobbyId: string, hobbyData: Partial<Omit<Hobby, 'id' | 'userId' | 'createdAt'>>) => {
+    const { error } = await supabase.from('hobbies').update(hobbyData).eq('id', hobbyId);
+    if (error) throw error;
+  };
+  
+  const deleteHobby = async (hobbyId: string) => {
+    const { error } = await supabase.from('hobbies').delete().eq('id', hobbyId);
+    if (error) throw error;
+  };
+
+  const addCredential = async (credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => {
     if (!user) return;
     const { projectId, ...restData } = credentialData;
     const finalData = { ...restData, projectId: projectId === '' ? undefined : projectId };
-    const newCredential = { ...finalData, id: crypto.randomUUID(), userId: user.uid, createdAt: new Date().toISOString() };
-    setAllCredentials(prev => [...prev, newCredential]);
-  }, [user]);
+    const { error } = await supabase.from('credentials').insert({ ...finalData, userId: user.uid, createdAt: new Date().toISOString() });
+    if (error) throw error;
+  };
 
-  const updateCredential = useCallback((credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => {
+  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => {
     const { projectId, ...restData } = credentialData;
     const finalData = { ...restData, projectId: projectId === '' ? undefined : projectId };
-    setAllCredentials(prev => prev.map(c => c.id === credentialId ? { ...c, ...finalData } : c));
-  }, []);
+    const { error } = await supabase.from('credentials').update(finalData).eq('id', credentialId);
+    if (error) throw error;
+  };
   
-  const deleteCredential = useCallback((credentialId: string) => {
-    setAllCredentials(prev => prev.filter(c => c.id !== credentialId));
-  }, []);
+  const deleteCredential = async (credentialId: string) => {
+    const { error } = await supabase.from('credentials').delete().eq('id', credentialId);
+    if (error) throw error;
+  };
   
   const filteredTransactions = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTransactions.filter(t => t.projectId === activeProject.id) : allTransactions.filter(t => !t.projectId), [allTransactions, activeProject]);
   const filteredDebts = useMemo(() => (activeProject && activeProject.id !== 'all') ? allDebts.filter(d => d.projectId === activeProject.id) : allDebts.filter(d => !d.projectId), [allDebts, activeProject]);

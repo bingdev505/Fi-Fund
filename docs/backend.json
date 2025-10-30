@@ -1,5 +1,20 @@
 {
   "entities": {
+    "Project": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Project",
+      "description": "Represents a business or project for organizing financial data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the project." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this project." },
+        "name": { "type": "string", "description": "The name of the project." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The date the project was created." },
+        "parentProjectId": { "type": "string", "description": "Optional reference to a parent project." },
+        "googleSheetId": { "type": "string", "description": "Optional ID for a linked Google Sheet." }
+      },
+      "required": ["id", "userId", "name", "createdAt"]
+    },
     "ChatMessage": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Chat Message",
@@ -14,37 +29,47 @@
       },
       "required": ["id", "userId", "role", "content", "timestamp"]
     },
-    "Income": {
+    "Transaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Income",
+      "title": "Transaction",
       "type": "object",
-      "description": "Represents a source of income for a user.",
+      "description": "Represents an income, expense, or transfer transaction for a user.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the income entry." },
-        "userId": { "type": "string", "description": "Reference to the User who owns this income entry. (Relationship: User 1:N Income)" },
-        "amount": { "type": "number", "description": "The amount of income received." },
-        "category": { "type": "string", "description": "The category of income (e.g., salary, investment)." },
-        "date": { "type": "string", "description": "The date the income was received.", "format": "date-time" },
-        "description": { "type": "string", "description": "Optional description or notes about the income." },
-        "clientId": { "type": "string", "description": "Optional reference to the Client associated with this income." }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer", "repayment"] },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "accountId": { "type": "string" },
+        "fromAccountId": { "type": "string" },
+        "toAccountId": { "type": "string" },
+        "debtId": { "type": "string" },
+        "clientId": { "type": "string" }
       },
-      "required": ["id", "userId", "amount", "category", "date"]
+      "required": ["id", "userId", "type", "category", "amount", "description", "date"]
     },
-    "Expense": {
+    "Debt": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Expense",
+      "title": "Debt",
       "type": "object",
-      "description": "Represents an expense incurred by a user.",
+      "description": "Represents a debt owed to or by the user.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the expense entry." },
-        "userId": { "type": "string", "description": "Reference to the User who owns this expense entry. (Relationship: User 1:N Expense)" },
-        "amount": { "type": "number", "description": "The amount of the expense." },
-        "category": { "type": "string", "description": "The category of expense (e.g., food, rent)." },
-        "date": { "type": "string", "description": "The date the expense was incurred.", "format": "date-time" },
-        "description": { "type": "string", "description": "Optional description or notes about the expense." },
-        "clientId": { "type": "string", "description": "Optional reference to the Client associated with this expense." }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["creditor", "debtor"] },
+        "name": { "type": "string" },
+        "clientId": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "date": { "type": "string", "format": "date-time" },
+        "accountId": { "type": "string" }
       },
-      "required": ["id", "userId", "amount", "category", "date"]
+      "required": ["id", "userId", "type", "name", "clientId", "amount", "description", "date", "accountId"]
     },
     "Creditor": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -108,11 +133,12 @@
       "type": "object",
       "description": "Represents a client or contact for a specific business/project.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the client." },
-        "projectId": { "type": "string", "description": "Reference to the Project this client belongs to." },
-        "name": { "type": "string", "description": "The name of the client." }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "name": { "type": "string" }
       },
-      "required": ["id", "projectId", "name"]
+      "required": ["id", "userId", "name"]
     },
     "Category": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -120,12 +146,13 @@
       "type": "object",
       "description": "Represents a custom income or expense category for a specific business/project.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the category." },
-        "projectId": { "type": "string", "description": "Reference to the Project this category belongs to." },
-        "name": { "type": "string", "description": "The name of the category." },
-        "type": { "type": "string", "enum": ["income", "expense"], "description": "The type of the category." }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] }
       },
-      "required": ["id", "projectId", "name", "type"]
+      "required": ["id", "userId", "name", "type"]
     },
      "Task": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -133,14 +160,14 @@
       "description": "Represents a task to be tracked by a user.",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the task." },
-        "userId": { "type": "string", "description": "Reference to the User who owns this task." },
-        "projectId": { "type": "string", "description": "Optional reference to the Project this task belongs to." },
-        "name": { "type": "string", "description": "The name or title of the task." },
-        "description": { "type": "string", "description": "A detailed description of the task." },
-        "status": { "type": "string", "enum": ["todo", "in-progress", "done"], "description": "The current status of the task." },
-        "dueDate": { "type": "string", "format": "date-time", "description": "The date when the task is due." },
-        "createdAt": { "type": "string", "format": "date-time", "description": "The date when the task was created." }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "name", "status", "createdAt"]
     },
@@ -150,12 +177,12 @@
       "description": "Represents a hobby or activity a user wants to track.",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the hobby." },
-        "userId": { "type": "string", "description": "Reference to the User who owns this hobby." },
-        "name": { "type": "string", "description": "The name of the hobby." },
-        "description": { "type": "string", "description": "A detailed description of the hobby." },
-        "timeGoal": { "type": "number", "description": "The weekly time goal in minutes for this hobby." },
-        "createdAt": { "type": "string", "format": "date-time", "description": "The date when the hobby was created." }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "timeGoal": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "name", "createdAt"]
     },
@@ -165,14 +192,14 @@
       "description": "Represents a stored credential (password, TOTP secret) for a user.",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the credential." },
-        "userId": { "type": "string", "description": "Reference to the User who owns this credential." },
-        "projectId": { "type": "string", "description": "Optional reference to the Project this credential belongs to." },
-        "siteName": { "type": "string", "description": "The name of the website or service." },
-        "username": { "type": "string", "description": "The username for the account." },
-        "password": { "type": "string", "description": "The password for the account." },
-        "totpSecret": { "type": "string", "description": "The Time-based One-Time Password (TOTP) secret key for 2FA." },
-        "createdAt": { "type": "string", "format": "date-time", "description": "The date when the credential was created." }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "siteName": { "type": "string" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "totpSecret": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "siteName", "username", "createdAt"]
     }
@@ -197,7 +224,7 @@
         "path": "/users/{userId}/transactions/{transactionId}",
         "definition": {
           "entityName": "Transaction",
-          "schema": { "$ref": "#/backend/entities/Income" },
+          "schema": { "$ref": "#/backend/entities/Transaction" },
           "description": "Stores transaction entries (income and expenses) for a specific user.",
           "params": [
             { "name": "userId", "description": "The unique identifier of the user." },
@@ -209,7 +236,7 @@
         "path": "/users/{userId}/debts/{debtId}",
         "definition": {
           "entityName": "Debt",
-          "schema": { "$ref": "#/backend/entities/Creditor" },
+          "schema": { "$ref": "#/backend/entities/Debt" },
           "description": "Stores debt entries (creditors and debtors) for a specific user.",
           "params": [
             { "name": "userId", "description": "The unique identifier of the user." },
@@ -274,6 +301,18 @@
           "params": [
             { "name": "userId", "description": "The unique identifier of the user." },
             { "name": "credentialId", "description": "The unique identifier of the credential." }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/projects/{projectId}",
+        "definition": {
+          "entityName": "Project",
+          "schema": { "$ref": "#/backend/entities/Project" },
+          "description": "Stores business projects for a specific user.",
+          "params": [
+            { "name": "userId", "description": "The unique identifier of the user." },
+            { "name": "projectId", "description": "The unique identifier of the project." }
           ]
         }
       }

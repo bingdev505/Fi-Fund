@@ -1,6 +1,6 @@
 'use client';
 
-// Timestamps are stored as ISO 8061 strings in local storage for serializability.
+// Timestamps are stored as ISO 8061 strings.
 export type LocalTimestamp = string;
 
 export type Transaction = {
@@ -30,7 +30,7 @@ export type Debt = {
   description: string;
   dueDate?: LocalTimestamp;
   date: LocalTimestamp;
-  accountId?: string;
+  accountId: string;
 };
 
 export type BankAccount = {
@@ -38,7 +38,7 @@ export type BankAccount = {
   userId: string;
   name: string;
   balance: number;
-  isPrimary?: boolean;
+  isPrimary: boolean;
 };
 
 export type UserSettings = {
@@ -67,13 +67,15 @@ export type ChatMessage = {
 
 export type Client = {
   id: string;
-  projectId: string;
+  userId: string;
+  projectId?: string;
   name: string;
 };
 
 export type Category = {
   id: string;
-  projectId: string;
+  userId: string;
+  projectId?: string;
   name: string;
   type: 'income' | 'expense';
 };
