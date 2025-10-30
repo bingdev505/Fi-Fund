@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import type { Hobby, HobbySession, Task } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -198,8 +198,8 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date (Optional)</FormLabel>
-                    <Popover>
-                        <FormControl>
+                    <FormControl>
+                        <Popover>
                             <PopoverTrigger asChild>
                                 <Button
                                 variant={'outline'}
@@ -209,11 +209,11 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
                                 <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
-                        </FormControl>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                      </PopoverContent>
-                    </Popover>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
