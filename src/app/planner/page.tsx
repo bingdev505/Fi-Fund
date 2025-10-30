@@ -1,9 +1,9 @@
 'use client';
 import { FinancialProvider } from '@/context/FinancialContext';
-import AppShell from '@/components/AppShell';
 import Planner from '@/components/Planner';
+import AppShell from '@/components/AppShell';
 
-export default function TasksPage() {
+export default function PlannerPage() {
   return (
     <FinancialProvider>
       <AppShell>
