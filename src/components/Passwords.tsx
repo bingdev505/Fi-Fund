@@ -42,22 +42,27 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
             username: credential.username,
             password: credential.password || '',
             totpSecret: credential.totpSecret || '',
-            projectId: credential.projectId || '',
+            projectId: credential.projectId || 'personal',
         } : {
             siteName: '',
             username: '',
             password: '',
             totpSecret: '',
-            projectId: activeProject?.id !== 'all' ? activeProject?.id : '',
+            projectId: activeProject?.id !== 'all' ? activeProject?.id : 'personal',
         }
     });
 
     function onSubmit(values: z.infer<typeof credentialSchema>) {
+        const submissionValues = {
+            ...values,
+            projectId: values.projectId === 'personal' ? undefined : values.projectId,
+        };
+
         if (credential) {
-            updateCredential(credential.id, values);
+            updateCredential(credential.id, submissionValues);
             toast({ title: "Credential Updated" });
         } else {
-            addCredential(values);
+            addCredential(submissionValues);
             toast({ title: "Credential Added" });
         }
         onFinished();
@@ -100,14 +105,14 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Business (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select onValueChange={field.onChange} value={field.value || 'personal'}>
                             <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Personal / No Business" />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="">Personal</SelectItem>
+                                <SelectItem value="personal">Personal</SelectItem>
                             {projects.map((p) => (
                                 <SelectItem key={p.id} value={p.id}>
                                 {p.name}
