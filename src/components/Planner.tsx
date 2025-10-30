@@ -53,8 +53,8 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
   const { toast } = useToast();
 
   const isEditing = !!plan;
-  const planType = isEditing ? (('time' in plan) ? 'hobby' : 'task') : 'task';
-  const isHobby = isEditing && ('time' in plan);
+  const planType = isEditing ? (('time' in (plan ?? {})) ? 'hobby' : 'task') : 'task';
+  const isHobby = isEditing && ('time' in (plan ?? {}));
   const isTask = isEditing && !isHobby;
 
   const form = useForm<z.infer<typeof planSchema>>({
@@ -167,28 +167,32 @@ function PlanForm({ plan, onFinished }: { plan?: Hobby | Task | null, onFinished
             <FormField control={form.control} name="taskDescription" render={({ field }) => ( <FormItem> <FormLabel>Description (Optional)</FormLabel> <FormControl><Textarea placeholder="e.g. Research trails, book campsite..." {...field} value={field.value || ''}/></FormControl> <FormMessage /> </FormItem> )}/>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="taskStatus" render={({ field }) => ( <FormItem> <FormLabel>Status</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl> <SelectContent> <SelectItem value="todo">To Do</SelectItem> <SelectItem value="in-progress">In Progress</SelectItem> <SelectItem value="done">Done</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
-              <FormField control={form.control} name="taskDueDate" render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Due Date (Optional)</FormLabel>
-                  <FormControl>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={'outline'}
-                          className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}
-                        >
-                          {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                          <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                      </PopoverContent>
-                    </Popover>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="taskDueDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Due Date (Optional)</FormLabel>
+                    <FormControl>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={'outline'}
+                            className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}
+                          >
+                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                            <CalendarTaskIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                        </PopoverContent>
+                      </Popover>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
              <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="taskDueTime" render={({ field }) => ( <FormItem> <FormLabel>Due Time (Optional)</FormLabel> <FormControl><Input type="time" {...field} /></FormControl> <FormMessage /> </FormItem> )}/>
@@ -357,14 +361,15 @@ export default function Planner() {
 
   return (
     <div className="space-y-6">
-       <div className="flex justify-end">
-         <Button onClick={handleAddPlanClick}><PlusCircle className="mr-2 h-4 w-4" /> Add Plan</Button>
-      </div>
-
       <Dialog open={planFormOpen} onOpenChange={(open) => {
         setPlanFormOpen(open);
         if (!open) setEditingPlan(null);
       }}>
+        <DialogTrigger asChild>
+          <div className="flex justify-end">
+             <Button onClick={handleAddPlanClick}><PlusCircle className="mr-2 h-4 w-4" /> Add Plan</Button>
+          </div>
+        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingPlan ? 'Edit' : 'Add a New'} Plan</DialogTitle>
