@@ -10,19 +10,19 @@ import { logFinancialData, type LogFinancialDataOutput } from './log-financial-d
 import { answerFinancialQuestion, type AnswerFinancialQuestionOutput } from './answer-financial-question';
 
 const RouteUserIntentInputSchema = z.object({
-  chatInput: z.string().describe('The user input in natural language.'),
-  financialData: z.string().describe('A JSON string of the user\'s current financial data.'),
-  chatHistory: z.string().optional().describe('The last few messages in the conversation for context.'),
+  chat_input: z.string().describe('The user input in natural language.'),
+  financial_data: z.string().describe('A JSON string of the user\'s current financial data.'),
+  chat_history: z.string().optional().describe('The last few messages in the conversation for context.'),
 });
 export type RouteUserIntentInput = z.infer<typeof RouteUserIntentInputSchema>;
 
 // Re-define the schemas here since we can't import them from 'use server' files.
 const LogFinancialDataResultSchema = z.object({
-  transactionType: z.enum(['income', 'expense', 'creditor', 'debtor']),
+  transaction_type: z.enum(['income', 'expense', 'creditor', 'debtor']),
   category: z.string(),
   amount: z.number(),
   description: z.string().optional(),
-  accountName: z.string().optional(),
+  account_name: z.string().optional(),
 });
 
 const AnswerFinancialQuestionResultSchema = z.object({
@@ -44,7 +44,7 @@ export type RouteUserIntentOutput = z.infer<typeof RouteUserIntentOutputSchema>;
 
 const intentPrompt = ai.definePrompt({
     name: 'intentPrompt',
-    input: { schema: z.object({ chatInput: z.string() }) },
+    input: { schema: z.object({ chat_input: z.string() }) },
     output: { schema: z.object({ intent: z.enum(["logData", "question", "command"]).describe("The user's intent: is the user logging data, asking a question, or giving a command?") }) },
     prompt: `Analyze the user's input to determine the primary intent. Categorize it as 'logData', 'question', or 'command'.
 
@@ -57,7 +57,7 @@ const intentPrompt = ai.definePrompt({
 - 'command': The user is telling the system to perform an action like deleting or editing.
   Examples: "delete the last entry", "remove that transaction", "edit the lunch expense".
 
-User Input: {{{chatInput}}}
+User Input: {{{chat_input}}}
 
 Based on the keywords and structure, determine the most likely intent.`,
 });
@@ -70,16 +70,16 @@ const routeUserIntentFlow = ai.defineFlow(
     outputSchema: RouteUserIntentOutputSchema,
   },
   async (input) => {
-    const {output} = await intentPrompt({ chatInput: input.chatInput });
+    const {output} = await intentPrompt({ chat_input: input.chat_input });
     const intent = output!.intent;
 
     if (intent === 'logData') {
-        const result = await logFinancialData({ chatInput: input.chatInput, chatHistory: input.chatHistory });
+        const result = await logFinancialData({ chat_input: input.chat_input, chat_history: input.chat_history });
         return { intent: 'logData', result };
     } else if (intent === 'question') {
         const result = await answerFinancialQuestion({
-            question: input.chatInput,
-            financialData: input.financialData,
+            question: input.chat_input,
+            financial_data: input.financial_data,
         });
         return { intent: 'question', result };
     } else { // intent === 'command'

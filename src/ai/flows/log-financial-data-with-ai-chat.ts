@@ -14,23 +14,23 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const LogFinancialDataInputSchema = z.object({
-  chatInput: z
+  chat_input: z
     .string()
     .describe(
       'The user input in natural language describing the financial transaction.'
     ),
-  chatHistory: z.string().optional().describe('The last few messages in the conversation for context.'),
+  chat_history: z.string().optional().describe('The last few messages in the conversation for context.'),
 });
 export type LogFinancialDataInput = z.infer<typeof LogFinancialDataInputSchema>;
 
 const LogFinancialDataOutputSchema = z.object({
-  transactionType: z
+  transaction_type: z
     .enum(['income', 'expense', 'creditor', 'debtor'])
     .describe('The type of financial transaction.'),
   category: z.string().describe('The category of the transaction for income/expense, or the name of the person/entity for creditor/debtor.'),
   amount: z.number().describe('The amount of the transaction.'),
   description: z.string().optional().describe('A description of the transaction.'),
-  accountName: z.string().optional().describe("The specific name of the bank account if the user mentions one (e.g., 'savings', 'checking', 'federal')."),
+  account_name: z.string().optional().describe("The specific name of the bank account if the user mentions one (e.g., 'savings', 'checking', 'federal')."),
 });
 export type LogFinancialDataOutput = z.infer<typeof LogFinancialDataOutputSchema>;
 
@@ -50,10 +50,10 @@ const logFinancialDataPrompt = ai.definePrompt({
 - If the user does *not* specify a bank account in their latest message, look at the chat history to see if a bank account was mentioned recently. If so, use that account name.
 - For loans, if the user says "[Name] give me loan", it means the user owes money to [Name], so the transactionType is 'creditor'. If the user says "I gave [Name] a loan", it means the user is owed money by [Name], so the transactionType is 'debtor'.
 
-User Input: {{{chatInput}}}
+User Input: {{{chat_input}}}
 
 Chat History:
-{{{chatHistory}}}
+{{{chat_history}}}
 
 Ensure that the amount is a number. If a description is not explicitly provided, provide a short summary of the input.
 

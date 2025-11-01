@@ -59,8 +59,8 @@ export type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
     timestamp: LocalTimestamp;
-    transactionId?: string;
-    entryType?: 'income' | 'expense' | 'creditor' | 'debtor';
+    transaction_id?: string;
+    entry_type?: 'income' | 'expense' | 'creditor' | 'debtor';
 };
 
 export type Client = {
