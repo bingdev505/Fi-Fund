@@ -57,10 +57,10 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
 
     function onSubmit(values: z.infer<typeof taskSchema>) {
         if (task) {
-            updateTask(task.id, { ...values, dueDate: values.dueDate?.toISOString() });
+            updateTask(task.id, { ...values, projectId: values.projectId === '' ? undefined : values.projectId, dueDate: values.dueDate?.toISOString() });
             toast({ title: "Task Updated" });
         } else {
-            addTask({ ...values, dueDate: values.dueDate?.toISOString() });
+            addTask({ ...values, projectId: values.projectId === '' ? undefined : values.projectId, dueDate: values.dueDate?.toISOString() });
             toast({ title: "Task Added" });
         }
         onFinished();
@@ -132,11 +132,12 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                            {projects.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                {p.name}
-                                </SelectItem>
-                            ))}
+                                <SelectItem value="">Personal</SelectItem>
+                                {projects.map((p) => (
+                                    <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                         <FormMessage />

@@ -71,36 +71,6 @@
       },
       "required": ["id", "userId", "type", "name", "clientId", "amount", "description", "date", "accountId"]
     },
-    "Creditor": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Creditor",
-      "type": "object",
-      "description": "Represents a person or entity to whom the user owes money.",
-      "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the creditor." },
-        "userId": { "type": "string", "description": "Reference to the User who owes this debt. (Relationship: User 1:N Creditor)" },
-        "name": { "type": "string", "description": "The name of the creditor." },
-        "amount": { "type": "number", "description": "The amount owed to the creditor." },
-        "dueDate": { "type": "string", "description": "The date the debt is due.", "format": "date-time" },
-        "description": { "type": "string", "description": "Optional description or notes about the debt." }
-      },
-      "required": ["id", "userId", "name", "amount", "dueDate"]
-    },
-    "Debtor": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Debtor",
-      "type": "object",
-      "description": "Represents a person or entity who owes money to the user.",
-      "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the debtor." },
-        "userId": { "type": "string", "description": "Reference to the User who is owed this debt. (Relationship: User 1:N Debtor)" },
-        "name": { "type": "string", "description": "The name of the debtor." },
-        "amount": { "type": "number", "description": "The amount owed by the debtor." },
-        "dueDate": { "type": "string", "description": "The date the debt is due.", "format": "date-time" },
-        "description": { "type": "string", "description": "Optional description or notes about the debt." }
-      },
-      "required": ["id", "userId", "name", "amount", "dueDate"]
-    },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
@@ -171,21 +141,6 @@
       },
       "required": ["id", "userId", "name", "status", "createdAt"]
     },
-    "Hobby": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Hobby",
-      "description": "Represents a hobby or activity a user wants to track.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "timeGoal": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "name", "createdAt"]
-    },
     "Credential": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Credential",
@@ -207,115 +162,6 @@
   "auth": {
     "providers": [
       "password"
-    ]
-  },
-  "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": { "$ref": "#/backend/entities/User" },
-          "description": "Stores user profile information, including settings. The user can read/write their own profile.",
-          "params": [{ "name": "userId", "description": "The unique identifier of the user, matching the auth UID." }]
-        }
-      },
-      {
-        "path": "/users/{userId}/transactions/{transactionId}",
-        "definition": {
-          "entityName": "Transaction",
-          "schema": { "$ref": "#/backend/entities/Transaction" },
-          "description": "Stores transaction entries (income and expenses) for a specific user.",
-          "params": [
-            { "name": "userId", "description": "The unique identifier of the user." },
-            { "name": "transactionId", "description": "The unique identifier of the transaction entry." }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/debts/{debtId}",
-        "definition": {
-          "entityName": "Debt",
-          "schema": { "$ref": "#/backend/entities/Debt" },
-          "description": "Stores debt entries (creditors and debtors) for a specific user.",
-          "params": [
-            { "name": "userId", "description": "The unique identifier of the user." },
-            { "name": "debtId", "description": "The unique identifier of the debt entry." }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/bankAccounts/{accountId}",
-        "definition": {
-          "entityName": "BankAccount",
-          "schema": { "$ref": "#/backend/entities/BankAccount" },
-          "description": "Stores bank account information for a specific user.",
-          "params": [
-            { "name": "userId", "description": "The unique identifier of the user." },
-            { "name": "accountId", "description": "The unique identifier of the bank account." }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/chatHistory/{messageId}",
-        "definition": {
-          "entityName": "ChatMessage",
-          "schema": { "$ref": "#/backend/entities/ChatMessage" },
-          "description": "Stores the chat message history for a specific user.",
-          "params": [
-            { "name": "userId", "description": "The unique identifier of the user." },
-            { "name": "messageId", "description": "The unique identifier of the chat message." }
-          ]
-        }
-      },
-       {
-        "path": "/users/{userId}/tasks/{taskId}",
-        "definition": {
-          "entityName": "Task",
-          "schema": { "$ref": "#/backend/entities/Task" },
-          "description": "Stores tasks for a specific user.",
-          "params": [
-            { "name": "userId", "description": "The unique identifier of the user." },
-            { "name": "taskId", "description": "The unique identifier of the task." }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/hobbies/{hobbyId}",
-        "definition": {
-          "entityName": "Hobby",
-          "schema": { "$ref": "#/backend/entities/Hobby" },
-          "description": "Stores hobbies for a specific user.",
-          "params": [
-            { "name": "userId", "description": "The unique identifier of the user." },
-            { "name": "hobbyId", "description": "The unique identifier of the hobby." }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/credentials/{credentialId}",
-        "definition": {
-          "entityName": "Credential",
-          "schema": { "$ref": "#/backend/entities/Credential" },
-          "description": "Stores secure credentials for a specific user.",
-          "params": [
-            { "name": "userId", "description": "The unique identifier of the user." },
-            { "name": "credentialId", "description": "The unique identifier of the credential." }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/projects/{projectId}",
-        "definition": {
-          "entityName": "Project",
-          "schema": { "$ref": "#/backend/entities/Project" },
-          "description": "Stores business projects for a specific user.",
-          "params": [
-            { "name": "userId", "description": "The unique identifier of the user." },
-            { "name": "projectId", "description": "The unique identifier of the project." }
-          ]
-        }
-      }
     ]
   }
 }

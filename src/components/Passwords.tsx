@@ -53,16 +53,11 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
     });
 
     function onSubmit(values: z.infer<typeof credentialSchema>) {
-        const submissionValues = {
-            ...values,
-            projectId: values.projectId === 'personal' ? undefined : values.projectId,
-        };
-
         if (credential) {
-            updateCredential(credential.id, submissionValues);
+            updateCredential(credential.id, values);
             toast({ title: "Credential Updated" });
         } else {
-            addCredential(submissionValues);
+            addCredential(values);
             toast({ title: "Credential Added" });
         }
         onFinished();
@@ -206,6 +201,13 @@ export default function Passwords() {
         }
     });
 
+    // Don't show groups with no credentials, unless it's personal
+    for (const key in grouped) {
+      if (key !== 'personal' && grouped[key].length === 0) {
+        delete grouped[key];
+      }
+    }
+
     return grouped;
 
   }, [credentials, projects, searchTerm]);
@@ -241,7 +243,7 @@ export default function Passwords() {
                 </div>
               ) : credentials.length > 0 ? (
                 <Accordion type="multiple" className="w-full" defaultValue={['personal', ...projects.map(p => p.id)]}>
-                    {groupedCredentials.personal.length > 0 && (
+                    {groupedCredentials.personal?.length > 0 && (
                         <AccordionItem value="personal">
                             <AccordionTrigger>Personal ({groupedCredentials.personal.length})</AccordionTrigger>
                             <AccordionContent>
