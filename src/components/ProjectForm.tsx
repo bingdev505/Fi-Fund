@@ -17,7 +17,7 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import type { Project } from '@/lib/types';
+import type { AppProject } from '@/context/FinancialContext';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { useAuth } from '@/context/AuthContext';
@@ -29,7 +29,7 @@ const projectSchema = z.object({
 });
 
 type ProjectFormProps = {
-    project?: Project | null;
+    project?: AppProject | null;
     onFinished: () => void;
 }
 
@@ -46,7 +46,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
     resolver: zodResolver(projectSchema),
     defaultValues: {
       name: project?.name || '',
-      parentProjectId: project?.parentProjectId || '',
+      parentProjectId: project?.parentProjectId || 'none',
       googleSheetId: project?.googleSheetId || '',
     },
   });
@@ -55,11 +55,16 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
     const isNewProject = !project;
     const hasNewSheetId = values.googleSheetId && values.googleSheetId !== project?.googleSheetId;
 
+    const projectData = {
+        ...values,
+        parentProjectId: values.parentProjectId === 'none' ? undefined : values.parentProjectId
+    };
+
     if (project) {
-        await updateProject(project.id, values);
+        await updateProject(project.id, projectData);
         toast({ title: "Business Updated" });
     } else {
-        await addProject(values);
+        await addProject(projectData);
         toast({
           title: 'Business Added',
           description: `Business "${values.name}" has been created.`,
@@ -98,14 +103,14 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Parent Business (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ''}>
+                <Select onValueChange={field.onChange} value={field.value || 'none'}>
                     <FormControl>
                     <SelectTrigger>
                         <SelectValue placeholder="Select a parent business" />
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                     {projects.filter(p => p.id !== project?.id).map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
