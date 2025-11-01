@@ -44,12 +44,12 @@ export default function CategoryForm({ category, onFinished }: CategoryFormProps
     },
   });
 
-  function onSubmit(values: z.infer<typeof categorySchema>) {
+  async function onSubmit(values: z.infer<typeof categorySchema>) {
     if (category) {
-        updateCategory(category.id, values);
+        await updateCategory(category.id, values);
         toast({ title: 'Category Updated' });
     } else {
-        addCategory(values);
+        await addCategory(values);
         toast({
           title: 'Category Added',
           description: `Category "${values.name}" has been created.`,

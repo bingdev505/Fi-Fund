@@ -37,12 +37,12 @@ interface FinancialContextType {
   setPrimaryBankAccount: (accountId: string) => Promise<void>;
   
   clients: Client[];
-  addClient: (clientData: Omit<Client, 'id' | 'userId'>, projectId?: string) => Client;
+  addClient: (clientData: Omit<Client, 'id' | 'userId'>, projectId?: string) => Promise<Client>;
   updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id'>>) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
 
   categories: Category[];
-  addCategory: (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => void;
+  addCategory: (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => Promise<void>;
   updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id'>>) => Promise<void>;
   deleteCategory: (categoryId: string) => Promise<void>;
   
@@ -124,17 +124,17 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('credentials').select('*').eq('userId', userId).then(res => res.data || []),
       ]);
 
-      setAllProjects(projects);
-      setAllTransactions(transactions);
-      setAllDebts(debts);
-      setAllBankAccounts(bankAccounts);
-      setAllClients(clients);
-      setAllCategories(categories);
-      setAllTasks(tasks);
-      setAllHobbies(hobbies);
-      setAllCredentials(credentials);
+      setAllProjects(projects as Project[]);
+      setAllTransactions(transactions as Transaction[]);
+      setAllDebts(debts as Debt[]);
+      setAllBankAccounts(bankAccounts as BankAccount[]);
+      setAllClients(clients as Client[]);
+      setAllCategories(categories as Category[]);
+      setAllTasks(tasks as Task[]);
+      setAllHobbies(hobbies as Hobby[]);
+      setAllCredentials(credentials as Credential[]);
 
-      if (bankAccounts.length === 0) {
+      if ((bankAccounts as BankAccount[]).length === 0) {
         const { data: newAccount } = await supabase.from('bank_accounts').insert({ userId: userId, name: 'Primary Account', balance: 0, isPrimary: true }).select().single();
         if (newAccount) setAllBankAccounts([newAccount]);
       }
@@ -222,15 +222,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (activeProject?.id === projectId) setActiveProject(ALL_BUSINESS_PROJECT);
   };
 
-  const addClient = (clientData: Omit<Client, 'id' | 'userId'>, projectId?: string): Client => {
+  const addClient = async (clientData: Omit<Client, 'id' | 'userId'>, projectId?: string): Promise<Client> => {
     if (!user) throw new Error("User not authenticated");
     const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
-    const newClient = { ...clientData, id: crypto.randomUUID(), userId: user.id, projectId: finalProjectId };
-    
-    supabase.from('clients').insert(newClient).then(({ error }) => {
-      if (error) throw error;
-    });
-
+    const { data: newClient, error } = await supabase.from('clients').insert({ ...clientData, userId: user.id, projectId: finalProjectId }).select().single();
+    if (error) throw error;
     return newClient;
   };
 
@@ -244,12 +240,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addCategory = (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => {
+  const addCategory = async (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => {
     if (!user) return;
     const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
-    supabase.from('categories').insert({ ...categoryData, userId: user.id, projectId: finalProjectId }).then(({ error }) => {
-      if (error) throw error;
-    });
+    const { error } = await supabase.from('categories').insert({ ...categoryData, userId: user.id, projectId: finalProjectId });
+    if (error) throw error;
   };
 
   const updateCategory = async (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'userId'>>) => {
@@ -308,24 +303,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addDebt = async (debtData: Omit<Debt, 'id' | 'date' | 'userId' | 'clientId'> & { name: string, clientId?: string }, returnRef = false): Promise<{ id: string } | void> => {
+  const addDebt = async (debtData: Omit<Debt, 'id' | 'date' | 'userId' >, returnRef = false): Promise<{ id: string } | void> => {
     if (!user || !debtData.accountId) throw new Error("User not authenticated");
-    
-    let finalClientId = debtData.clientId;
-    if (!finalClientId) {
-      let client = allClients.find(c => c.name.toLowerCase() === debtData.name.toLowerCase() && (!c.projectId || c.projectId === debtData.projectId));
-      if (!client) {
-          const { data: newClient, error: clientError } = await supabase.from('clients').insert({ name: debtData.name, userId: user.id, projectId: debtData.projectId }).select().single();
-          if(clientError) throw clientError;
-          client = newClient;
-      }
-      finalClientId = client.id;
-    }
 
-    const { name, ...restOfDebtData } = debtData;
-    const finalDebtData = { ...restOfDebtData, clientId: finalClientId };
-
-    const { data: newDebt, error } = await supabase.from('debts').insert({ ...finalDebtData, userId: user.id, date: new Date().toISOString() }).select().single();
+    const { data: newDebt, error } = await supabase.from('debts').insert({ ...debtData, userId: user.id, date: new Date().toISOString() }).select().single();
     if (error) throw error;
 
     if (newDebt.type === 'creditor') { await updateAccountBalance(newDebt.accountId, newDebt.amount, 'add'); } 
@@ -458,17 +439,18 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     currency, setCurrency,
     isLoading: isLoading,
   }), [
-      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject,
-      filteredTransactions, allTransactions, getTransactionById,
-      filteredDebts, getDebtById,
-      allBankAccounts,
-      filteredClients,
-      filteredCategories,
-      filteredTasks,
-      allHobbies,
-      allCredentials,
+      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
+      filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
+      filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
+      allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
+      filteredClients, addClient, updateClient, deleteClient,
+      filteredCategories, addCategory, updateCategory, deleteCategory,
+      filteredTasks, addTask, updateTask, deleteTask,
+      allHobbies, addHobby, updateHobby, deleteHobby,
+      allCredentials, addCredential, updateCredential, deleteCredential,
       currency, setCurrency,
-      isLoading
+      isLoading,
+      updateAccountBalance
     ]);
 
   return (

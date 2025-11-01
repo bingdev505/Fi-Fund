@@ -36,12 +36,12 @@ export default function ClientForm({ client, onFinished }: ClientFormProps) {
     defaultValues: client ? { name: client.name } : { name: '' },
   });
 
-  function onSubmit(values: z.infer<typeof clientSchema>) {
+  async function onSubmit(values: z.infer<typeof clientSchema>) {
     if (client) {
-        updateClient(client.id, values);
+        await updateClient(client.id, values);
         toast({ title: 'Client Updated' });
     } else {
-        addClient(values);
+        await addClient(values);
         toast({
             title: 'Client Added',
             description: `Client "${values.name}" has been created.`,

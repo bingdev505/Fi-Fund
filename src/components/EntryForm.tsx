@@ -147,7 +147,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   }, [activeProject, form]);
 
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
 
     const projectId = data.projectId === '' ? undefined : data.projectId;
@@ -158,7 +158,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     if (data.clientName) {
         let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && (!c.projectId || c.projectId === projectId));
         if (!client) {
-            client = addClient({ name: data.clientName! }, projectId);
+            client = await addClient({ name: data.clientName! }, projectId);
         }
         finalClientId = client.id;
     }
@@ -167,10 +167,10 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       
       // Auto-create category if it's new
       if (data.category && !filteredCategories.includes(data.category) && (entryType === 'income' || entryType === 'expense')) {
-        addCategory({ name: data.category, type: entryType }, projectId);
+        await addCategory({ name: data.category, type: entryType }, projectId);
       }
 
-      addTransaction({
+      await addTransaction({
         type: entryType,
         amount: data.amount,
         category: entryType === 'transfer' ? 'Bank Transfer' : data.category!,
@@ -191,7 +191,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         return;
       }
       
-      addDebt({
+      await addDebt({
         type: entryType,
         amount: data.amount,
         name: data.clientName,
@@ -262,6 +262,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="">Personal</SelectItem>
                     {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
