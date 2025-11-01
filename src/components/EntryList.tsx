@@ -35,8 +35,10 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
   const { toast } = useToast();
 
   const allEntries = useMemo(() => {
-    const toDate = (date: any) => {
-        return parseISO(date);
+    const toDate = (date: any): Date => {
+        if (date instanceof Date) return date;
+        if (typeof date === 'string') return parseISO(date);
+        return new Date();
     }
 
     const combined: (Transaction | Debt)[] = [
@@ -107,15 +109,17 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
 
     switch (entry.type) {
       case 'income':
-        return <div className={`${iconContainerClass} bg-green-100`}><TrendingUp className={`${iconClass} text-green-600`} /></div>;
+        return <div className={`${iconContainerClass} bg-green-100 dark:bg-green-900/50`}><TrendingUp className={`${iconClass} text-green-600 dark:text-green-400`} /></div>;
       case 'expense':
-        return <div className={`${iconContainerClass} bg-red-100`}><TrendingDown className={`${iconClass} text-red-600`} /></div>;
+        return <div className={`${iconContainerClass} bg-red-100 dark:bg-red-900/50`}><TrendingDown className={`${iconClass} text-red-600 dark:text-red-400`} /></div>;
       case 'transfer':
-        return <div className={`${iconContainerClass} bg-blue-100`}><ArrowRightLeft className={`${iconClass} text-blue-600`} /></div>;
+        return <div className={`${iconContainerClass} bg-blue-100 dark:bg-blue-900/50`}><ArrowRightLeft className={`${iconClass} text-blue-600 dark:text-blue-400`} /></div>;
       case 'creditor':
-        return <div className={`${iconContainerClass} bg-orange-100`}><Landmark className={`${iconClass} text-orange-600`} /></div>;
+        return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><Landmark className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
       case 'debtor':
-        return <div className={`${iconContainerClass} bg-indigo-100`}><User className={`${iconClass} text-indigo-600`} /></div>;
+        return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><User className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
+      case 'repayment':
+          return <div className={`${iconContainerClass} bg-gray-100 dark:bg-gray-900/50`}><Landmark className={`${iconClass} text-gray-600 dark:text-gray-400`} /></div>;
     }
   };
 
@@ -137,6 +141,8 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
         subtext = `${debt.description} (${getAccountName(debt.accountId)})`;
     }
 
+    const entryDate = entry.date as Date;
+    const dueDate = (entry as Debt).dueDate as Date | undefined;
 
     return (
         <div className="flex items-start justify-between py-3 group">
@@ -147,10 +153,10 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
                         {isTransaction ? (entry as Transaction).description : (entry as Debt).name}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {subtext} • {(entry.date as Date).toLocaleDateString()}
+                        {subtext} • {entryDate instanceof Date ? entryDate.toLocaleDateString() : entryDate}
                     </p>
-                    {!isTransaction && (entry as Debt).dueDate && (
-                        <p className="text-xs text-muted-foreground">Due: {((entry as Debt).dueDate as Date).toLocaleDateString()}</p>
+                    {!isTransaction && dueDate && (
+                        <p className="text-xs text-muted-foreground">Due: {dueDate instanceof Date ? dueDate.toLocaleDateString() : dueDate}</p>
                     )}
                 </div>
             </div>
