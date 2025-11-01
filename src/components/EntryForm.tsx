@@ -122,7 +122,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       fromAccountId: '',
       toAccountId: '',
       dueDate: undefined,
-      projectId: activeProject && activeProject.id !== 'all' ? activeProject.id : undefined,
+      projectId: activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal',
     },
   });
 
@@ -130,33 +130,35 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   const selectedProjectId = form.watch('projectId');
 
   const filteredClients = useMemo(() => {
-    if (!selectedProjectId) return clients.filter(c => !c.projectId);
-    return clients.filter(c => c.projectId === selectedProjectId);
+    const projectId = selectedProjectId === 'personal' ? undefined : selectedProjectId;
+    if (!projectId) return clients.filter(c => !c.projectId);
+    return clients.filter(c => c.projectId === projectId);
   }, [clients, selectedProjectId]);
 
   const filteredCategories = useMemo(() => {
+    const projectId = selectedProjectId === 'personal' ? undefined : selectedProjectId;
     const baseCategories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
     const projectCategories = customCategories
-        .filter(c => (!selectedProjectId || c.projectId === selectedProjectId) && c.type === entryType)
+        .filter(c => c.type === entryType && ((!projectId && !c.projectId) || c.projectId === projectId))
         .map(c => c.name);
     return [...new Set([...baseCategories, ...projectCategories])];
   }, [entryType, customCategories, selectedProjectId]);
   
    useEffect(() => {
-    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
+    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal');
   }, [activeProject, form]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
 
-    const projectId = data.projectId === '' ? undefined : data.projectId;
+    const projectId = data.projectId === 'personal' ? undefined : data.projectId;
 
     let finalClientId: string | undefined;
 
     // Handle client creation/selection for all types that use clientName
     if (data.clientName) {
-        let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && (!c.projectId || c.projectId === projectId));
+        let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && ((!c.projectId && !projectId) || c.projectId === projectId));
         if (!client) {
             client = await addClient({ name: data.clientName! }, projectId);
         }
@@ -194,7 +196,6 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       await addDebt({
         type: entryType,
         amount: data.amount,
-        name: data.clientName,
         clientId: finalClientId,
         description: data.description,
         dueDate: data.dueDate,
@@ -255,14 +256,14 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Business (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ''}>
+                <Select onValueChange={field.onChange} value={field.value || 'personal'}>
                     <FormControl>
                     <SelectTrigger>
                         <SelectValue placeholder="Personal / No Business" />
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Personal</SelectItem>
+                      <SelectItem value="personal">Personal</SelectItem>
                     {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -526,3 +527,5 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
+
+    
