@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import RepaymentForm from './RepaymentForm';
-import { parseISO } from 'date-fns';
+import { parseISO, format } from 'date-fns';
 
 
 type DebtListProps = {
@@ -26,9 +26,11 @@ export default function DebtList({ type, limit }: DebtListProps) {
   const [openDialogId, setOpenDialogId] = useState<string | null>(null);
 
   const filteredDebts = useMemo(() => {
-    const toDate = (date: any) => {
-        return parseISO(date);
-    }
+    const toDate = (date: any): Date => {
+      if (date instanceof Date) return date;
+      if (typeof date === 'string') return parseISO(date);
+      return new Date();
+    };
 
     const filtered = debts
       .filter(d => d.type === type && d.amount > 0)
@@ -83,6 +85,8 @@ export default function DebtList({ type, limit }: DebtListProps) {
   const renderEntry = (entry: Debt) => {
     const color = entry.type === 'creditor' ? 'text-red-600' : 'text-green-600';
     const RepaymentIcon = entry.type === 'debtor' ? ArrowDownCircle : ArrowUpCircle;
+    const entryDate = entry.date as Date;
+    const dueDate = entry.dueDate as Date | undefined;
     
     return (
       <Dialog open={openDialogId === entry.id} onOpenChange={(isOpen) => setOpenDialogId(isOpen ? entry.id : null)}>
@@ -94,10 +98,10 @@ export default function DebtList({ type, limit }: DebtListProps) {
                         {entry.name}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {entry.description} ({getAccountName(entry.accountId)}) • {entry.date.toLocaleDateString()}
+                        {entry.description} ({getAccountName(entry.accountId)}) • {entryDate instanceof Date ? entryDate.toLocaleDateString() : entryDate}
                     </p>
-                    {entry.dueDate && (
-                        <p className="text-xs text-muted-foreground">Due: {entry.dueDate.toLocaleDateString()}</p>
+                    {dueDate && (
+                        <p className="text-xs text-muted-foreground">Due: {dueDate instanceof Date ? dueDate.toLocaleDateString() : dueDate}</p>
                     )}
                 </div>
             </div>
