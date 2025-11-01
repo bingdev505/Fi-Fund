@@ -5,55 +5,53 @@ export type LocalTimestamp = string;
 
 export type Transaction = {
   id: string;
-  userId: string;
-  projectId?: string;
+  user_id: string;
+  project_id?: string;
   type: 'income' | 'expense' | 'transfer' | 'repayment';
   category: string;
   amount: number;
   description: string;
   date: LocalTimestamp;
-  accountId?: string;
-  fromAccountId?: string;
-  toAccountId?: string;
-  debtId?: string; // To link repayment to a debt
-  clientId?: string; // To link income/expense to a client
+  account_id?: string;
+  from_account_id?: string;
+  to_account_id?: string;
+  debt_id?: string; // To link repayment to a debt
+  client_id?: string; // To link income/expense to a client
 };
 
 export type Debt = {
   id:string;
-  userId: string;
-  projectId?: string;
+  user_id: string;
+  project_id?: string;
   type: 'creditor' | 'debtor';
-  name: string; // This will now be the client's name from the Client list
-  clientId: string; // Link to the Client
+  client_id: string; // Link to the Client
   amount: number;
   description: string;
-  dueDate?: LocalTimestamp;
+  due_date?: LocalTimestamp;
   date: LocalTimestamp;
-  accountId: string;
+  account_id: string;
 };
 
 export type BankAccount = {
   id: string;
-  userId: string;
+  user_id: string;
   name: string;
   balance: number;
-  isPrimary: boolean;
+  is_primary: boolean;
 };
 
 export type UserSettings = {
-  id: string;
-  email: string;
+  user_id: string;
   currency: string;
 }
 
 export type Project = {
   id: string;
-  userId: string;
+  user_id: string;
   name: string;
   created_at: LocalTimestamp;
-  parentProjectId?: string;
-  googleSheetId?: string;
+  parent_project_id?: string;
+  google_sheet_id?: string;
 }
 
 export type ChatMessage = {
@@ -67,37 +65,37 @@ export type ChatMessage = {
 
 export type Client = {
   id: string;
-  userId: string;
-  projectId?: string;
+  user_id: string;
+  project_id?: string;
   name: string;
 };
 
 export type Category = {
   id: string;
-  userId: string;
-  projectId?: string;
+  user_id: string;
+  project_id?: string;
   name: string;
   type: 'income' | 'expense';
 };
 
 export type Task = {
   id: string;
-  userId: string;
-  projectId?: string;
+  user_id: string;
+  project_id?: string;
   name: string;
   description?: string;
   status: 'todo' | 'in-progress' | 'done';
-  dueDate?: LocalTimestamp;
+  due_date?: LocalTimestamp;
   created_at: LocalTimestamp;
 };
 
 export type Credential = {
   id: string;
-  userId: string;
-  projectId?: string;
-  siteName: string;
+  user_id: string;
+  project_id?: string;
+  site_name: string;
   username: string;
   password?: string;
-  totpSecret?: string;
+  totp_secret?: string;
   created_at: LocalTimestamp;
 };
