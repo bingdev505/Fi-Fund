@@ -51,15 +51,15 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
     },
   });
 
-  function onSubmit(values: z.infer<typeof projectSchema>) {
+  async function onSubmit(values: z.infer<typeof projectSchema>) {
     const isNewProject = !project;
     const hasNewSheetId = values.googleSheetId && values.googleSheetId !== project?.googleSheetId;
 
     if (project) {
-        updateProject(project.id, values);
+        await updateProject(project.id, values);
         toast({ title: "Business Updated" });
     } else {
-        addProject(values);
+        await addProject(values);
         toast({
           title: 'Business Added',
           description: `Business "${values.name}" has been created.`,
