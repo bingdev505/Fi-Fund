@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "Project": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Project",
+      "description": "Represents a business or project for organizing financial data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the project." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this project." },
+        "name": { "type": "string", "description": "The name of the project." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The date the project was created." },
+        "parentProjectId": { "type": "string", "description": "Optional reference to a parent project." },
+        "googleSheetId": { "type": "string", "description": "Optional ID for a linked Google Sheet." }
+      },
+      "required": ["id", "userId", "name", "createdAt"]
+    },
+    "ChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Chat Message",
+      "description": "Represents a single message in a user's chat history.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the chat message." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this message." },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string", "description": "The text content of the message." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "The time the message was sent." }
+      },
+      "required": ["id", "userId", "role", "content", "timestamp"]
+    },
+    "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents an income, expense, or transfer transaction for a user.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer", "repayment"] },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "accountId": { "type": "string" },
+        "fromAccountId": { "type": "string" },
+        "toAccountId": { "type": "string" },
+        "debtId": { "type": "string" },
+        "clientId": { "type": "string" }
+      },
+      "required": ["id", "userId", "type", "category", "amount", "description", "date"]
+    },
+    "Debt": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Debt",
+      "type": "object",
+      "description": "Represents a debt owed to or by the user.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["creditor", "debtor"] },
+        "name": { "type": "string" },
+        "clientId": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "date": { "type": "string", "format": "date-time" },
+        "accountId": { "type": "string" }
+      },
+      "required": ["id", "userId", "type", "name", "clientId", "amount", "description", "date", "accountId"]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the user." },
+        "email": { "type": "string", "description": "The email address of the user.", "format": "email" },
+        "currency": { "type": "string", "description": "The user's preferred currency." }
+      },
+      "required": ["id", "email"]
+    },
+    "BankAccount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Bank Account",
+      "type": "object",
+      "description": "Represents a bank account for a user.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the bank account." },
+        "userId": { "type": "string", "description": "Reference to the User who owns this account." },
+        "name": { "type": "string", "description": "The name of the bank account (e.g., 'Savings', 'Checking')." },
+        "balance": { "type": "number", "description": "The current balance of the account." },
+        "isPrimary": { "type": "boolean", "description": "Indicates if this is the user's primary bank account." }
+      },
+      "required": ["id", "userId", "name", "balance"]
+    },
+    "Client": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Client",
+      "type": "object",
+      "description": "Represents a client or contact for a specific business/project.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "userId", "name"]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a custom income or expense category for a specific business/project.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] }
+      },
+      "required": ["id", "userId", "name", "type"]
+    },
+     "Task": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Task",
+      "description": "Represents a task to be tracked by a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
+        "dueDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "status"]
+    },
+    "Credential": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Credential",
+      "description": "Represents a stored credential (password, TOTP secret) for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "siteName": { "type": "string" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "totpSecret": { "type": "string" }
+      },
+      "required": ["id", "userId", "siteName", "username"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ]
+  }
+}

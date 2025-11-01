@@ -55,7 +55,7 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
         }
     });
 
-    function onSubmit(values: z.infer<typeof taskSchema>) {
+    async function onSubmit(values: z.infer<typeof taskSchema>) {
         const finalValues = {
             ...values,
             projectId: values.projectId === 'personal' ? undefined : values.projectId,
@@ -63,10 +63,10 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
         };
 
         if (task) {
-            updateTask(task.id, finalValues);
+            await updateTask(task.id, finalValues);
             toast({ title: "Task Updated" });
         } else {
-            addTask(finalValues);
+            await addTask(finalValues);
             toast({ title: "Task Added" });
         }
         onFinished();
@@ -139,11 +139,11 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                             </FormControl>
                             <SelectContent>
                                 <SelectItem value="personal">Personal</SelectItem>
-                                {projects.map((p) => (
-                                    <SelectItem key={p.id} value={p.id}>
-                                    {p.name}
-                                    </SelectItem>
-                                ))}
+                            {projects.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                {p.name}
+                                </SelectItem>
+                            ))}
                             </SelectContent>
                         </Select>
                         <FormMessage />

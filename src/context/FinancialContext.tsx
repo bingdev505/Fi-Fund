@@ -47,13 +47,13 @@ interface FinancialContextType {
   deleteCategory: (categoryId: string) => Promise<void>;
   
   tasks: Task[];
-  addTask: (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  addTask: (taskData: Omit<Task, 'id' | 'userId'>) => Promise<void>;
+  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId'>>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   
   credentials: Credential[];
-  addCredential: (credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  updateCredential: (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  addCredential: (credentialData: Omit<Credential, 'id' | 'userId'>) => Promise<void>;
+  updateCredential: (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId'>>) => Promise<void>;
   deleteCredential: (credentialId: string) => Promise<void>;
 
   currency: string;
@@ -227,7 +227,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addProject = async (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>): Promise<Project> => {
     if (!user) throw new Error("User not authenticated");
-    const { data: newProject, error } = await supabase.from('projects').insert({ ...projectData, userId: user.id }).select().single();
+    const { data: newProject, error } = await supabase.from('projects').insert({ ...projectData, userId: user.id, createdAt: new Date().toISOString() }).select().single();
     if (error) throw error;
     return newProject;
   };
@@ -392,13 +392,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const getTransactionById = useCallback((id: string) => allTransactions.find(t => t.id === id), [allTransactions]);
   const getDebtById = useCallback((id: string) => allDebts.find(d => d.id === id), [allDebts]);
 
-  const addTask = async (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => {
+  const addTask = async (taskData: Omit<Task, 'id' | 'userId'>) => {
     if (!user) return;
-    const { error } = await supabase.from('tasks').insert({ ...taskData, userId: user.id, createdAt: new Date().toISOString() });
+    const { error } = await supabase.from('tasks').insert({ ...taskData, userId: user.id });
     if (error) throw error;
   };
 
-  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'createdAt'>>) => {
+  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId'>>) => {
     const { error } = await supabase.from('tasks').update(taskData).eq('id', taskId);
     if (error) throw error;
   };
@@ -408,15 +408,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addCredential = async (credentialData: Omit<Credential, 'id' | 'userId' | 'createdAt'>) => {
+  const addCredential = async (credentialData: Omit<Credential, 'id' | 'userId'>) => {
     if (!user) return;
     const { projectId, ...restData } = credentialData;
     const finalData = { ...restData, projectId: projectId === 'personal' ? undefined : projectId };
-    const { error } = await supabase.from('credentials').insert({ ...finalData, userId: user.id, createdAt: new Date().toISOString() });
+    const { error } = await supabase.from('credentials').insert({ ...finalData, userId: user.id });
     if (error) throw error;
   };
 
-  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'createdAt'>>) => {
+  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId'>>) => {
     const { projectId, ...restData } = credentialData;
     const finalData = { ...restData, projectId: projectId === 'personal' ? undefined : projectId };
     const { error } = await supabase.from('credentials').update(finalData).eq('id', credentialId);

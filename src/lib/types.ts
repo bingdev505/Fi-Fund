@@ -88,16 +88,6 @@ export type Task = {
   description?: string;
   status: 'todo' | 'in-progress' | 'done';
   dueDate?: LocalTimestamp;
-  createdAt: LocalTimestamp;
-};
-
-export type Hobby = {
-  id: string;
-  userId: string;
-  name: string;
-  description?: string;
-  timeGoal?: number; // Weekly time goal in minutes
-  createdAt: LocalTimestamp;
 };
 
 export type Credential = {
@@ -108,5 +98,4 @@ export type Credential = {
   username: string;
   password?: string;
   totpSecret?: string;
-  createdAt: LocalTimestamp;
 };
