@@ -28,9 +28,7 @@ import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose 
 import { Button } from '@/components/ui/button';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
-import { useUser } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import {
@@ -55,8 +53,7 @@ const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', userId:
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading: isUserLoading, signOut } = useAuth();
   const { projects, activeProject, setActiveProject, isLoading: isFinancialsLoading } = useFinancials();
   const [open, setOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
@@ -92,7 +89,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await signOut();
       router.push('/login');
     } catch (error) {
       console.error("Error signing out:", error);

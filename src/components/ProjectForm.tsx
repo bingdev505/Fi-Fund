@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import type { Project } from '@/lib/types';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
-import { useUser } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -40,7 +40,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
   const { toast } = useToast();
   const [showSheetShareDialog, setShowSheetShareDialog] = useState(false);
   const [submittedSheetId, setSubmittedSheetId] = useState<string | null>(null);
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const form = useForm<z.infer<typeof projectSchema>>({
     resolver: zodResolver(projectSchema),

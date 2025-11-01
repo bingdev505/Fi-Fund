@@ -6,15 +6,15 @@ import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import EntryList from './EntryList';
-import { useUser } from '@/firebase';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import EntryForm from './EntryForm';
 import SummaryCard from './SummaryCard';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Overview() {
   const { transactions, debts, currency, isLoading, bankAccounts } = useFinancials();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [entryFormOpen, setEntryFormOpen] = useState(false);
 
   const formatCurrency = (amount: number) => {

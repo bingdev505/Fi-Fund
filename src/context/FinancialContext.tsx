@@ -2,9 +2,9 @@
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
 import type { Transaction, Debt, BankAccount, UserSettings, Project, Client, Category, Task, Hobby, Credential } from '@/lib/types';
-import { useUser } from '@/firebase';
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from './AuthContext';
 
 interface FinancialContextType {
   projects: Project[];
@@ -37,12 +37,12 @@ interface FinancialContextType {
   setPrimaryBankAccount: (accountId: string) => Promise<void>;
   
   clients: Client[];
-  addClient: (clientData: Omit<Client, 'id'>, projectId?: string) => Promise<Client>;
+  addClient: (clientData: Omit<Client, 'id' | 'userId'>, projectId?: string) => Client;
   updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id'>>) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
 
   categories: Category[];
-  addCategory: (categoryData: Omit<Category, 'id'>, projectId?: string) => Promise<void>;
+  addCategory: (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => void;
   updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id'>>) => Promise<void>;
   deleteCategory: (categoryId: string) => Promise<void>;
   
@@ -69,15 +69,15 @@ interface FinancialContextType {
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
 
 const useLocalStorageKey = (key: string) => {
-  const { user } = useUser();
-  return user ? `financeflow_${user.uid}_${key}` : null;
+  const { user } = useAuth();
+  return user ? `financeflow_${user.id}_${key}` : null;
 };
 
 const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', userId: '', createdAt: new Date().toISOString() };
 
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading: isUserLoading } = useAuth();
   const { toast } = useToast();
 
   const activeProjectKey = useLocalStorageKey('activeProject');
@@ -169,12 +169,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user && !isUserLoading) {
-      fetchData(user.uid);
+      fetchData(user.id);
       
       const changes = supabase.channel('financial-changes')
         .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
             console.log('Change received!', payload);
-            fetchData(user.uid); // Refetch all data on any change
+            fetchData(user.id); // Refetch all data on any change
         })
         .subscribe();
 
@@ -206,7 +206,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addProject = async (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>): Promise<Project> => {
     if (!user) throw new Error("User not authenticated");
-    const { data: newProject, error } = await supabase.from('projects').insert({ ...projectData, userId: user.uid }).select().single();
+    const { data: newProject, error } = await supabase.from('projects').insert({ ...projectData, userId: user.id }).select().single();
     if (error) throw error;
     return newProject;
   };
@@ -222,15 +222,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (activeProject?.id === projectId) setActiveProject(ALL_BUSINESS_PROJECT);
   };
 
-  const addClient = async (clientData: Omit<Client, 'id'>, projectId?: string): Promise<Client> => {
+  const addClient = (clientData: Omit<Client, 'id' | 'userId'>, projectId?: string): Client => {
     if (!user) throw new Error("User not authenticated");
     const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
-    const { data: newClient, error } = await supabase.from('clients').insert({ ...clientData, userId: user.uid, projectId: finalProjectId }).select().single();
-    if (error) throw error;
+    const newClient = { ...clientData, id: crypto.randomUUID(), userId: user.id, projectId: finalProjectId };
+    
+    supabase.from('clients').insert(newClient).then(({ error }) => {
+      if (error) throw error;
+    });
+
     return newClient;
   };
 
-  const updateClient = async (clientId: string, clientData: Partial<Omit<Client, 'id'>>) => {
+  const updateClient = async (clientId: string, clientData: Partial<Omit<Client, 'id' | 'userId'>>) => {
     const { error } = await supabase.from('clients').update(clientData).eq('id', clientId);
     if (error) throw error;
   };
@@ -240,14 +244,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addCategory = async (categoryData: Omit<Category, 'id'>, projectId?: string) => {
+  const addCategory = (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => {
     if (!user) return;
     const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
-    const { error } = await supabase.from('categories').insert({ ...categoryData, userId: user.uid, projectId: finalProjectId });
-    if (error) throw error;
+    supabase.from('categories').insert({ ...categoryData, userId: user.id, projectId: finalProjectId }).then(({ error }) => {
+      if (error) throw error;
+    });
   };
 
-  const updateCategory = async (categoryId: string, categoryData: Partial<Omit<Category, 'id'>>) => {
+  const updateCategory = async (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'userId'>>) => {
     const { error } = await supabase.from('categories').update(categoryData).eq('id', categoryId);
     if (error) throw error;
   };
@@ -267,7 +272,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'date' | 'userId'>, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
-    const { data: newTransaction, error } = await supabase.from('transactions').insert({ ...transactionData, userId: user.uid, date: new Date().toISOString() }).select().single();
+    const { data: newTransaction, error } = await supabase.from('transactions').insert({ ...transactionData, userId: user.id, date: new Date().toISOString() }).select().single();
     if (error) throw error;
     
     if (newTransaction.type === 'income' && newTransaction.accountId) { await updateAccountBalance(newTransaction.accountId, newTransaction.amount, 'add'); } 
@@ -303,9 +308,24 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addDebt = async (debtData: Omit<Debt, 'id' | 'date' | 'userId'>, returnRef = false): Promise<{ id: string } | void> => {
+  const addDebt = async (debtData: Omit<Debt, 'id' | 'date' | 'userId' | 'clientId'> & { name: string, clientId?: string }, returnRef = false): Promise<{ id: string } | void> => {
     if (!user || !debtData.accountId) throw new Error("User not authenticated");
-    const { data: newDebt, error } = await supabase.from('debts').insert({ ...debtData, userId: user.uid, date: new Date().toISOString() }).select().single();
+    
+    let finalClientId = debtData.clientId;
+    if (!finalClientId) {
+      let client = allClients.find(c => c.name.toLowerCase() === debtData.name.toLowerCase() && (!c.projectId || c.projectId === debtData.projectId));
+      if (!client) {
+          const { data: newClient, error: clientError } = await supabase.from('clients').insert({ name: debtData.name, userId: user.id, projectId: debtData.projectId }).select().single();
+          if(clientError) throw clientError;
+          client = newClient;
+      }
+      finalClientId = client.id;
+    }
+
+    const { name, ...restOfDebtData } = debtData;
+    const finalDebtData = { ...restOfDebtData, clientId: finalClientId };
+
+    const { data: newDebt, error } = await supabase.from('debts').insert({ ...finalDebtData, userId: user.id, date: new Date().toISOString() }).select().single();
     if (error) throw error;
 
     if (newDebt.type === 'creditor') { await updateAccountBalance(newDebt.accountId, newDebt.amount, 'add'); } 
@@ -339,7 +359,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'userId'>) => {
     if (!user) return;
-    const { error } = await supabase.from('bank_accounts').insert({ ...account, userId: user.uid, isPrimary: allBankAccounts.length === 0 });
+    const { error } = await supabase.from('bank_accounts').insert({ ...account, userId: user.id, isPrimary: allBankAccounts.length === 0 });
     if (error) throw error;
   };
 
@@ -368,7 +388,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addTask = async (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => {
     if (!user) return;
-    const { error } = await supabase.from('tasks').insert({ ...taskData, userId: user.uid, createdAt: new Date().toISOString() });
+    const { error } = await supabase.from('tasks').insert({ ...taskData, userId: user.id, createdAt: new Date().toISOString() });
     if (error) throw error;
   };
 
@@ -384,7 +404,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   
   const addHobby = async (hobbyData: Omit<Hobby, 'id' | 'userId' | 'createdAt'>) => {
     if (!user) return;
-    const { error } = await supabase.from('hobbies').insert({ ...hobbyData, userId: user.uid, createdAt: new Date().toISOString() });
+    const { error } = await supabase.from('hobbies').insert({ ...hobbyData, userId: user.id, createdAt: new Date().toISOString() });
     if (error) throw error;
   };
 
@@ -402,7 +422,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const { projectId, ...restData } = credentialData;
     const finalData = { ...restData, projectId: projectId === '' ? undefined : projectId };
-    const { error } = await supabase.from('credentials').insert({ ...finalData, userId: user.uid, createdAt: new Date().toISOString() });
+    const { error } = await supabase.from('credentials').insert({ ...finalData, userId: user.id, createdAt: new Date().toISOString() });
     if (error) throw error;
   };
 
@@ -438,15 +458,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     currency, setCurrency,
     isLoading: isLoading,
   }), [
-      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
-      filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
-      filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
-      allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
-      filteredClients, addClient, updateClient, deleteClient,
-      filteredCategories, addCategory, updateCategory, deleteCategory,
-      filteredTasks, addTask, updateTask, deleteTask,
-      allHobbies, addHobby, updateHobby, deleteHobby,
-      allCredentials, addCredential, updateCredential, deleteCredential,
+      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject,
+      filteredTransactions, allTransactions, getTransactionById,
+      filteredDebts, getDebtById,
+      allBankAccounts,
+      filteredClients,
+      filteredCategories,
+      filteredTasks,
+      allHobbies,
+      allCredentials,
       currency, setCurrency,
       isLoading
     ]);

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -10,7 +9,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase';
 import type { ChatMessage as ChatMessageType, Debt, Transaction } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -20,13 +18,14 @@ import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import EditEntryForm from './EditEntryForm';
 import EntryForm from './EntryForm';
+import { useAuth } from '@/context/AuthContext';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
 // Hook to manage chat history in local storage
 const useChatHistory = () => {
-    const { user } = useUser();
-    const storageKey = user ? `financeflow_chat_${user.uid}` : null;
+    const { user } = useAuth();
+    const storageKey = user ? `financeflow_chat_${user.id}` : null;
     const [messages, setMessages] = useState<ChatMessageType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -89,7 +88,7 @@ const useChatHistory = () => {
 
 
 export default function AIChat() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [input, setInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const { 
@@ -103,8 +102,6 @@ export default function AIChat() {
     getDebtById,
     deleteTransaction,
     deleteDebt,
-    updateTransaction,
-    updateDebt,
   } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);

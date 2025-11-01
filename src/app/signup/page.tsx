@@ -15,12 +15,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase_client';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -28,7 +27,6 @@ const formSchema = z.object({
 });
 
 export default function SignupPage() {
-  const auth = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -43,24 +41,23 @@ export default function SignupPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
-      
-      // Since we use local storage, we don't need to create a user doc on signup.
-      // The FinancialContext will handle creating default data on first load.
-      
-      router.push('/overview');
+    const { error } = await supabase.auth.signUp(values);
 
-    } catch (error: any) {
+    if (error) {
       console.error('Signup Error:', error);
       toast({
         variant: 'destructive',
         title: 'Sign-up Failed',
         description: error.message || 'An unexpected error occurred.',
       });
-    } finally {
-      setIsLoading(false);
+    } else {
+       toast({
+        title: 'Check your email',
+        description: 'We sent you a link to verify your email address.',
+      });
+      router.push('/login');
     }
+    setIsLoading(false);
   }
 
   return (

@@ -15,12 +15,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase_client';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -28,7 +27,6 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
-  const auth = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -43,19 +41,19 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      router.push('/overview');
-    } catch (error: any) {
+    const { error } = await supabase.auth.signInWithPassword(values);
+
+    if (error) {
       console.error('Login Error:', error);
       toast({
         variant: 'destructive',
         title: 'Login Failed',
         description: error.message || 'An unexpected error occurred.',
       });
-    } finally {
-      setIsLoading(false);
+    } else {
+      router.push('/overview');
     }
+    setIsLoading(false);
   }
 
   return (
