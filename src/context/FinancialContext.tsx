@@ -42,7 +42,7 @@ interface FinancialContextType {
   deleteClient: (clientId: string) => Promise<void>;
 
   categories: Category[];
-  addCategory: (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => Promise<void>;
+  addCategory: (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => Promise<Category>;
   updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id'>>) => Promise<void>;
   deleteCategory: (categoryId: string) => Promise<void>;
   
@@ -261,11 +261,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addCategory = async (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string) => {
-    if (!user) return;
+  const addCategory = async (categoryData: Omit<Category, 'id' | 'userId'>, projectId?: string): Promise<Category> => {
+    if (!user) throw new Error("User not authenticated");
     const finalProjectId = projectId || (activeProject && activeProject.id !== 'all' ? activeProject.id : undefined);
-    const { error } = await supabase.from('categories').insert({ ...categoryData, userId: user.id, projectId: finalProjectId });
+    const { data: newCategory, error } = await supabase.from('categories').insert({ ...categoryData, userId: user.id, projectId: finalProjectId }).select().single();
     if (error) throw error;
+    return newCategory;
   };
 
   const updateCategory = async (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'userId'>>) => {
@@ -448,16 +449,23 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
   }), [
       allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
-      filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
-      filteredDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
-      allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
-      filteredClients, addClient, updateClient, deleteClient,
-      filteredCategories, addCategory, updateCategory, deleteCategory,
-      filteredTasks, addTask, updateTask, deleteTask,
-      filteredCredentials, addCredential, updateCredential, deleteCredential,
+      filteredTransactions, allTransactions, getTransactionById,
+      filteredDebts, getDebtById,
+      allBankAccounts,
+      filteredClients,
+      filteredCategories,
+      filteredTasks,
+      filteredCredentials,
       currency, setCurrency,
       isLoading, isUserLoading,
-      updateAccountBalance
+      updateAccountBalance,
+      addTransaction, updateTransaction, deleteTransaction,
+      addDebt, updateDebt, deleteDebt, addRepayment,
+      addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
+      addClient, updateClient, deleteClient,
+      addCategory, updateCategory, deleteCategory,
+      addTask, updateTask, deleteTask,
+      addCredential, updateCredential, deleteCredential
     ]);
 
   return (
