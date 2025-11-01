@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PlusCircle, ListTodo, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -46,21 +46,27 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             description: task.description || '',
             status: task.status,
             dueDate: task.dueDate ? parseISO(task.dueDate) : undefined,
-            projectId: task.projectId || (activeProject?.id !== 'all' ? activeProject?.id : undefined),
+            projectId: task.projectId || 'personal',
         } : {
             name: '',
             description: '',
             status: 'todo',
-            projectId: activeProject?.id !== 'all' ? activeProject?.id : undefined,
+            projectId: activeProject?.id !== 'all' ? activeProject?.id : 'personal',
         }
     });
 
     function onSubmit(values: z.infer<typeof taskSchema>) {
+        const finalValues = {
+            ...values,
+            projectId: values.projectId === 'personal' ? undefined : values.projectId,
+            dueDate: values.dueDate?.toISOString(),
+        };
+
         if (task) {
-            updateTask(task.id, { ...values, projectId: values.projectId === '' ? undefined : values.projectId, dueDate: values.dueDate?.toISOString() });
+            updateTask(task.id, finalValues);
             toast({ title: "Task Updated" });
         } else {
-            addTask({ ...values, projectId: values.projectId === '' ? undefined : values.projectId, dueDate: values.dueDate?.toISOString() });
+            addTask(finalValues);
             toast({ title: "Task Added" });
         }
         onFinished();
@@ -125,14 +131,14 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Business (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select onValueChange={field.onChange} value={field.value || 'personal'}>
                             <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Personal / No Business" />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="">Personal</SelectItem>
+                                <SelectItem value="personal">Personal</SelectItem>
                                 {projects.map((p) => (
                                     <SelectItem key={p.id} value={p.id}>
                                     {p.name}
