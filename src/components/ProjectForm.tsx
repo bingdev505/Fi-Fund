@@ -105,6 +105,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="">None</SelectItem>
                     {projects.filter(p => p.id !== project?.id).map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}

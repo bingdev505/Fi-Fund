@@ -9,11 +9,11 @@
         "id": { "type": "string", "description": "Unique identifier for the project." },
         "userId": { "type": "string", "description": "Reference to the User who owns this project." },
         "name": { "type": "string", "description": "The name of the project." },
-        "createdAt": { "type": "string", "format": "date-time", "description": "The date the project was created." },
+        "created_at": { "type": "string", "format": "date-time", "description": "The date the project was created." },
         "parentProjectId": { "type": "string", "description": "Optional reference to a parent project." },
         "googleSheetId": { "type": "string", "description": "Optional ID for a linked Google Sheet." }
       },
-      "required": ["id", "userId", "name", "createdAt"]
+      "required": ["id", "userId", "name", "created_at"]
     },
     "ChatMessage": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -136,9 +136,10 @@
         "name": { "type": "string" },
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
-        "dueDate": { "type": "string", "format": "date-time" }
+        "dueDate": { "type": "string", "format": "date-time" },
+        "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "name", "status"]
+      "required": ["id", "userId", "name", "status", "created_at"]
     },
     "Credential": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -152,9 +153,10 @@
         "siteName": { "type": "string" },
         "username": { "type": "string" },
         "password": { "type": "string" },
-        "totpSecret": { "type": "string" }
+        "totpSecret": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "siteName", "username"]
+      "required": ["id", "userId", "siteName", "username", "created_at"]
     }
   },
   "auth": {

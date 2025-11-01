@@ -51,7 +51,7 @@ export type Project = {
   id: string;
   userId: string;
   name: string;
-  createdAt: LocalTimestamp;
+  created_at: LocalTimestamp;
   parentProjectId?: string;
   googleSheetId?: string;
 }
@@ -88,6 +88,7 @@ export type Task = {
   description?: string;
   status: 'todo' | 'in-progress' | 'done';
   dueDate?: LocalTimestamp;
+  created_at: LocalTimestamp;
 };
 
 export type Credential = {
@@ -98,4 +99,5 @@ export type Credential = {
   username: string;
   password?: string;
   totpSecret?: string;
+  created_at: LocalTimestamp;
 };

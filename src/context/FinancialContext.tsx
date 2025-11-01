@@ -12,8 +12,8 @@ interface FinancialContextType {
   setActiveProject: (project: Project | null) => void;
   defaultProject: Project | null;
   setDefaultProject: (project: Project | null) => void;
-  addProject: (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>) => Promise<Project>;
-  updateProject: (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  addProject: (projectData: Omit<Project, 'id' | 'userId' | 'created_at'>) => Promise<Project>;
+  updateProject: (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'created_at'>>) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   
   transactions: Transaction[];
@@ -47,13 +47,13 @@ interface FinancialContextType {
   deleteCategory: (categoryId: string) => Promise<void>;
   
   tasks: Task[];
-  addTask: (taskData: Omit<Task, 'id' | 'userId'>) => Promise<void>;
-  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId'>>) => Promise<void>;
+  addTask: (taskData: Omit<Task, 'id' | 'userId' | 'created_at'>) => Promise<void>;
+  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'created_at'>>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   
   credentials: Credential[];
-  addCredential: (credentialData: Omit<Credential, 'id' | 'userId'>) => Promise<void>;
-  updateCredential: (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId'>>) => Promise<void>;
+  addCredential: (credentialData: Omit<Credential, 'id' | 'userId' | 'created_at'>) => Promise<void>;
+  updateCredential: (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'created_at'>>) => Promise<void>;
   deleteCredential: (credentialId: string) => Promise<void>;
 
   currency: string;
@@ -68,7 +68,7 @@ const useLocalStorageKey = (key: string) => {
   return user ? `financeflow_${user.id}_${key}` : null;
 };
 
-const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', userId: '', createdAt: new Date().toISOString() };
+const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', userId: '', created_at: new Date().toISOString() };
 
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
@@ -225,14 +225,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [defaultProjectKey]);
 
-  const addProject = async (projectData: Omit<Project, 'id' | 'userId' | 'createdAt'>): Promise<Project> => {
+  const addProject = async (projectData: Omit<Project, 'id' | 'userId' | 'created_at'>): Promise<Project> => {
     if (!user) throw new Error("User not authenticated");
-    const { data: newProject, error } = await supabase.from('projects').insert({ ...projectData, userId: user.id, createdAt: new Date().toISOString() }).select().single();
+    const { data: newProject, error } = await supabase.from('projects').insert({ ...projectData, userId: user.id, created_at: new Date().toISOString() }).select().single();
     if (error) throw error;
     return newProject;
   };
 
-  const updateProject = async (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'createdAt'>>) => {
+  const updateProject = async (projectId: string, projectData: Partial<Omit<Project, 'id' | 'userId' | 'created_at'>>) => {
     const { error } = await supabase.from('projects').update(projectData).eq('id', projectId);
     if (error) throw error;
   };
@@ -392,13 +392,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const getTransactionById = useCallback((id: string) => allTransactions.find(t => t.id === id), [allTransactions]);
   const getDebtById = useCallback((id: string) => allDebts.find(d => d.id === id), [allDebts]);
 
-  const addTask = async (taskData: Omit<Task, 'id' | 'userId'>) => {
+  const addTask = async (taskData: Omit<Task, 'id' | 'userId' | 'created_at'>) => {
     if (!user) return;
-    const { error } = await supabase.from('tasks').insert({ ...taskData, userId: user.id });
+    const { error } = await supabase.from('tasks').insert({ ...taskData, userId: user.id, created_at: new Date().toISOString() });
     if (error) throw error;
   };
 
-  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId'>>) => {
+  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'userId' | 'created_at'>>) => {
     const { error } = await supabase.from('tasks').update(taskData).eq('id', taskId);
     if (error) throw error;
   };
@@ -408,15 +408,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addCredential = async (credentialData: Omit<Credential, 'id' | 'userId'>) => {
+  const addCredential = async (credentialData: Omit<Credential, 'id' | 'userId' | 'created_at'>) => {
     if (!user) return;
     const { projectId, ...restData } = credentialData;
     const finalData = { ...restData, projectId: projectId === 'personal' ? undefined : projectId };
-    const { error } = await supabase.from('credentials').insert({ ...finalData, userId: user.id });
+    const { error } = await supabase.from('credentials').insert({ ...finalData, userId: user.id, created_at: new Date().toISOString() });
     if (error) throw error;
   };
 
-  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId'>>) => {
+  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'userId' | 'created_at'>>) => {
     const { projectId, ...restData } = credentialData;
     const finalData = { ...restData, projectId: projectId === 'personal' ? undefined : projectId };
     const { error } = await supabase.from('credentials').update(finalData).eq('id', credentialId);
