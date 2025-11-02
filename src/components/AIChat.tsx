@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import type { ChatMessage as ChatMessageType, Debt, Transaction } from '@/lib/types';
+import type { ChatMessage, Debt, Transaction } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EditEntryForm from './EditEntryForm';
 import EntryForm from './EntryForm';
 import { useAuth } from '@/context/AuthContext';
+import type { AppTransaction, AppDebt } from '@/context/FinancialContext';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
@@ -26,7 +27,7 @@ const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 const useChatHistory = () => {
     const { user } = useAuth();
     const storageKey = user ? `financeflow_chat_${user.id}` : null;
-    const [messages, setMessages] = useState<ChatMessageType[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -46,8 +47,8 @@ const useChatHistory = () => {
         }
     }, [storageKey]);
 
-    const addMessage = (message: Omit<ChatMessageType, 'id' | 'timestamp'>) => {
-        const newMessage: ChatMessageType = {
+    const addMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+        const newMessage: ChatMessage = {
             ...message,
             id: crypto.randomUUID(),
             timestamp: new Date().toISOString(),
@@ -63,7 +64,7 @@ const useChatHistory = () => {
         return newMessage;
     };
 
-    const updateMessage = (updatedMessage: ChatMessageType) => {
+    const updateMessage = (updatedMessage: ChatMessage) => {
         setMessages(prevMessages => {
             const updatedMessages = prevMessages.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg);
             if (storageKey) {
@@ -108,11 +109,11 @@ export default function AIChat() {
   
   const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading } = useChatHistory();
 
-  const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
-  const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
+  const [editingEntry, setEditingEntry] = useState<AppTransaction | AppDebt | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<AppTransaction | AppDebt | null>(null);
 
   const [repaymentPopoverOpen, setRepaymentPopoverOpen] = useState(false);
-  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const [selectedDebt, setSelectedDebt] = useState<AppDebt | null>(null);
   const [repaymentDialogOpen, setRepaymentDialogOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
@@ -155,7 +156,7 @@ export default function AIChat() {
     document.getElementById('chat-input')?.focus();
   };
 
-  const handleRepaymentSelect = (debt: Debt) => {
+  const handleRepaymentSelect = (debt: AppDebt) => {
     setSelectedDebt(debt);
     setRepaymentDialogOpen(true);
     setRepaymentPopoverOpen(false);
@@ -166,10 +167,10 @@ export default function AIChat() {
     setSelectedDebt(null);
   };
 
-  const handleEditClick = (message: ChatMessageType) => {
-    if (!message.transactionId) return;
+  const handleEditClick = (message: ChatMessage) => {
+    if (!message.transaction_id) return;
     
-    const entry = getDebtById(message.transactionId) || getTransactionById(message.transactionId);
+    const entry = getDebtById(message.transaction_id) || getTransactionById(message.transaction_id);
 
     if (entry) {
         setEditingEntry(entry);
@@ -179,13 +180,13 @@ export default function AIChat() {
   const handleDelete = () => {
     if (!deletingEntry) return;
 
-    const messageToDelete = messages.find(m => m.transactionId === deletingEntry?.id);
+    const messageToDelete = messages.find(m => m.transaction_id === deletingEntry?.id);
 
     if ('category' in deletingEntry) {
-      deleteTransaction(deletingEntry as Transaction);
+      deleteTransaction(deletingEntry as AppTransaction);
       toast({ title: "Transaction Deleted" });
     } else {
-      deleteDebt(deletingEntry as Debt);
+      deleteDebt(deletingEntry as AppDebt);
       toast({ title: "Debt Deleted" });
     }
 
@@ -196,16 +197,16 @@ export default function AIChat() {
     setDeletingEntry(null);
   };
 
-  const handleEditFinished = (originalEntry: Transaction | Debt, updatedEntry: Transaction | Debt) => {
-    const messageToUpdate = messages.find(m => m.transactionId === originalEntry.id);
+  const handleEditFinished = (originalEntry: AppTransaction | AppDebt, updatedEntry: AppTransaction | AppDebt) => {
+    const messageToUpdate = messages.find(m => m.transaction_id === originalEntry.id);
     if (messageToUpdate) {
         let newContent = '';
         if (updatedEntry.type === 'income' || updatedEntry.type === 'expense') {
-            const tx = updatedEntry as Transaction;
+            const tx = updatedEntry as AppTransaction;
             const accountName = bankAccounts.find(ba => ba.id === tx.accountId)?.name || 'an account';
             newContent = `${tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} of ${formatCurrency(tx.amount)} in ${tx.category} logged to ${accountName}.`
         } else {
-            const debt = updatedEntry as Debt;
+            const debt = updatedEntry as AppDebt;
             const accountName = bankAccounts.find(ba => ba.id === debt.accountId)?.name || 'an account';
             newContent = `${debt.type.charAt(0).toUpperCase() + debt.type.slice(1)} of ${formatCurrency(debt.amount)} for ${debt.name} logged against ${accountName}.`
         }
@@ -316,9 +317,10 @@ export default function AIChat() {
                 const newDebt = {
                     type: logResult.transactionType,
                     amount: logResult.amount,
-                    name: logResult.category,
+                    name: logResult.category, // Name is in category field for debts from AI
                     description: logResult.description || 'AI Logged Debt',
-                    accountId: accountIdToUse
+                    accountId: accountIdToUse,
+                    clientId: '' // Client ID needs to be resolved or created
                 };
                 const newDocRef = await addDebt(newDebt, true);
                 newEntryId = newDocRef?.id;
@@ -338,17 +340,17 @@ export default function AIChat() {
         assistantResponse = result.result.response;
       }
 
-      const assistantMessage: Partial<ChatMessageType> = {
+      const assistantMessage: Partial<ChatMessage> = {
         role: 'assistant',
         content: assistantResponse,
       };
 
       if (newEntryId && newEntryType) {
-        assistantMessage.transactionId = newEntryId;
-        assistantMessage.entryType = newEntryType;
+        assistantMessage.transaction_id = newEntryId;
+        assistantMessage.entry_type = newEntryType;
       }
 
-      addMessage(assistantMessage as Omit<ChatMessageType, 'id' | 'timestamp'>);
+      addMessage(assistantMessage as Omit<ChatMessage, 'id' | 'timestamp'>);
 
     } catch (error) {
       console.error('AI Chat Error:', error);
@@ -428,7 +430,7 @@ export default function AIChat() {
                   </Avatar>
                 )}
                 <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
-                   {message.transactionId && (
+                   {message.transaction_id && (
                     <div className="absolute top-1/2 -translate-y-1/2 -left-20 opacity-0 group-hover/message:opacity-100 transition-opacity flex items-center bg-white rounded-full border shadow-sm">
                       <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
@@ -436,7 +438,7 @@ export default function AIChat() {
                         </Button>
                       </DialogTrigger>
                       <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setDeletingEntry(getDebtById(message.transactionId!) || getTransactionById(message.transactionId!))}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setDeletingEntry(getDebtById(message.transaction_id!) || getTransactionById(message.transaction_id!))}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                       </AlertDialogTrigger>
