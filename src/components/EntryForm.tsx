@@ -197,6 +197,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         type: entryType,
         amount: data.amount,
         clientId: finalClientId,
+        name: data.clientName,
         description: data.description!,
         dueDate: data.dueDate,
         accountId: data.accountId!,
@@ -465,7 +466,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
                 <Textarea placeholder="e.g. Lunch with colleagues" {...field} />
               </FormControl>
