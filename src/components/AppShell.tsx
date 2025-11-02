@@ -240,57 +240,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </Sheet>
           
           <div className="w-full flex-1">
-             <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-[200px] justify-between"
-                  >
-                    <Folder className="mr-2 h-4 w-4" />
-                    {activeProject ? activeProject.name : "Select project..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search project..." />
-                    <CommandList>
-                        <CommandEmpty>No project found.</CommandEmpty>
-                        <CommandGroup>
-                        <CommandItem
-                            key={ALL_BUSINESS_PROJECT.id}
-                            value={ALL_BUSINESS_PROJECT.name}
-                            onSelect={() => handleProjectSelect(ALL_BUSINESS_PROJECT)}
-                            >
-                            {ALL_BUSINESS_PROJECT.name}
-                            </CommandItem>
-                        {projects && projects.map((project) => (
-                            <CommandItem
-                            key={project.id}
-                            value={project.name}
-                            onSelect={() => handleProjectSelect(project)}
-                            >
-                            {project.name}
-                            </CommandItem>
-                        ))}
-                        </CommandGroup>
-                    </CommandList>
-                    <CommandSeparator />
-                     <CommandList>
-                        <CommandGroup>
-                            <DialogTrigger asChild>
-                                <CommandItem onSelect={() => setAddProjectOpen(true)}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Create Business
-                                </CommandItem>
-                            </DialogTrigger>
-                        </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+             
           </div>
 
           <DropdownMenu>
