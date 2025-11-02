@@ -6,7 +6,7 @@ import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import type { Project } from '@/lib/types';
+import type { AppProject } from '@/context/FinancialContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -15,15 +15,15 @@ export default function Business() {
   const { isLoading, projects, deleteProject, currency, allTransactions, allDebts } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<AppProject | null>(null);
+  const [deletingProject, setDeletingProject] = useState<AppProject | null>(null);
 
   const handleAddClick = () => {
     setEditingProject(null);
     setFormOpen(true);
   };
   
-  const handleEditClick = (project: Project) => {
+  const handleEditClick = (project: AppProject) => {
     setEditingProject(project);
     setFormOpen(true);
   };
@@ -40,6 +40,10 @@ export default function Business() {
   };
 
   const { projectTree, projectBalances } = useMemo(() => {
+    if (!projects || !allTransactions || !allDebts) {
+        return { projectTree: [], projectBalances: new Map() };
+    }
+
     const balances = new Map<string, number>();
     projects.forEach(p => balances.set(p.id, 0));
 
@@ -82,7 +86,7 @@ export default function Business() {
     });
 
 
-    const tree: (Project & { children: Project[], level: number })[] = [];
+    const tree: (AppProject & { children: AppProject[], level: number })[] = [];
     const projectMap = new Map(projects.map(p => [p.id, { ...p, children: [], level: 0 }]));
 
     projects.forEach(p => {
@@ -100,8 +104,8 @@ export default function Business() {
         }
     });
 
-    const flattenedTree: (Project & { level: number })[] = [];
-    function flatten(nodes: (Project & { children: Project[], level: number })[]) {
+    const flattenedTree: (AppProject & { level: number })[] = [];
+    function flatten(nodes: (AppProject & { children: AppProject[], level: number })[]) {
         nodes.sort((a,b) => a.name.localeCompare(b.name)).forEach(node => {
             flattenedTree.push({ ...node });
             if (node.children.length > 0) {
