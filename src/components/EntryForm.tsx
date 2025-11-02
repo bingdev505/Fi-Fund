@@ -36,7 +36,7 @@ const formSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),
   category: z.string().optional(),
   clientName: z.string().optional(), // For debts OR for income/expense
-  description: z.string().min(3, 'Description must be at least 3 characters'),
+  description: z.string().optional(),
   dueDate: z.date().optional(),
   accountId: z.string().optional(), // for income/expense/debts
   fromAccountId: z.string().optional(), // for transfer
@@ -176,7 +176,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         type: entryType,
         amount: data.amount,
         category: entryType === 'transfer' ? 'Bank Transfer' : data.category!,
-        description: data.description,
+        description: data.description!,
         accountId: data.accountId,
         fromAccountId: data.fromAccountId,
         toAccountId: data.toAccountId,
@@ -197,7 +197,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         type: entryType,
         amount: data.amount,
         clientId: finalClientId,
-        description: data.description,
+        description: data.description!,
         dueDate: data.dueDate,
         accountId: data.accountId!,
         projectId: projectId,

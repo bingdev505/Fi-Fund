@@ -37,7 +37,7 @@ const formSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),
   category: z.string().optional(),
   name: z.string().optional(), // For debts
-  description: z.string().min(3, 'Description must be at least 3 characters'),
+  description: z.string().optional(),
   dueDate: z.date().optional(),
   accountId: z.string().optional(),
 }).refine(data => {
@@ -85,7 +85,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
     defaultValues: {
       entryType: entryType as 'expense' | 'income' | 'creditor' | 'debtor',
       amount: entry.amount,
-      description: entry.description,
+      description: entry.description || '',
       category: isTransaction ? (entry as Transaction).category : (entry as Debt).name,
       accountId: entry.accountId,
       dueDate: (entry as Debt).dueDate ? parseISO((entry as Debt).dueDate!) : undefined
@@ -106,12 +106,12 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
     
     let updatedEntry;
     if (isTransaction) {
-      const finalTransaction = { ...entry, ...data, category } as Transaction;
+      const finalTransaction = { ...entry, ...data, category, description: data.description || '' } as Transaction;
       updateTransaction(entry as Transaction, finalTransaction);
       updatedEntry = finalTransaction;
       toast({ title: "Transaction Updated" });
     } else {
-      const finalDebt = { ...entry, ...data, name: category, dueDate: data.dueDate?.toISOString() } as Debt;
+      const finalDebt = { ...entry, ...data, name: category, dueDate: data.dueDate?.toISOString(), description: data.description || '' } as Debt;
       updateDebt(entry as Debt, finalDebt);
       updatedEntry = finalDebt;
       toast({ title: "Debt Updated" });
