@@ -40,6 +40,7 @@ const formSchema = z.object({
   description: z.string().optional(),
   due_date: z.date().optional(),
   account_id: z.string().optional(),
+  project_id: z.string().optional(),
 }).refine(data => {
     if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.account_id) {
         return false;
@@ -74,7 +75,7 @@ type EditEntryFormProps = {
 }
 
 export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps) {
-  const { updateTransaction, updateDebt, currency, bankAccounts, categories: customCategories, clients } = useFinancials();
+  const { updateTransaction, updateDebt, currency, bankAccounts, categories: customCategories, clients, projects } = useFinancials();
   const { toast } = useToast();
   
   const isTransaction = 'category' in entry;
@@ -88,7 +89,8 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       description: entry.description || '',
       category: isTransaction ? (entry as Transaction).category : (entry as Debt).name,
       account_id: entry.account_id,
-      due_date: (entry as Debt).due_date ? parseISO((entry as Debt).due_date!) : undefined
+      due_date: (entry as Debt).due_date ? parseISO((entry as Debt).due_date) : undefined,
+      project_id: entry.project_id || 'personal',
     },
   });
 
@@ -103,15 +105,19 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const { category, ...data } = values;
+    const finalData = {
+        ...data,
+        project_id: data.project_id === 'personal' ? undefined : data.project_id,
+    };
     
     let updatedEntry;
     if (isTransaction) {
-      const finalTransaction = { ...entry, ...data, category, description: data.description || '' } as Transaction;
+      const finalTransaction = { ...entry, ...finalData, category, description: data.description || '' } as Transaction;
       updateTransaction(entry as Transaction, finalTransaction);
       updatedEntry = finalTransaction;
       toast({ title: "Transaction Updated" });
     } else {
-      const finalDebt = { ...entry, ...data, name: category, due_date: data.due_date?.toISOString(), description: data.description || '' } as Debt;
+      const finalDebt = { ...entry, ...finalData, name: category, due_date: data.due_date, description: data.description || '' } as Debt;
       updateDebt(entry as Debt, finalDebt);
       updatedEntry = finalDebt;
       toast({ title: "Debt Updated" });
@@ -278,6 +284,32 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
           </div>
         )}
         
+        <FormField
+            control={form.control}
+            name="project_id"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Business (Optional)</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || 'personal'}>
+                    <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Personal / No Business" />
+                    </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="personal">Personal</SelectItem>
+                    {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+
         <FormField
           control={form.control}
           name="description"
