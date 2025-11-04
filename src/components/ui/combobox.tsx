@@ -29,7 +29,7 @@ type ComboboxProps = {
 }
 
 export function Combobox({ 
-    options, 
+    options, _
     value, 
     onChange,
     placeholder = "Select an option...",
@@ -37,23 +37,11 @@ export function Combobox({
     noResultsText = "No results found."
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const [inputValue, setInputValue] = React.useState(value || "");
-
-  React.useEffect(() => {
-    setInputValue(value || "");
-  }, [value]);
-
+  
   const handleSelect = (currentValue: string) => {
     const newValue = currentValue === value ? "" : currentValue;
     onChange(newValue);
-    setInputValue(newValue);
     setOpen(false)
-  }
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const typedValue = e.target.value;
-      setInputValue(typedValue);
-      onChange(typedValue);
   }
 
   return (
@@ -66,32 +54,22 @@ export function Combobox({
           className="w-full justify-between"
         >
           {value
-            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label
+            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label || `Create "${value}"`
             : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command shouldFilter={false}>
-          <CommandInput 
-            placeholder={searchPlaceholder}
-            value={inputValue}
-            onValueChange={setInputValue}
-          />
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
             <CommandEmpty>
-                <button
-                    type="button"
-                    className="w-full text-left p-2 text-sm"
-                    onClick={() => handleSelect(inputValue)}
-                >
-                    Create "{inputValue}"
-                </button>
+                <div className="p-2 text-sm text-center">
+                    {noResultsText}
+                </div>
             </CommandEmpty>
             <CommandGroup>
-              {options
-                .filter(option => option.label.toLowerCase().includes(inputValue.toLowerCase()))
-                .map((option) => (
+              {options.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
@@ -106,12 +84,6 @@ export function Combobox({
                   {option.label}
                 </CommandItem>
               ))}
-                {!options.some(o => o.label.toLowerCase() === inputValue.toLowerCase()) && inputValue && (
-                    <CommandItem onSelect={() => handleSelect(inputValue)}>
-                         <span className="mr-2 h-4 w-4"></span>
-                         Create "{inputValue}"
-                    </CommandItem>
-                )}
             </CommandGroup>
           </CommandList>
         </Command>

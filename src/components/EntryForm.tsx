@@ -115,7 +115,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       entryType: 'expense',
-      amount: 0,
+      amount: undefined,
       description: '',
       category: '',
       clientName: '',
@@ -218,83 +218,85 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="entryType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Entry Type</FormLabel>
-              <Select onValueChange={(value) => {
-                  field.onChange(value);
-                  form.reset({
-                    ...form.getValues(),
-                    entryType: value as any,
-                    category: '',
-                    clientName: '',
-                    account_id: bankAccounts.find(acc => acc.is_primary)?.id,
-                    from_account_id: undefined,
-                    to_account_id: undefined,
-                  });
-              }} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                    <SelectItem value="expense">Expense</SelectItem>
-                    <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="creditor">Loan Taken (Creditor)</SelectItem>
-                    <SelectItem value="debtor">Loan Given (Debtor)</SelectItem>
-                    <SelectItem value="transfer">Bank Transfer</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-            control={form.control}
-            name="project_id"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Business (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || 'personal'}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Personal / No Business" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="personal">Personal</SelectItem>
-                    {projects.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                        </SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="amount"
+            name="entryType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Amount ({currency})</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="e.g. 1500" {...field} />
-                </FormControl>
+                <FormLabel>Entry Type</FormLabel>
+                <Select onValueChange={(value) => {
+                    field.onChange(value);
+                    form.reset({
+                      ...form.getValues(),
+                      entryType: value as any,
+                      category: '',
+                      clientName: '',
+                      account_id: bankAccounts.find(acc => acc.is_primary)?.id,
+                      from_account_id: undefined,
+                      to_account_id: undefined,
+                    });
+                }} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                      <SelectItem value="expense">Expense</SelectItem>
+                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="creditor">Loan Taken (Creditor)</SelectItem>
+                      <SelectItem value="debtor">Loan Given (Debtor)</SelectItem>
+                      <SelectItem value="transfer">Bank Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-        {entryType === 'transfer' && (
+          <FormField
+              control={form.control}
+              name="project_id"
+              render={({ field }) => (
+                  <FormItem>
+                  <FormLabel>Business</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || 'personal'}>
+                      <FormControl>
+                      <SelectTrigger>
+                          <SelectValue placeholder="Personal / No Business" />
+                      </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="personal">Personal</SelectItem>
+                      {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                          </SelectItem>
+                      ))}
+                      </SelectContent>
+                  </Select>
+                  <FormMessage />
+                  </FormItem>
+              )}
+          />
+        </div>
+        
+        <FormField
+          control={form.control}
+          name="amount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Amount ({currency})</FormLabel>
+              <FormControl>
+                <Input type="number" placeholder="e.g. 1500" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {entryType === 'transfer' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -345,56 +347,52 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               )}
             />
           </div>
-        )}
-
-        {(entryType === 'income' || entryType === 'expense') && (
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        ) : (entryType === 'income' || entryType === 'expense') ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="category"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Category</FormLabel>
-                    <Combobox
-                        options={categoryOptions}
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="Select or create category..."
-                        searchPlaceholder="Search categories..."
-                        noResultsText="No categories found."
-                    />
+                  <Combobox
+                      options={categoryOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Select or create category..."
+                      searchPlaceholder="Search categories..."
+                      noResultsText="No categories found."
+                  />
                   <FormMessage />
                 </FormItem>
               )}
             />
-             <FormField
-                control={form.control}
-                name="account_id"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Account</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
-                    <FormControl>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Select an account" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {bankAccounts.map((acc) => (
-                        <SelectItem key={acc.id} value={acc.id}>
-                            {acc.name}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-                )}
+            <FormField
+              control={form.control}
+              name="account_id"
+              render={({ field }) => (
+              <FormItem>
+                  <FormLabel>Account</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                  <FormControl>
+                      <SelectTrigger>
+                      <SelectValue placeholder="Select an account" />
+                      </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                      {bankAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                          {acc.name}
+                      </SelectItem>
+                      ))}
+                  </SelectContent>
+                  </Select>
+                  <FormMessage />
+              </FormItem>
+              )}
             />
           </div>
-        )}
-
-        {(entryType === 'creditor' || entryType === 'debtor') && (
+        ) : (entryType === 'creditor' || entryType === 'debtor') && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
@@ -442,82 +440,86 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                 />
           </div>
         )}
-
-        {(entryType === 'income' || entryType === 'expense') && (
-          <FormField
-            control={form.control}
-            name="clientName"
-            render={({ field }) => (
-                <FormItem className="flex flex-col">
-                    <FormLabel>Client (Optional)</FormLabel>
-                    <Combobox
-                        options={clientOptions}
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="Select or create client..."
-                        searchPlaceholder="Search clients..."
-                        noResultsText="No clients found."
-                    />
-                    <FormMessage />
-                </FormItem>
-            )}
-          />
-        )}
         
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea placeholder="e.g. Lunch with colleagues" {...field} value={field.value || ''}/>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {(entryType === 'creditor' || entryType === 'debtor') && (
-          <FormField
-            control={form.control}
-            name="due_date"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Due Date (Optional)</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={'outline'}
-                        className={cn(
-                          'w-full pl-3 text-left font-normal',
-                          !field.value && 'text-muted-foreground'
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, 'PPP')
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
+        {entryType !== 'transfer' && (
+          <div className='space-y-6'>
+            {(entryType === 'income' || entryType === 'expense') && (
+              <FormField
+                control={form.control}
+                name="clientName"
+                render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                        <FormLabel>Client (Optional)</FormLabel>
+                        <Combobox
+                            options={clientOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select or create client..."
+                            searchPlaceholder="Search clients..."
+                            noResultsText="No clients found."
+                        />
+                        <FormMessage />
+                    </FormItem>
+                )}
+              />
             )}
-          />
+            
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="e.g. Lunch with colleagues" {...field} value={field.value || ''}/>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {(entryType === 'creditor' || entryType === 'debtor') && (
+              <FormField
+                control={form.control}
+                name="due_date"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Due Date (Optional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={'outline'}
+                            className={cn(
+                              'w-full pl-3 text-left font-normal',
+                              !field.value && 'text-muted-foreground'
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, 'PPP')
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
         )}
 
         <Button type="submit" className="w-full" disabled={bankAccounts.length === 0}>
