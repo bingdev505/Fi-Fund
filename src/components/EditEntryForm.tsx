@@ -33,7 +33,7 @@ import type { Transaction, Debt } from '@/lib/types';
 import { useMemo } from 'react';
 
 const formSchema = z.object({
-  entryType: z.enum(['expense', 'income', 'creditor', 'debtor']),
+  type: z.enum(['expense', 'income', 'creditor', 'debtor']),
   amount: z.coerce.number().positive('Amount must be positive'),
   category: z.string().optional(),
   name: z.string().optional(), // For debts
@@ -42,7 +42,7 @@ const formSchema = z.object({
   account_id: z.string().optional(),
   project_id: z.string().optional(),
 }).refine(data => {
-    if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.account_id) {
+    if ((data.type === 'income' || data.type === 'expense' || data.type === 'creditor' || data.type === 'debtor') && !data.account_id) {
         return false;
     }
     return true;
@@ -51,7 +51,7 @@ const formSchema = z.object({
     path: ["account_id"],
 })
 .refine(data => {
-  if ((data.entryType === 'income' || data.entryType === 'expense') && !data.category) {
+  if ((data.type === 'income' || data.type === 'expense') && !data.category) {
       return false;
   }
   return true;
@@ -60,7 +60,7 @@ const formSchema = z.object({
   path: ["category"],
 })
 .refine(data => {
-    if ((data.entryType === 'creditor' || data.entryType === 'debtor') && !data.category) {
+    if ((data.type === 'creditor' || data.type === 'debtor') && !data.category) {
         return false;
     }
     return true;
@@ -79,12 +79,11 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
   const { toast } = useToast();
   
   const isTransaction = 'category' in entry;
-  const entryType = isTransaction ? (entry as Transaction).type : (entry as Debt).type;
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      entryType: entryType as 'expense' | 'income' | 'creditor' | 'debtor',
+      type: entry.type as 'expense' | 'income' | 'creditor' | 'debtor',
       amount: entry.amount,
       description: entry.description || '',
       category: isTransaction ? (entry as Transaction).category : (entry as Debt).name,
@@ -94,13 +93,13 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
     },
   });
 
-  const watchedEntryType = form.watch('entryType');
+  const watchedType = form.watch('type');
 
   const categories = useMemo(() => {
-    const baseCategories = watchedEntryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-    const projectCategories = customCategories.filter(c => c.type === watchedEntryType).map(c => c.name);
+    const baseCategories = watchedType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    const projectCategories = customCategories.filter(c => c.type === watchedType).map(c => c.name);
     return [...baseCategories, ...projectCategories];
-  }, [watchedEntryType, customCategories]);
+  }, [watchedType, customCategories]);
 
 
   function onSubmit(values: z.infer<typeof formSchema>) {
@@ -117,7 +116,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       updatedEntry = finalTransaction;
       toast({ title: "Transaction Updated" });
     } else {
-      const finalDebt = { ...entry, ...finalData, name: category, due_date: data.due_date, description: data.description || '' } as Debt;
+      const finalDebt = { ...entry, ...finalData, name: category, due_date: data.due_date?.toISOString(), description: data.description || '' } as Debt;
       updateDebt(entry as Debt, finalDebt);
       updatedEntry = finalDebt;
       toast({ title: "Debt Updated" });
@@ -140,7 +139,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
                 control={form.control}
-                name="entryType"
+                name="type"
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>Entry Type</FormLabel>
@@ -176,7 +175,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
           />
         </div>
 
-        {(watchedEntryType === 'income' || watchedEntryType === 'expense') && (
+        {(watchedType === 'income' || watchedType === 'expense') && (
            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -187,7 +186,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
-                    key={entryType}
+                    key={entry.type}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -233,7 +232,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
           </div>
         )}
 
-        {(watchedEntryType === 'creditor' || watchedEntryType === 'debtor') && (
+        {(watchedType === 'creditor' || watchedType === 'debtor') && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
@@ -241,12 +240,12 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>
-                        {watchedEntryType === 'creditor' ? "Lender's Name (Creditor)" : "Borrower's Name (Debtor)"}
+                        {watchedType === 'creditor' ? "Lender's Name (Creditor)" : "Borrower's Name (Debtor)"}
                         </FormLabel>
                         <FormControl>
                         <Input
                             placeholder={
-                            watchedEntryType === 'creditor'
+                            watchedType === 'creditor'
                                 ? 'e.g. Landlord'
                                 : 'e.g. John Doe'
                             }
@@ -324,7 +323,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
           )}
         />
 
-        {(watchedEntryType === 'creditor' || watchedEntryType === 'debtor') && (
+        {(watchedType === 'creditor' || watchedType === 'debtor') && (
           <FormField
             control={form.control}
             name="due_date"
