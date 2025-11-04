@@ -115,7 +115,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       entryType: 'expense',
-      amount: undefined,
+      amount: '' as any,
       description: '',
       category: '',
       clientName: '',
