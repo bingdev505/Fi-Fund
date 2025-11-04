@@ -30,6 +30,7 @@ import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useMemo, useEffect } from 'react';
+import { Combobox } from './ui/combobox';
 
 const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'creditor', 'debtor', 'transfer']),
@@ -211,6 +212,9 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     onFinished();
   }
 
+  const clientOptions = useMemo(() => filteredClients.map(c => ({ value: c.name, label: c.name })), [filteredClients]);
+  const categoryOptions = useMemo(() => filteredCategories.map(c => ({ value: c, label: c })), [filteredCategories]);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -349,16 +353,16 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               control={form.control}
               name="category"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Category</FormLabel>
-                    <FormControl>
-                        <Input list="category-suggestions" placeholder="Type or select a category" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <datalist id="category-suggestions">
-                        {filteredCategories.map((cat) => (
-                            <option key={cat} value={cat} />
-                        ))}
-                    </datalist>
+                    <Combobox
+                        options={categoryOptions}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select or create category..."
+                        searchPlaceholder="Search categories..."
+                        noResultsText="No categories found."
+                    />
                   <FormMessage />
                 </FormItem>
               )}
@@ -396,18 +400,18 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     control={form.control}
                     name="clientName"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                           <FormLabel>
                             {entryType === 'creditor' ? "Creditor Name" : "Debtor Name"}
                           </FormLabel>
-                          <FormControl>
-                            <Input list="client-suggestions" placeholder="Type or select a client" {...field} value={field.value || ''} />
-                          </FormControl>
-                           <datalist id="client-suggestions">
-                                {filteredClients.map((client) => (
-                                    <option key={client.id} value={client.name} />
-                                ))}
-                            </datalist>
+                          <Combobox
+                            options={clientOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select or create client..."
+                            searchPlaceholder="Search clients..."
+                            noResultsText="No clients found."
+                          />
                           <FormMessage />
                       </FormItem>
                     )}
@@ -444,16 +448,16 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
             control={form.control}
             name="clientName"
             render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                     <FormLabel>Client (Optional)</FormLabel>
-                    <FormControl>
-                        <Input list="client-suggestions" placeholder="Type or select a client" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <datalist id="client-suggestions">
-                        {filteredClients.map((client) => (
-                            <option key={client.id} value={client.name} />
-                        ))}
-                    </datalist>
+                    <Combobox
+                        options={clientOptions}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select or create client..."
+                        searchPlaceholder="Search clients..."
+                        noResultsText="No clients found."
+                    />
                     <FormMessage />
                 </FormItem>
             )}
@@ -527,5 +531,3 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
-
-    
