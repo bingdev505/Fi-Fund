@@ -1,113 +1,60 @@
 'use client';
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
-import type { Transaction, Debt, BankAccount, UserSettings, Project, Client, Category, Task, Credential } from '@/lib/types';
+import type { Transaction, Debt, BankAccount, Project, Client, Category, Task, Credential } from '@/lib/types';
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
 
-// Timestamps are stored as ISO 8061 strings.
-export type LocalTimestamp = string;
-
-// Frontend uses camelCase, DB uses snake_case. This context handles the mapping.
-// Components will use these camelCase types.
-export interface AppProject extends Omit<Project, 'user_id' | 'created_at' | 'parent_project_id' | 'google_sheet_id'> {
-  userId: string;
-  createdAt: LocalTimestamp;
-  parentProjectId?: string;
-  googleSheetId?: string;
-}
-export interface AppTask extends Omit<Task, 'user_id' | 'project_id' | 'due_date' | 'created_at'> {
-  userId: string;
-  projectId?: string;
-  dueDate?: LocalTimestamp;
-  createdAt: LocalTimestamp;
-}
-export interface AppCredential extends Omit<Credential, 'user_id' | 'project_id' | 'site_name' | 'totp_secret' | 'created_at'> {
-    userId: string;
-    projectId?: string;
-    siteName: string;
-    totpSecret?: string;
-    createdAt: LocalTimestamp;
-}
-export interface AppTransaction extends Omit<Transaction, 'user_id' | 'project_id' | 'account_id' | 'from_account_id' | 'to_account_id' | 'debt_id' | 'client_id'> {
-    userId: string;
-    projectId?: string;
-    accountId?: string;
-    fromAccountId?: string;
-    toAccountId?: string;
-    debtId?: string;
-    clientId?: string;
-}
-export interface AppDebt extends Omit<Debt, 'user_id' | 'project_id' | 'client_id' | 'due_date' | 'account_id'> {
-    userId: string;
-    projectId?: string;
-    clientId: string;
-    dueDate?: LocalTimestamp;
-    accountId: string;
-    name: string;
-}
-export interface AppBankAccount extends Omit<BankAccount, 'user_id' | 'is_primary'> {
-    userId: string;
-    isPrimary: boolean;
-}
-export interface AppClient extends Omit<Client, 'project_id'> {
-    projectId?: string;
-}
-export interface AppCategory extends Omit<Category, 'project_id'> {
-    projectId?: string;
-}
-
-
 interface FinancialContextType {
-  projects: AppProject[];
-  activeProject: AppProject | null;
-  setActiveProject: (project: AppProject | null) => void;
-  defaultProject: AppProject | null;
-  setDefaultProject: (project: AppProject | null) => void;
-  addProject: (projectData: Omit<AppProject, 'id' | 'userId' | 'createdAt'>) => Promise<AppProject>;
-  updateProject: (projectId: string, projectData: Partial<Omit<AppProject, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  projects: Project[];
+  activeProject: Project | null;
+  setActiveProject: (project: Project | null) => void;
+  defaultProject: Project | null;
+  setDefaultProject: (project: Project | null) => void;
+  addProject: (projectData: Omit<Project, 'id' | 'user_id' | 'created_at'>) => Promise<Project>;
+  updateProject: (projectId: string, projectData: Partial<Omit<Project, 'id' | 'user_id' | 'created_at'>>) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   
-  transactions: AppTransaction[];
-  allTransactions: AppTransaction[];
-  addTransaction: (transaction: Omit<AppTransaction, 'id' | 'date' | 'userId'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  updateTransaction: (originalTransaction: AppTransaction, updatedData: Partial<AppTransaction>) => Promise<void>;
-  deleteTransaction: (transaction: AppTransaction) => Promise<void>;
-  getTransactionById: (id: string) => AppTransaction | undefined;
+  transactions: Transaction[];
+  allTransactions: Transaction[];
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'user_id'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => Promise<void>;
+  deleteTransaction: (transaction: Transaction) => Promise<void>;
+  getTransactionById: (id: string) => Transaction | undefined;
   
-  debts: AppDebt[];
-  allDebts: AppDebt[];
-  addDebt: (debt: Omit<AppDebt, 'id' | 'date' | 'userId' | 'name'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  updateDebt: (originalDebt: AppDebt, updatedData: Partial<AppDebt>) => Promise<void>;
-  deleteDebt: (debt: AppDebt) => Promise<void>;
-  addRepayment: (debt: AppDebt, amount: number, accountId: string) => Promise<void>;
-  getDebtById: (id: string) => AppDebt | undefined;
+  debts: Debt[];
+  allDebts: Debt[];
+  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'user_id' | 'name'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => Promise<void>;
+  deleteDebt: (debt: Debt) => Promise<void>;
+  addRepayment: (debt: Debt, amount: number, account_id: string) => Promise<void>;
+  getDebtById: (id: string) => Debt | undefined;
 
-  bankAccounts: AppBankAccount[];
-  addBankAccount: (account: Omit<AppBankAccount, 'id' | 'userId'>) => Promise<void>;
-  updateBankAccount: (accountId: string, accountData: Partial<Omit<AppBankAccount, 'id' | 'userId'>>) => Promise<void>;
+  bankAccounts: BankAccount[];
+  addBankAccount: (account: Omit<BankAccount, 'id' | 'user_id'>) => Promise<void>;
+  updateBankAccount: (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'user_id'>>) => Promise<void>;
   deleteBankAccount: (accountId: string) => Promise<void>;
   setPrimaryBankAccount: (accountId: string) => Promise<void>;
   
-  clients: AppClient[];
-  addClient: (clientData: Omit<AppClient, 'id' | 'userId' | 'projectId'>, projectId?: string) => Promise<AppClient>;
-  updateClient: (clientId: string, clientData: Partial<Omit<AppClient, 'id' | 'userId'>>) => Promise<void>;
+  clients: Client[];
+  addClient: (clientData: Omit<Client, 'id' | 'user_id' | 'project_id'>, project_id?: string) => Promise<Client>;
+  updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id' | 'user_id'>>) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
 
-  categories: AppCategory[];
-  addCategory: (categoryData: Omit<AppCategory, 'id' | 'userId' | 'projectId'>, projectId?: string) => Promise<AppCategory>;
-  updateCategory: (categoryId: string, categoryData: Partial<Omit<AppCategory, 'id' | 'userId'>>) => Promise<void>;
+  categories: Category[];
+  addCategory: (categoryData: Omit<Category, 'id' | 'user_id' | 'project_id'>, project_id?: string) => Promise<Category>;
+  updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'user_id'>>) => Promise<void>;
   deleteCategory: (categoryId: string) => Promise<void>;
   
-  tasks: AppTask[];
-  addTask: (taskData: Omit<AppTask, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  updateTask: (taskId: string, taskData: Partial<Omit<AppTask, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  tasks: Task[];
+  addTask: (taskData: Omit<Task, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'user_id' | 'created_at'>>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   
-  credentials: AppCredential[];
-  addCredential: (credentialData: Omit<AppCredential, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  updateCredential: (credentialId: string, credentialData: Partial<Omit<AppCredential, 'id' | 'userId' | 'createdAt'>>) => Promise<void>;
+  credentials: Credential[];
+  addCredential: (credentialData: Omit<Credential, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+  updateCredential: (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'user_id' | 'created_at'>>) => Promise<void>;
   deleteCredential: (credentialId: string) => Promise<void>;
 
   currency: string;
@@ -122,33 +69,7 @@ const useLocalStorageKey = (key: string) => {
   return user ? `financeflow_${user.id}_${key}` : null;
 };
 
-const ALL_BUSINESS_PROJECT: AppProject = { id: 'all', name: 'All Business', userId: '', createdAt: new Date().toISOString() };
-
-// Mappers to convert between snake_case (DB) and camelCase (App)
-const toAppProject = (p: Project): AppProject => ({ id: p.id, userId: p.user_id, name: p.name, createdAt: p.created_at, parentProjectId: p.parent_project_id, googleSheetId: p.google_sheet_id });
-const fromAppProject = (p: Partial<AppProject>): Partial<Omit<Project, 'id' | 'user_id' | 'created_at'>> => ({ name: p.name, parent_project_id: p.parentProjectId, google_sheet_id: p.googleSheetId });
-
-const toAppTask = (t: Task): AppTask => ({ id: t.id, userId: t.user_id, name: t.name, description: t.description, status: t.status, dueDate: t.due_date, createdAt: t.created_at, projectId: t.project_id });
-const fromAppTask = (t: Partial<AppTask>): Partial<Omit<Task, 'id' | 'user_id'>> => ({ name: t.name, description: t.description, status: t.status, due_date: t.dueDate, project_id: t.projectId, created_at: t.createdAt });
-
-const toAppCredential = (c: Credential): AppCredential => ({ id: c.id, userId: c.user_id, siteName: c.site_name, username: c.username, password: c.password, totpSecret: c.totp_secret, createdAt: c.created_at, projectId: c.project_id });
-const fromAppCredential = (c: Partial<AppCredential>): Partial<Omit<Credential, 'id' | 'user_id'>> => ({ site_name: c.siteName, username: c.username, password: c.password, totp_secret: c.totpSecret, project_id: c.projectId, created_at: c.createdAt });
-
-const toAppTransaction = (t: Transaction): AppTransaction => ({ ...t, userId: t.user_id, projectId: t.project_id, accountId: t.account_id, fromAccountId: t.from_account_id, toAccountId: t.to_account_id, debtId: t.debt_id, clientId: t.client_id });
-const fromAppTransaction = (t: Partial<AppTransaction>): Partial<Omit<Transaction, 'id' | 'date' | 'user_id'>> => ({...t, user_id: undefined, project_id: t.projectId, account_id: t.accountId, from_account_id: t.fromAccountId, to_account_id: t.toAccountId, debt_id: t.debtId, client_id: t.clientId});
-
-const toAppDebt = (d: Debt, clients: Client[]): AppDebt => ({ ...d, name: clients.find(c => c.id === d.client_id)?.name || 'Unknown Client', userId: d.user_id, projectId: d.project_id, clientId: d.client_id, dueDate: d.due_date, accountId: d.account_id });
-const fromAppDebt = (d: Partial<AppDebt>): Partial<Omit<Debt, 'id' | 'date' | 'user_id'>> => ({ type: d.type, client_id: d.clientId, amount: d.amount, description: d.description, due_date: d.dueDate, account_id: d.accountId, project_id: d.projectId });
-
-const toAppBankAccount = (b: BankAccount): AppBankAccount => ({ ...b, userId: b.user_id, isPrimary: b.is_primary });
-const fromAppBankAccount = (b: Partial<AppBankAccount>): Partial<Omit<BankAccount, 'id' | 'user_id'>> => ({ name: b.name, balance: b.balance, is_primary: b.isPrimary });
-
-const toAppClient = (c: Client): AppClient => ({ ...c, projectId: c.project_id });
-const fromAppClient = (c: Partial<AppClient>): Partial<Omit<Client, 'id'>> => ({ name: c.name, project_id: c.projectId });
-
-const toAppCategory = (c: Category): AppCategory => ({ ...c, projectId: c.project_id });
-const fromAppCategory = (c: Partial<AppCategory>): Partial<Omit<Category, 'id'>> => ({ name: c.name, type: c.type, project_id: c.projectId });
-
+const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', user_id: '', created_at: new Date().toISOString() };
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const { user, isLoading: isUserLoading } = useAuth();
@@ -158,16 +79,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const defaultProjectKey = useLocalStorageKey('defaultProject');
   const currencyKey = useLocalStorageKey('currency');
 
-  const [allProjects, setAllProjects] = useState<AppProject[]>([]);
-  const [activeProject, _setActiveProject] = useState<AppProject | null>(ALL_BUSINESS_PROJECT);
-  const [defaultProject, _setDefaultProject] = useState<AppProject | null>(ALL_BUSINESS_PROJECT);
-  const [allTransactions, setAllTransactions] = useState<AppTransaction[]>([]);
-  const [allDebts, setAllDebts] = useState<AppDebt[]>([]);
-  const [allBankAccounts, setAllBankAccounts] = useState<AppBankAccount[]>([]);
-  const [allClients, setAllClients] = useState<AppClient[]>([]);
-  const [allCategories, setAllCategories] = useState<AppCategory[]>([]);
-  const [allTasks, setAllTasks] = useState<AppTask[]>([]);
-  const [allCredentials, setAllCredentials] = useState<AppCredential[]>([]);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [activeProject, _setActiveProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
+  const [defaultProject, _setDefaultProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [allDebts, setAllDebts] = useState<Debt[]>([]);
+  const [allBankAccounts, setAllBankAccounts] = useState<BankAccount[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
   
   const [currency, setCurrencyState] = useState<string>('INR');
   const [isLoading, setIsLoading] = useState(true);
@@ -190,33 +111,29 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('transactions').select('*').eq('user_id', userId),
         supabase.from('debts').select('*').eq('user_id', userId),
         supabase.from('bank_accounts').select('*').eq('user_id', userId),
-        supabase.from('clients').select('*'),
-        supabase.from('categories').select('*'),
+        supabase.from('clients').select('*').eq('user_id', userId),
+        supabase.from('categories').select('*').eq('user_id', userId),
         supabase.from('tasks').select('*').eq('user_id', userId),
         supabase.from('credentials').select('*').eq('user_id', userId),
         supabase.from('user_settings').select('*').eq('user_id', userId).single(),
       ]);
 
-      const projects = (projectsRes.data || []).map(toAppProject);
-      const userProjectIds = new Set(projects.map(p => p.id));
+      const projects = projectsRes.data || [];
+      const clients = clientsRes.data || [];
+      const debts = (debtsRes.data || []).map(d => ({ ...d, name: clients.find(c => c.id === d.client_id)?.name || 'Unknown Client' }));
       
-      const clients = (clientsRes.data || []).filter(c => !c.project_id || userProjectIds.has(c.project_id));
-      const appClients = clients.map(toAppClient);
-      const debts = (debtsRes.data || []).map(d => toAppDebt(d, clients));
-      const categories = (categoriesRes.data || []).filter(c => !c.project_id || userProjectIds.has(c.project_id)).map(toAppCategory);
-
       setAllProjects(projects);
-      setAllTransactions((transactionsRes.data || []).map(toAppTransaction));
+      setAllTransactions(transactionsRes.data || []);
       setAllDebts(debts);
-      setAllBankAccounts((bankAccountsRes.data || []).map(toAppBankAccount));
-      setAllClients(appClients);
-      setAllCategories(categories);
-      setAllTasks((tasksRes.data || []).map(toAppTask));
-      setAllCredentials((credentialsRes.data || []).map(toAppCredential));
+      setAllBankAccounts(bankAccountsRes.data || []);
+      setAllClients(clients);
+      setAllCategories(categoriesRes.data || []);
+      setAllTasks(tasksRes.data || []);
+      setAllCredentials(credentialsRes.data || []);
 
       if (!bankAccountsRes.data || bankAccountsRes.data.length === 0) {
         const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true }).select().single();
-        if (newAccount) setAllBankAccounts([toAppBankAccount(newAccount)]);
+        if (newAccount) setAllBankAccounts([newAccount]);
       }
       
       const currencyToSet = userSettingsRes.data?.currency || 'INR';
@@ -224,7 +141,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       if (currencyKey) localStorage.setItem(currencyKey, currencyToSet);
 
       const storedDefaultProject = defaultProjectKey ? JSON.parse(localStorage.getItem(defaultProjectKey) || 'null') : null;
-      let activeProjectToSet: AppProject | null = storedDefaultProject;
+      let activeProjectToSet: Project | null = storedDefaultProject;
       const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
       if (storedActiveProject) activeProjectToSet = storedActiveProject;
       
@@ -260,35 +177,37 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     
     const handleInserts = (payload: any) => {
         const { table, new: newRecord } = payload;
-        const clients = table === 'clients' ? [...allClients, toAppClient(newRecord)] : allClients;
         switch (table) {
-            case 'projects': setAllProjects(prev => [...prev, toAppProject(newRecord)]); break;
-            case 'transactions': setAllTransactions(prev => [...prev, toAppTransaction(newRecord)]); break;
-            case 'debts': setAllDebts(prev => [...prev, toAppDebt(newRecord, clients)]); break;
-            case 'bank_accounts': setAllBankAccounts(prev => [...prev, toAppBankAccount(newRecord)]); break;
-            case 'clients': setAllClients(clients); break;
-            case 'categories': setAllCategories(prev => [...prev, toAppCategory(newRecord)]); break;
-            case 'tasks': setAllTasks(prev => [...prev, toAppTask(newRecord)]); break;
-            case 'credentials': setAllCredentials(prev => [...prev, toAppCredential(newRecord)]); break;
+            case 'projects': setAllProjects(prev => [...prev, newRecord]); break;
+            case 'transactions': setAllTransactions(prev => [...prev, newRecord]); break;
+            case 'debts': 
+                const debtName = allClients.find(c => c.id === newRecord.client_id)?.name || 'Unknown Client'
+                setAllDebts(prev => [...prev, {...newRecord, name: debtName}]); 
+                break;
+            case 'bank_accounts': setAllBankAccounts(prev => [...prev, newRecord]); break;
+            case 'clients': setAllClients(prev => [...prev, newRecord]); break;
+            case 'categories': setAllCategories(prev => [...prev, newRecord]); break;
+            case 'tasks': setAllTasks(prev => [...prev, newRecord]); break;
+            case 'credentials': setAllCredentials(prev => [...prev, newRecord]); break;
         }
     };
     const handleUpdates = (payload: any) => {
         const { table, new: newRecord } = payload;
-        const clients = table === 'clients' ? allClients.map(c => c.id === newRecord.id ? toAppClient(newRecord) : c) : allClients;
         switch (table) {
-            case 'projects': setAllProjects(prev => prev.map(p => p.id === newRecord.id ? toAppProject(newRecord) : p)); break;
-            case 'transactions': setAllTransactions(prev => prev.map(t => t.id === newRecord.id ? toAppTransaction(newRecord) : t)); break;
+            case 'projects': setAllProjects(prev => prev.map(p => p.id === newRecord.id ? newRecord : p)); break;
+            case 'transactions': setAllTransactions(prev => prev.map(t => t.id === newRecord.id ? newRecord : t)); break;
             case 'debts': 
-                setAllDebts(prev => prev.map(d => d.id === newRecord.id ? toAppDebt(newRecord, clients) : d));
+                const debtName = allClients.find(c => c.id === newRecord.client_id)?.name || 'Unknown Client';
+                setAllDebts(prev => prev.map(d => d.id === newRecord.id ? {...newRecord, name: debtName} : d));
                 break;
-            case 'bank_accounts': setAllBankAccounts(prev => prev.map(b => b.id === newRecord.id ? toAppBankAccount(newRecord) : b)); break;
+            case 'bank_accounts': setAllBankAccounts(prev => prev.map(b => b.id === newRecord.id ? newRecord : b)); break;
             case 'clients': 
-                setAllClients(clients);
-                setAllDebts(prev => prev.map(d => d.clientId === newRecord.id ? { ...d, name: newRecord.name } : d));
+                setAllClients(prev => prev.map(c => c.id === newRecord.id ? newRecord : c));
+                setAllDebts(prev => prev.map(d => d.client_id === newRecord.id ? { ...d, name: newRecord.name } : d));
                 break;
-            case 'categories': setAllCategories(prev => prev.map(c => c.id === newRecord.id ? toAppCategory(newRecord) : c)); break;
-            case 'tasks': setAllTasks(prev => prev.map(t => t.id === newRecord.id ? toAppTask(newRecord) : t)); break;
-            case 'credentials': setAllCredentials(prev => prev.map(c => c.id === newRecord.id ? toAppCredential(newRecord) : c)); break;
+            case 'categories': setAllCategories(prev => prev.map(c => c.id === newRecord.id ? newRecord : c)); break;
+            case 'tasks': setAllTasks(prev => prev.map(t => t.id === newRecord.id ? newRecord : t)); break;
+            case 'credentials': setAllCredentials(prev => prev.map(c => c.id === newRecord.id ? newRecord : c)); break;
         }
     };
     const handleDeletes = (payload: any) => {
@@ -326,7 +245,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       }
   }, [currency, currencyKey, user]);
 
-  const setActiveProject = useCallback((project: AppProject | null) => {
+  const setActiveProject = useCallback((project: Project | null) => {
     const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
     _setActiveProject(projectToSet);
     if (activeProjectKey) {
@@ -334,7 +253,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [activeProjectKey]);
   
-  const setDefaultProject = useCallback((project: AppProject | null) => {
+  const setDefaultProject = useCallback((project: Project | null) => {
     const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
     _setDefaultProject(projectToSet);
     if (defaultProjectKey) {
@@ -342,21 +261,20 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [defaultProjectKey]);
 
-  const addProject = async (projectData: Omit<AppProject, 'id' | 'userId' | 'createdAt'>): Promise<AppProject> => {
+  const addProject = async (projectData: Omit<Project, 'id' | 'user_id' | 'created_at'>): Promise<Project> => {
     if (!user) throw new Error("User not authenticated");
     const dbProject = { 
-        ...fromAppProject(projectData),
+        ...projectData,
         user_id: user.id, 
         created_at: new Date().toISOString()
     };
     const { data: newProject, error } = await supabase.from('projects').insert(dbProject).select().single();
     if (error) throw error;
-    return toAppProject(newProject);
+    return newProject;
   };
 
-  const updateProject = async (projectId: string, projectData: Partial<Omit<AppProject, 'id' | 'userId' | 'createdAt'>>) => {
-    const dbProject: Partial<Omit<Project, 'id' | 'user_id' | 'created_at'>> = fromAppProject(projectData);
-    const { error } = await supabase.from('projects').update(dbProject).eq('id', projectId);
+  const updateProject = async (projectId: string, projectData: Partial<Omit<Project, 'id' | 'user_id' | 'created_at'>>) => {
+    const { error } = await supabase.from('projects').update(projectData).eq('id', projectId);
     if (error) throw error;
   };
 
@@ -366,21 +284,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (activeProject?.id === projectId) setActiveProject(ALL_BUSINESS_PROJECT);
   };
 
-  const addClient = async (clientData: Omit<AppClient, 'id' | 'userId'>, projectId?: string): Promise<AppClient> => {
-    // Personal clients have no projectId.
-    const finalProjectId = (projectId && projectId !== 'all') ? projectId : undefined;
-    
-    const dbData: Partial<Omit<Client, 'id'>> = {
-      ...fromAppClient(clientData),
-      project_id: finalProjectId,
-    };
-    const { data: newClient, error } = await supabase.from('clients').insert(dbData).select().single();
+  const addClient = async (clientData: Omit<Client, 'id' | 'user_id' | 'project_id'>, project_id?: string): Promise<Client> => {
+    if (!user) throw new Error("User not authenticated");
+    const finalProjectId = (project_id && project_id !== 'all') ? project_id : undefined;
+    const { data: newClient, error } = await supabase.from('clients').insert({ ...clientData, project_id: finalProjectId, user_id: user.id }).select().single();
     if (error) throw error;
-    return toAppClient(newClient);
+    return newClient;
   };
 
-  const updateClient = async (clientId: string, clientData: Partial<Omit<AppClient, 'id'>>) => {
-    const { error } = await supabase.from('clients').update(fromAppClient(clientData)).eq('id', clientId);
+  const updateClient = async (clientId: string, clientData: Partial<Omit<Client, 'id' | 'user_id'>>) => {
+    const { error } = await supabase.from('clients').update(clientData).eq('id', clientId);
     if (error) throw error;
   };
 
@@ -389,15 +302,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addCategory = async (categoryData: Omit<AppCategory, 'id' | 'userId'>, projectId?: string): Promise<AppCategory> => {
-    const finalProjectId = (projectId && projectId !== 'all') ? projectId : undefined;
-    const { data: newCategory, error } = await supabase.from('categories').insert({ ...fromAppCategory(categoryData), project_id: finalProjectId }).select().single();
+  const addCategory = async (categoryData: Omit<Category, 'id' | 'user_id' | 'project_id'>, project_id?: string): Promise<Category> => {
+    if (!user) throw new Error("User not authenticated");
+    const finalProjectId = (project_id && project_id !== 'all') ? project_id : undefined;
+    const { data: newCategory, error } = await supabase.from('categories').insert({ ...categoryData, project_id: finalProjectId, user_id: user.id }).select().single();
     if (error) throw error;
-    return toAppCategory(newCategory);
+    return newCategory;
   };
 
-  const updateCategory = async (categoryId: string, categoryData: Partial<Omit<AppCategory, 'id'>>) => {
-    const { error } = await supabase.from('categories').update(fromAppCategory(categoryData)).eq('id', categoryId);
+  const updateCategory = async (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'user_id'>>) => {
+    const { error } = await supabase.from('categories').update(categoryData).eq('id', categoryId);
     if (error) throw error;
   };
   
@@ -406,21 +320,21 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const updateAccountBalance = useCallback(async (accountId: string, amount: number, operation: 'add' | 'subtract') => {
-      const { data: account, error: fetchError } = await supabase.from('bank_accounts').select('balance').eq('id', accountId).single();
+  const updateAccountBalance = useCallback(async (account_id: string, amount: number, operation: 'add' | 'subtract') => {
+      const { data: account, error: fetchError } = await supabase.from('bank_accounts').select('balance').eq('id', account_id).single();
       if (fetchError || !account) {
         console.error("Error fetching account for balance update:", fetchError);
         return;
       }
       const newBalance = operation === 'add' ? account.balance + amount : account.balance - amount;
-      const { error } = await supabase.from('bank_accounts').update({ balance: newBalance }).eq('id', accountId);
+      const { error } = await supabase.from('bank_accounts').update({ balance: newBalance }).eq('id', account_id);
       if (error) console.error("Error updating balance:", error);
   }, []);
 
-  const addTransaction = async (transactionData: Omit<AppTransaction, 'id'| 'date' | 'userId'>, returnRef = false): Promise<{ id: string } | void> => {
+  const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'date' | 'user_id'>, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
-    const dbTransaction: Partial<Omit<Transaction, 'id'>> & { user_id: string; date: string; } = {
-        ...fromAppTransaction(transactionData),
+    const dbTransaction: Omit<Transaction, 'id'> & { user_id: string; date: string; } = {
+        ...transactionData,
         user_id: user.id,
         date: new Date().toISOString(),
     };
@@ -437,36 +351,35 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (returnRef) { return { id: newTransaction.id }; }
   };
 
-  const updateTransaction = async (originalTransaction: AppTransaction, updatedData: Partial<AppTransaction>) => {
-    if (originalTransaction.accountId) {
-      if (originalTransaction.type === 'income') await updateAccountBalance(originalTransaction.accountId, originalTransaction.amount, 'subtract');
-      if (originalTransaction.type === 'expense') await updateAccountBalance(originalTransaction.accountId, originalTransaction.amount, 'add');
+  const updateTransaction = async (originalTransaction: Transaction, updatedData: Partial<Transaction>) => {
+    if (originalTransaction.account_id) {
+      if (originalTransaction.type === 'income') await updateAccountBalance(originalTransaction.account_id, originalTransaction.amount, 'subtract');
+      if (originalTransaction.type === 'expense') await updateAccountBalance(originalTransaction.account_id, originalTransaction.amount, 'add');
     }
-    const dbUpdate: Partial<Omit<Transaction, 'id' | 'date'>> = fromAppTransaction(updatedData);
-    const { error } = await supabase.from('transactions').update(dbUpdate).eq('id', originalTransaction.id);
+    const { error } = await supabase.from('transactions').update(updatedData).eq('id', originalTransaction.id);
     if (error) throw error;
 
     const finalTransaction = { ...originalTransaction, ...updatedData };
-    if (finalTransaction.accountId) {
-        if (finalTransaction.type === 'income') await updateAccountBalance(finalTransaction.accountId, finalTransaction.amount, 'add');
-        if (finalTransaction.type === 'expense') await updateAccountBalance(finalTransaction.accountId, finalTransaction.amount, 'subtract');
+    if (finalTransaction.account_id) {
+        if (finalTransaction.type === 'income') await updateAccountBalance(finalTransaction.account_id, finalTransaction.amount, 'add');
+        if (finalTransaction.type === 'expense') await updateAccountBalance(finalTransaction.account_id, finalTransaction.amount, 'subtract');
     }
   };
 
-  const deleteTransaction = async (transactionToDelete: AppTransaction) => {
-    if (transactionToDelete.accountId) {
-        if (transactionToDelete.type === 'income') { await updateAccountBalance(transactionToDelete.accountId, transactionToDelete.amount, 'subtract'); } 
-        else if (transactionToDelete.type === 'expense') { await updateAccountBalance(transactionToDelete.accountId, transactionToDelete.amount, 'add'); }
+  const deleteTransaction = async (transactionToDelete: Transaction) => {
+    if (transactionToDelete.account_id) {
+        if (transactionToDelete.type === 'income') { await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'subtract'); } 
+        else if (transactionToDelete.type === 'expense') { await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'add'); }
     }
     const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
     if (error) throw error;
   };
 
-  const addDebt = async (debtData: Omit<AppDebt, 'id' | 'date' | 'userId' | 'name'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user || !debtData.accountId) throw new Error("User not authenticated or missing accountId");
+  const addDebt = async (debtData: Omit<Debt, 'id' | 'date' | 'user_id' | 'name'>, returnRef = false): Promise<{ id: string } | void> => {
+    if (!user || !debtData.account_id) throw new Error("User not authenticated or missing account_id");
     
-    const dbDebt: Omit<Debt, 'id'|'date'|'user_id'> & {user_id: string; date: string} = {
-        ...fromAppDebt(debtData),
+    const dbDebt: Omit<Debt, 'id'|'date'|'user_id'|'name'> & {user_id: string; date: string} = {
+        ...debtData,
         user_id: user.id,
         date: new Date().toISOString(),
     };
@@ -479,40 +392,38 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (returnRef) { return { id: newDebt.id }; }
   };
 
-  const updateDebt = async (originalDebt: AppDebt, updatedData: Partial<AppDebt>) => {
+  const updateDebt = async (originalDebt: Debt, updatedData: Partial<Debt>) => {
     const amountDifference = (updatedData.amount ?? originalDebt.amount) - originalDebt.amount;
-    if (amountDifference !== 0 && originalDebt.accountId) {
-        if (originalDebt.type === 'creditor') { await updateAccountBalance(originalDebt.accountId, amountDifference, 'add'); } 
-        else { await updateAccountBalance(originalDebt.accountId, amountDifference, 'subtract'); }
+    if (amountDifference !== 0 && originalDebt.account_id) {
+        if (originalDebt.type === 'creditor') { await updateAccountBalance(originalDebt.account_id, amountDifference, 'add'); } 
+        else { await updateAccountBalance(originalDebt.account_id, amountDifference, 'subtract'); }
     }
-    const dbUpdate: Partial<Omit<Debt, 'id' | 'date' | 'user_id'>> = fromAppDebt(updatedData);
-    const { error } = await supabase.from('debts').update(dbUpdate).eq('id', originalDebt.id);
+    const { error } = await supabase.from('debts').update(updatedData).eq('id', originalDebt.id);
     if (error) throw error;
   };
 
-  const deleteDebt = async (debtToDelete: AppDebt) => {
-    if (debtToDelete.accountId) {
-        if (debtToDelete.type === 'creditor') { await updateAccountBalance(debtToDelete.accountId, debtToDelete.amount, 'subtract'); } 
-        else { await updateAccountBalance(debtToDelete.accountId, debtToDelete.amount, 'add'); }
+  const deleteDebt = async (debtToDelete: Debt) => {
+    if (debtToDelete.account_id) {
+        if (debtToDelete.type === 'creditor') { await updateAccountBalance(debtToDelete.account_id, debtToDelete.amount, 'subtract'); } 
+        else { await updateAccountBalance(debtToDelete.account_id, debtToDelete.amount, 'add'); }
     }
     const { error } = await supabase.from('debts').delete().eq('id', debtToDelete.id);
     if (error) throw error;
   };
 
-  const addRepayment = async (debt: AppDebt, amount: number, accountId: string) => {
+  const addRepayment = async (debt: Debt, amount: number, account_id: string) => {
     await updateDebt(debt, { amount: debt.amount - amount });
-    await addTransaction({ type: 'repayment', amount, category: 'Debt Repayment', description: `Payment for debt: ${debt.name}`, debtId: debt.id, accountId: accountId, projectId: debt.projectId });
+    await addTransaction({ type: 'repayment', amount, category: 'Debt Repayment', description: `Payment for debt: ${debt.name}`, debt_id: debt.id, account_id: account_id, project_id: debt.project_id });
   };
 
-  const addBankAccount = async (account: Omit<AppBankAccount, 'id' | 'userId'>) => {
+  const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id'>) => {
     if (!user) return;
-    const { error } = await supabase.from('bank_accounts').insert({ ...fromAppBankAccount(account), user_id: user.id, is_primary: allBankAccounts.length === 0 });
+    const { error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, is_primary: allBankAccounts.length === 0 });
     if (error) throw error;
   };
 
-  const updateBankAccount = async (accountId: string, accountData: Partial<Omit<AppBankAccount, 'id' | 'userId'>>) => {
-    const dbUpdate: Partial<Omit<BankAccount, 'id' | 'user_id'>> = fromAppBankAccount(accountData);
-    const { error } = await supabase.from('bank_accounts').update(dbUpdate).eq('id', accountId);
+  const updateBankAccount = async (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'user_id'>>) => {
+    const { error } = await supabase.from('bank_accounts').update(accountData).eq('id', accountId);
     if (error) throw error;
   };
 
@@ -529,19 +440,18 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       supabase.from('bank_accounts').update({ is_primary: acc.id === accountId }).eq('id', acc.id)
     );
     await Promise.all(updates);
-    // Local state will be updated by the real-time subscription
   };
 
   const getTransactionById = useCallback((id: string) => allTransactions.find(t => t.id === id), [allTransactions]);
   const getDebtById = useCallback((id: string) => allDebts.find(d => d.id === id), [allDebts]);
 
-  const addTask = async (taskData: Omit<AppTask, 'id' | 'userId' | 'createdAt'>) => {
+  const addTask = async (taskData: Omit<Task, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return;
-    await supabase.from('tasks').insert({ ...fromAppTask(taskData), user_id: user.id, created_at: new Date().toISOString() });
+    await supabase.from('tasks').insert({ ...taskData, user_id: user.id, created_at: new Date().toISOString() });
   };
 
-  const updateTask = async (taskId: string, taskData: Partial<Omit<AppTask, 'id' | 'userId'>>) => {
-    await supabase.from('tasks').update(fromAppTask(taskData)).eq('id', taskId);
+  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'user_id'>>) => {
+    await supabase.from('tasks').update(taskData).eq('id', taskId);
   };
 
   const deleteTask = async (taskId: string) => {
@@ -549,18 +459,18 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const addCredential = async (credentialData: Omit<AppCredential, 'id' | 'userId' | 'createdAt'>) => {
+  const addCredential = async (credentialData: Omit<Credential, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return;
     const dbData = {
-      ...fromAppCredential(credentialData),
+      ...credentialData,
       user_id: user.id,
       created_at: new Date().toISOString()
     };
     await supabase.from('credentials').insert(dbData);
   };
 
-  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<AppCredential, 'id' | 'userId'>>) => {
-    await supabase.from('credentials').update(fromAppCredential(credentialData)).eq('id', credentialId);
+  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'user_id'>>) => {
+    await supabase.from('credentials').update(credentialData).eq('id', credentialId);
   };
   
   const deleteCredential = async (credentialId: string) => {
@@ -568,31 +478,30 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
   
-  const filteredTransactions = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTransactions.filter(t => t.projectId === activeProject.id) : allTransactions.filter(t => !t.projectId), [allTransactions, activeProject]);
+  const filteredTransactions = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTransactions.filter(t => t.project_id === activeProject.id) : allTransactions.filter(t => !t.project_id), [allTransactions, activeProject]);
   const filteredDebts = useMemo(() => {
     if (activeProject && activeProject.id !== 'all') {
-      return allDebts.filter(d => d.projectId === activeProject.id);
+      return allDebts.filter(d => d.project_id === activeProject.id);
     }
-    return allDebts.filter(d => !d.projectId);
+    return allDebts.filter(d => !d.project_id);
   }, [allDebts, activeProject]);
   
   const filteredClients = useMemo(() => {
       if (activeProject && activeProject.id !== 'all') {
-        return allClients.filter(c => c.projectId === activeProject.id);
+        return allClients.filter(c => c.project_id === activeProject.id);
       }
-      // For "All Business", we don't show personal clients, only project-based ones. For personal view, we show only personal.
-      return allClients.filter(c => !c.projectId);
+      return allClients.filter(c => !c.project_id);
   }, [allClients, activeProject]);
 
   const filteredCategories = useMemo(() => {
       if (activeProject && activeProject.id !== 'all') {
-          return allCategories.filter(c => c.projectId === activeProject.id);
+          return allCategories.filter(c => c.project_id === activeProject.id);
       }
-      return allCategories.filter(c => !c.projectId);
+      return allCategories.filter(c => !c.project_id);
   }, [allCategories, activeProject]);
 
-  const filteredTasks = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTasks.filter(t => t.projectId === activeProject.id) : allTasks.filter(t => !t.projectId), [allTasks, activeProject]);
-  const filteredCredentials = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCredentials.filter(c => c.projectId === activeProject.id) : allCredentials.filter(c => !c.projectId), [allCredentials, activeProject]);
+  const filteredTasks = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTasks.filter(t => t.project_id === activeProject.id) : allTasks.filter(t => !t.project_id), [allTasks, activeProject]);
+  const filteredCredentials = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCredentials.filter(c => c.project_id === activeProject.id) : allCredentials.filter(c => !c.project_id), [allCredentials, activeProject]);
 
 
   const contextValue: FinancialContextType = useMemo(() => ({

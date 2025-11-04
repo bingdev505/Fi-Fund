@@ -91,7 +91,7 @@ export default function AccountsView() {
                             </div>
                         </div>
                         <div className='flex items-center gap-2'>
-                          {account.isPrimary ? (
+                          {account.is_primary ? (
                               <Badge variant="outline" className='text-primary border-primary'>
                                   <Star className='mr-1 h-3 w-3' />
                                   Primary

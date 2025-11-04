@@ -30,7 +30,7 @@ export default function Overview() {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     
-    let primaryAcc = bankAccounts.find(acc => acc.isPrimary) || bankAccounts[0];
+    let primaryAcc = bankAccounts.find(acc => acc.is_primary) || bankAccounts[0];
 
     const debtors = debts.filter(d => d.type === 'debtor' && d.amount > 0).reduce((sum, d) => sum + d.amount, 0);
     

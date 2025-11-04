@@ -26,8 +26,8 @@ const taskSchema = z.object({
   name: z.string().min(3, 'Task name must be at least 3 characters'),
   description: z.string().optional(),
   status: z.enum(['todo', 'in-progress', 'done']),
-  dueDate: z.date().optional(),
-  projectId: z.string().optional(),
+  due_date: z.date().optional(),
+  project_id: z.string().optional(),
 });
 
 type TaskFormProps = {
@@ -45,21 +45,21 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             name: task.name,
             description: task.description || '',
             status: task.status,
-            dueDate: task.dueDate ? parseISO(task.dueDate) : undefined,
-            projectId: task.projectId || 'personal',
+            due_date: task.due_date ? parseISO(task.due_date) : undefined,
+            project_id: task.project_id || 'personal',
         } : {
             name: '',
             description: '',
             status: 'todo',
-            projectId: activeProject?.id !== 'all' ? activeProject?.id : 'personal',
+            project_id: activeProject?.id !== 'all' ? activeProject?.id : 'personal',
         }
     });
 
     async function onSubmit(values: z.infer<typeof taskSchema>) {
         const finalValues = {
             ...values,
-            projectId: values.projectId === 'personal' ? undefined : values.projectId,
-            dueDate: values.dueDate?.toISOString(),
+            project_id: values.project_id === 'personal' ? undefined : values.project_id,
+            due_date: values.due_date?.toISOString(),
         };
 
         if (task) {
@@ -105,7 +105,7 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                             <FormMessage />
                         </FormItem>
                     )} />
-                    <FormField control={form.control} name="dueDate" render={({ field }) => (
+                    <FormField control={form.control} name="due_date" render={({ field }) => (
                         <FormItem className="flex flex-col">
                             <FormLabel>Due Date (Optional)</FormLabel>
                             <Popover>
@@ -127,7 +127,7 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                 </div>
                  <FormField
                     control={form.control}
-                    name="projectId"
+                    name="project_id"
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Business (Optional)</FormLabel>
@@ -189,8 +189,8 @@ export default function TaskTracker() {
         if (a.status !== b.status) {
             return statusOrder[a.status] - statusOrder[b.status];
         }
-        const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-        const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+        const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity;
         return aDate - bDate;
     });
   }, [tasks]);
@@ -240,7 +240,7 @@ export default function TaskTracker() {
                             <div>
                                 <p className="font-medium">{task.name}</p>
                                 {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
-                                {task.dueDate && <p className="text-xs text-muted-foreground">Due: {format(parseISO(task.dueDate), 'PPP')}</p>}
+                                {task.due_date && <p className="text-xs text-muted-foreground">Due: {format(parseISO(task.due_date), 'PPP')}</p>}
                             </div>
                         </div>
                         <div className="flex items-center gap-4">

@@ -43,7 +43,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
 
     const combined: (Transaction | Debt)[] = [
       ...transactions.map(t => ({...t, date: toDate(t.date)})),
-      ...debts.map(d => ({...d, date: toDate(d.date), dueDate: d.dueDate ? toDate(d.dueDate) : undefined })),
+      ...debts.map(d => ({...d, date: toDate(d.date), due_date: d.due_date ? toDate(d.due_date) : undefined })),
     ];
     
     const sorted = combined.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -59,14 +59,14 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   }
 
-  const getAccountName = (accountId?: string) => {
-    if (!accountId) return '';
-    return bankAccounts.find(acc => acc.id === accountId)?.name || '';
+  const getAccountName = (account_id?: string) => {
+    if (!account_id) return '';
+    return bankAccounts.find(acc => acc.id === account_id)?.name || '';
   }
 
-  const getClientName = (clientId?: string) => {
-    if (!clientId) return '';
-    return clients.find(c => c.id === clientId)?.name || '';
+  const getClientName = (client_id?: string) => {
+    if (!client_id) return '';
+    return clients.find(c => c.id === client_id)?.name || '';
   }
 
   const handleDelete = () => {
@@ -131,18 +131,18 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     if (isTransaction) {
         const tx = entry as Transaction;
         if (tx.type === 'transfer') {
-            subtext = `Transfer: ${getAccountName(tx.fromAccountId)} → ${getAccountName(tx.toAccountId)}`;
+            subtext = `Transfer: ${getAccountName(tx.from_account_id)} → ${getAccountName(tx.to_account_id)}`;
         } else {
-            const clientName = tx.clientId ? ` (${getClientName(tx.clientId)})` : '';
-            subtext = `${tx.category}${clientName} (${getAccountName(tx.accountId)})`;
+            const clientName = tx.client_id ? ` (${getClientName(tx.client_id)})` : '';
+            subtext = `${tx.category}${clientName} (${getAccountName(tx.account_id)})`;
         }
     } else {
         const debt = entry as Debt;
-        subtext = `${debt.description} (${getAccountName(debt.accountId)})`;
+        subtext = `${debt.description} (${getAccountName(debt.account_id)})`;
     }
 
     const entryDate = entry.date as Date;
-    const dueDate = (entry as Debt).dueDate as Date | undefined;
+    const dueDate = (entry as Debt).due_date as Date | undefined;
 
     return (
         <div className="flex items-start justify-between py-3 group">

@@ -17,19 +17,19 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import type { AppProject } from '@/context/FinancialContext';
+import type { Project } from '@/lib/types';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { useAuth } from '@/context/AuthContext';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters'),
-  parentProjectId: z.string().optional(),
-  googleSheetId: z.string().optional(),
+  parent_project_id: z.string().optional(),
+  google_sheet_id: z.string().optional(),
 });
 
 type ProjectFormProps = {
-    project?: AppProject | null;
+    project?: Project | null;
     onFinished: () => void;
 }
 
@@ -46,18 +46,18 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
     resolver: zodResolver(projectSchema),
     defaultValues: {
       name: project?.name || '',
-      parentProjectId: project?.parentProjectId || 'none',
-      googleSheetId: project?.googleSheetId || '',
+      parent_project_id: project?.parent_project_id || 'none',
+      google_sheet_id: project?.google_sheet_id || '',
     },
   });
 
   async function onSubmit(values: z.infer<typeof projectSchema>) {
     const isNewProject = !project;
-    const hasNewSheetId = values.googleSheetId && values.googleSheetId !== project?.googleSheetId;
+    const hasNewSheetId = values.google_sheet_id && values.google_sheet_id !== project?.google_sheet_id;
 
     const projectData = {
         ...values,
-        parentProjectId: values.parentProjectId === 'none' ? undefined : values.parentProjectId
+        parent_project_id: values.parent_project_id === 'none' ? undefined : values.parent_project_id
     };
 
     if (project) {
@@ -71,8 +71,8 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         });
     }
 
-    if ((isNewProject && values.googleSheetId) || hasNewSheetId) {
-        setSubmittedSheetId(values.googleSheetId!);
+    if ((isNewProject && values.google_sheet_id) || hasNewSheetId) {
+        setSubmittedSheetId(values.google_sheet_id!);
         setShowSheetShareDialog(true);
     } else {
         onFinished();
@@ -99,7 +99,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
             control={form.control}
-            name="parentProjectId"
+            name="parent_project_id"
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Parent Business (Optional)</FormLabel>
@@ -124,7 +124,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
             />
             <FormField
             control={form.control}
-            name="googleSheetId"
+            name="google_sheet_id"
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Google Sheet ID (Optional)</FormLabel>

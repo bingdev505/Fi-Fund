@@ -19,11 +19,11 @@ import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 const credentialSchema = z.object({
-  siteName: z.string().min(2, 'Site name must be at least 2 characters'),
+  site_name: z.string().min(2, 'Site name must be at least 2 characters'),
   username: z.string().min(2, 'Username must be at least 2 characters'),
   password: z.string().optional(),
-  totpSecret: z.string().optional(),
-  projectId: z.string().optional(),
+  totp_secret: z.string().optional(),
+  project_id: z.string().optional(),
 });
 
 type CredentialFormProps = {
@@ -38,17 +38,17 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
     const form = useForm<z.infer<typeof credentialSchema>>({
         resolver: zodResolver(credentialSchema),
         defaultValues: credential ? {
-            siteName: credential.siteName,
+            site_name: credential.site_name,
             username: credential.username,
             password: credential.password || '',
-            totpSecret: credential.totpSecret || '',
-            projectId: credential.projectId || 'personal',
+            totp_secret: credential.totp_secret || '',
+            project_id: credential.project_id || 'personal',
         } : {
-            siteName: '',
+            site_name: '',
             username: '',
             password: '',
-            totpSecret: '',
-            projectId: activeProject?.id !== 'all' ? activeProject?.id : 'personal',
+            totp_secret: '',
+            project_id: activeProject?.id !== 'all' ? activeProject?.id : 'personal',
         }
     });
 
@@ -66,7 +66,7 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField control={form.control} name="siteName" render={({ field }) => (
+                <FormField control={form.control} name="site_name" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Site Name</FormLabel>
                         <FormControl><Input placeholder="e.g. Google" {...field} /></FormControl>
@@ -87,7 +87,7 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
                         <FormMessage />
                     </FormItem>
                 )} />
-                <FormField control={form.control} name="totpSecret" render={({ field }) => (
+                <FormField control={form.control} name="totp_secret" render={({ field }) => (
                     <FormItem>
                         <FormLabel>2FA Secret Key (TOTP)</FormLabel>
                         <FormControl><Input placeholder="Enter TOTP secret" {...field} value={field.value || ''} /></FormControl>
@@ -96,7 +96,7 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
                 )} />
                  <FormField
                     control={form.control}
-                    name="projectId"
+                    name="project_id"
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Business (Optional)</FormLabel>
@@ -181,7 +181,7 @@ export default function Passwords() {
   
   const groupedCredentials = useMemo(() => {
     const filtered = credentials.filter(cred => 
-      cred.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cred.site_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cred.username.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -194,8 +194,8 @@ export default function Passwords() {
     });
 
     filtered.forEach(cred => {
-        if (cred.projectId && grouped[cred.projectId]) {
-            grouped[cred.projectId].push(cred);
+        if (cred.project_id && grouped[cred.project_id]) {
+            grouped[cred.project_id].push(cred);
         } else {
             grouped['personal'].push(cred);
         }
@@ -307,7 +307,7 @@ const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => (
             <div className="flex items-center gap-4">
                 <KeyRound className="h-5 w-5 text-muted-foreground" />
                 <div>
-                    <p className="font-medium">{cred.siteName}</p>
+                    <p className="font-medium">{cred.site_name}</p>
                     <p className="text-sm text-muted-foreground">{cred.username}</p>
                 </div>
             </div>
@@ -329,10 +329,10 @@ const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => (
                     <PasswordDisplay value={cred.password} />
                 </div>
             )}
-            {cred.totpSecret && (
+            {cred.totp_secret && (
                 <div>
                     <label className="text-xs font-medium text-muted-foreground">2FA Secret</label>
-                    <PasswordDisplay value={cred.totpSecret} />
+                    <PasswordDisplay value={cred.totp_secret} />
                 </div>
             )}
         </div>

@@ -24,6 +24,7 @@ export type Debt = {
   user_id: string;
   project_id?: string;
   type: 'creditor' | 'debtor';
+  name: string; // This will now be the client's name from the Client list
   client_id: string; // Link to the Client
   amount: number;
   description: string;
@@ -41,7 +42,8 @@ export type BankAccount = {
 };
 
 export type UserSettings = {
-  user_id: string;
+  id: string;
+  email: string;
   currency: string;
 }
 
@@ -65,12 +67,14 @@ export type ChatMessage = {
 
 export type Client = {
   id: string;
+  user_id: string;
   project_id?: string;
   name: string;
 };
 
 export type Category = {
   id: string;
+  user_id: string;
   project_id?: string;
   name: string;
   type: 'income' | 'expense';

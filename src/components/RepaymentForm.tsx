@@ -32,14 +32,14 @@ export default function RepaymentForm({ debt, onFinished }: RepaymentFormProps) 
       .number()
       .positive('Amount must be positive')
       .max(debt.amount, `Cannot pay more than the outstanding amount of ${formatCurrency(debt.amount)}`),
-    accountId: z.string({ required_error: "Please select a bank account." }),
+    account_id: z.string({ required_error: "Please select a bank account." }),
   });
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       amount: debt.amount,
-      accountId: bankAccounts.find(acc => acc.isPrimary)?.id,
+      account_id: bankAccounts.find(acc => acc.is_primary)?.id,
     },
   });
 
@@ -48,7 +48,7 @@ export default function RepaymentForm({ debt, onFinished }: RepaymentFormProps) 
   }
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    addRepayment(debt, values.amount, values.accountId);
+    addRepayment(debt, values.amount, values.account_id);
     toast({
       title: 'Repayment Logged',
       description: `${formatCurrency(values.amount)} has been logged for ${debt.name}.`,
@@ -80,7 +80,7 @@ export default function RepaymentForm({ debt, onFinished }: RepaymentFormProps) 
         />
          <FormField
             control={form.control}
-            name="accountId"
+            name="account_id"
             render={({ field }) => (
             <FormItem>
                 <FormLabel>

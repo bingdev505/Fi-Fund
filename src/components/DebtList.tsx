@@ -34,7 +34,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
 
     const filtered = debts
       .filter(d => d.type === type && d.amount > 0)
-      .map(d => ({...d, date: toDate(d.date), dueDate: d.dueDate ? toDate(d.dueDate) : undefined }));
+      .map(d => ({...d, date: toDate(d.date), due_date: d.due_date ? toDate(d.due_date) : undefined }));
     
     const sorted = filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
     
@@ -49,9 +49,9 @@ export default function DebtList({ type, limit }: DebtListProps) {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   }
 
-  const getAccountName = (accountId?: string) => {
-    if (!accountId) return '';
-    return bankAccounts.find(acc => acc.id === accountId)?.name || '';
+  const getAccountName = (account_id?: string) => {
+    if (!account_id) return '';
+    return bankAccounts.find(acc => acc.id === account_id)?.name || '';
   }
 
   if (isLoading) {
@@ -86,7 +86,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
     const color = entry.type === 'creditor' ? 'text-red-600' : 'text-green-600';
     const RepaymentIcon = entry.type === 'debtor' ? ArrowDownCircle : ArrowUpCircle;
     const entryDate = entry.date as Date;
-    const dueDate = entry.dueDate as Date | undefined;
+    const dueDate = entry.due_date as Date | undefined;
     
     return (
       <Dialog open={openDialogId === entry.id} onOpenChange={(isOpen) => setOpenDialogId(isOpen ? entry.id : null)}>
@@ -98,7 +98,7 @@ export default function DebtList({ type, limit }: DebtListProps) {
                         {entry.name}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {entry.description} ({getAccountName(entry.accountId)}) • {entryDate instanceof Date ? entryDate.toLocaleDateString() : entryDate}
+                        {entry.description} ({getAccountName(entry.account_id)}) • {entryDate instanceof Date ? entryDate.toLocaleDateString() : entryDate}
                     </p>
                     {dueDate && (
                         <p className="text-xs text-muted-foreground">Due: {dueDate instanceof Date ? dueDate.toLocaleDateString() : dueDate}</p>

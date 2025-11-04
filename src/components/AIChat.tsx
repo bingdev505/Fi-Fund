@@ -19,7 +19,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EditEntryForm from './EditEntryForm';
 import EntryForm from './EntryForm';
 import { useAuth } from '@/context/AuthContext';
-import type { AppTransaction, AppDebt } from '@/context/FinancialContext';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
@@ -109,11 +108,11 @@ export default function AIChat() {
   
   const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading } = useChatHistory();
 
-  const [editingEntry, setEditingEntry] = useState<AppTransaction | AppDebt | null>(null);
-  const [deletingEntry, setDeletingEntry] = useState<AppTransaction | AppDebt | null>(null);
+  const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
 
   const [repaymentPopoverOpen, setRepaymentPopoverOpen] = useState(false);
-  const [selectedDebt, setSelectedDebt] = useState<AppDebt | null>(null);
+  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [repaymentDialogOpen, setRepaymentDialogOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
@@ -156,7 +155,7 @@ export default function AIChat() {
     document.getElementById('chat-input')?.focus();
   };
 
-  const handleRepaymentSelect = (debt: AppDebt) => {
+  const handleRepaymentSelect = (debt: Debt) => {
     setSelectedDebt(debt);
     setRepaymentDialogOpen(true);
     setRepaymentPopoverOpen(false);
@@ -183,10 +182,10 @@ export default function AIChat() {
     const messageToDelete = messages.find(m => m.transaction_id === deletingEntry?.id);
 
     if ('category' in deletingEntry) {
-      deleteTransaction(deletingEntry as AppTransaction);
+      deleteTransaction(deletingEntry as Transaction);
       toast({ title: "Transaction Deleted" });
     } else {
-      deleteDebt(deletingEntry as AppDebt);
+      deleteDebt(deletingEntry as Debt);
       toast({ title: "Debt Deleted" });
     }
 
@@ -197,17 +196,17 @@ export default function AIChat() {
     setDeletingEntry(null);
   };
 
-  const handleEditFinished = (originalEntry: AppTransaction | AppDebt, updatedEntry: AppTransaction | AppDebt) => {
+  const handleEditFinished = (originalEntry: Transaction | Debt, updatedEntry: Transaction | Debt) => {
     const messageToUpdate = messages.find(m => m.transaction_id === originalEntry.id);
     if (messageToUpdate) {
         let newContent = '';
         if (updatedEntry.type === 'income' || updatedEntry.type === 'expense') {
-            const tx = updatedEntry as AppTransaction;
-            const accountName = bankAccounts.find(ba => ba.id === tx.accountId)?.name || 'an account';
+            const tx = updatedEntry as Transaction;
+            const accountName = bankAccounts.find(ba => ba.id === tx.account_id)?.name || 'an account';
             newContent = `${tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} of ${formatCurrency(tx.amount)} in ${tx.category} logged to ${accountName}.`
         } else {
-            const debt = updatedEntry as AppDebt;
-            const accountName = bankAccounts.find(ba => ba.id === debt.accountId)?.name || 'an account';
+            const debt = updatedEntry as Debt;
+            const accountName = bankAccounts.find(ba => ba.id === debt.account_id)?.name || 'an account';
             newContent = `${debt.type.charAt(0).toUpperCase() + debt.type.slice(1)} of ${formatCurrency(debt.amount)} for ${debt.name} logged against ${accountName}.`
         }
 
@@ -251,9 +250,9 @@ export default function AIChat() {
       }
 
       const result = await routeUserIntent({ 
-        chatInput: userMessageContent, 
-        financialData,
-        chatHistory: chatHistoryForContext
+        chat_input: userMessageContent, 
+        financial_data: financialData,
+        chat_history: chatHistoryForContext
       });
 
       let assistantResponse = '';
@@ -267,8 +266,8 @@ export default function AIChat() {
         let accountNameToUse: string | undefined;
         let wasAccountFound = false;
 
-        if (logResult.accountName) {
-            const searchName = logResult.accountName.toLowerCase();
+        if (logResult.account_name) {
+            const searchName = logResult.account_name.toLowerCase();
             const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(searchName));
             
             if (foundAccount) {
@@ -276,10 +275,10 @@ export default function AIChat() {
                 accountNameToUse = foundAccount.name;
                 wasAccountFound = true;
             } else {
-                assistantResponse = `I couldn't find an account named '${logResult.accountName}'. Please check your account settings or try again.`;
+                assistantResponse = `I couldn't find an account named '${logResult.account_name}'. Please check your account settings or try again.`;
             }
         } else {
-            const primaryAccount = bankAccounts.find(acc => acc.isPrimary);
+            const primaryAccount = bankAccounts.find(acc => acc.is_primary);
             if (primaryAccount) {
                 accountIdToUse = primaryAccount.id;
                 accountNameToUse = primaryAccount.name;
@@ -295,19 +294,19 @@ export default function AIChat() {
                   description: 'Please set a primary bank account in settings, or specify an account in your message.',
                 });
                 assistantResponse = "I couldn't log that because there's no primary account set. Please go to settings to select one, or tell me which account to use.";
-            } else if (logResult.transactionType === 'income' || logResult.transactionType === 'expense') {
+            } else if (logResult.transaction_type === 'income' || logResult.transaction_type === 'expense') {
                 const newTransaction = {
-                    type: logResult.transactionType,
+                    type: logResult.transaction_type,
                     amount: logResult.amount,
                     category: logResult.category,
                     description: logResult.description || 'AI Logged Transaction',
-                    accountId: accountIdToUse,
+                    account_id: accountIdToUse,
                 };
                 const newDocRef = await addTransaction(newTransaction, true);
                 newEntryId = newDocRef?.id;
                 newEntryType = newTransaction.type;
                 
-                const toastDescription = `${logResult.transactionType.charAt(0).toUpperCase() + logResult.transactionType.slice(1)} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
                 toast({
                     title: 'Logged via AI Chat',
@@ -315,18 +314,18 @@ export default function AIChat() {
                 });
             } else { // creditor or debtor
                 const newDebt = {
-                    type: logResult.transactionType,
+                    type: logResult.transaction_type,
                     amount: logResult.amount,
                     name: logResult.category, // Name is in category field for debts from AI
                     description: logResult.description || 'AI Logged Debt',
-                    accountId: accountIdToUse,
-                    clientId: '' // Client ID needs to be resolved or created
+                    account_id: accountIdToUse,
+                    client_id: '' // Client ID needs to be resolved or created
                 };
                 const newDocRef = await addDebt(newDebt, true);
                 newEntryId = newDocRef?.id;
                 newEntryType = newDebt.type;
 
-                const toastDescription = `${logResult.transactionType.charAt(0).toUpperCase() + logResult.transactionType.slice(1)} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
                 toast({
                     title: 'Logged via AI Chat',
@@ -399,7 +398,7 @@ export default function AIChat() {
   };
 
   const quickActions = [
-    ...bankAccounts.filter(acc => !acc.isPrimary).map(acc => ({ label: acc.name, action: acc.name, type: 'bank' as const })),
+    ...bankAccounts.filter(acc => !acc.is_primary).map(acc => ({ label: acc.name, action: acc.name, type: 'bank' as const })),
     { label: 'Creditor', action: 'creditor', type: 'prefix' as const },
     { label: 'Debtor', action: 'debtor', type: 'prefix' as const },
     { label: 'Income', action: 'income', type: 'prefix' as const },

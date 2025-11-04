@@ -16,10 +16,10 @@ export default function Transactions() {
   const { toast } = useToast();
 
   const handleGoogleSync = () => {
-    if (activeProject && activeProject.id !== 'all' && activeProject.googleSheetId) {
+    if (activeProject && activeProject.id !== 'all' && activeProject.google_sheet_id) {
         toast({
             title: "Sync Initiated (Placeholder)",
-            description: `Ready to sync with sheet: ${activeProject.googleSheetId}`
+            description: `Ready to sync with sheet: ${activeProject.google_sheet_id}`
         });
     } else {
         toast({

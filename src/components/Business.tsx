@@ -6,7 +6,7 @@ import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import type { AppProject } from '@/context/FinancialContext';
+import type { Project } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -15,15 +15,15 @@ export default function Business() {
   const { isLoading, projects, deleteProject, currency, allTransactions, allDebts } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<AppProject | null>(null);
-  const [deletingProject, setDeletingProject] = useState<AppProject | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
 
   const handleAddClick = () => {
     setEditingProject(null);
     setFormOpen(true);
   };
   
-  const handleEditClick = (project: AppProject) => {
+  const handleEditClick = (project: Project) => {
     setEditingProject(project);
     setFormOpen(true);
   };
@@ -48,64 +48,64 @@ export default function Business() {
     projects.forEach(p => balances.set(p.id, 0));
 
     allTransactions.forEach(t => {
-      if (t.projectId && balances.has(t.projectId)) {
-        let currentBalance = balances.get(t.projectId) || 0;
+      if (t.project_id && balances.has(t.project_id)) {
+        let currentBalance = balances.get(t.project_id) || 0;
         if (t.type === 'income') {
           currentBalance += t.amount;
         } else if (t.type === 'expense') {
           currentBalance -= t.amount;
         }
-        balances.set(t.projectId, currentBalance);
+        balances.set(t.project_id, currentBalance);
       }
     });
 
     allDebts.forEach(d => {
-        if (d.projectId && balances.has(d.projectId)) {
-            let currentBalance = balances.get(d.projectId) || 0;
+        if (d.project_id && balances.has(d.project_id)) {
+            let currentBalance = balances.get(d.project_id) || 0;
             if (d.type === 'creditor') { // Money came in
                 currentBalance += d.amount;
             } else if (d.type === 'debtor') { // Money went out
                 currentBalance -= d.amount;
             }
-            balances.set(d.projectId, currentBalance);
+            balances.set(d.project_id, currentBalance);
         }
     });
     
     // Adjust for repayments
-    allTransactions.filter(t => t.type === 'repayment' && t.debtId).forEach(repayment => {
-        const relatedDebt = allDebts.find(d => d.id === repayment.debtId);
-        if (relatedDebt && relatedDebt.projectId && balances.has(relatedDebt.projectId)) {
-            let currentBalance = balances.get(relatedDebt.projectId) || 0;
+    allTransactions.filter(t => t.type === 'repayment' && t.debt_id).forEach(repayment => {
+        const relatedDebt = allDebts.find(d => d.id === repayment.debt_id);
+        if (relatedDebt && relatedDebt.project_id && balances.has(relatedDebt.project_id)) {
+            let currentBalance = balances.get(relatedDebt.project_id) || 0;
             if (relatedDebt.type === 'creditor') { // We are paying back, so money goes out
                 currentBalance -= repayment.amount;
             } else if (relatedDebt.type === 'debtor') { // We are getting paid back, so money comes in
                 currentBalance += repayment.amount;
             }
-            balances.set(relatedDebt.projectId, currentBalance);
+            balances.set(relatedDebt.project_id, currentBalance);
         }
     });
 
 
-    const tree: (AppProject & { children: AppProject[], level: number })[] = [];
+    const tree: (Project & { children: Project[], level: number })[] = [];
     const projectMap = new Map(projects.map(p => [p.id, { ...p, children: [], level: 0 }]));
 
     projects.forEach(p => {
       const projectNode = projectMap.get(p.id)!;
-      if (p.parentProjectId && projectMap.has(p.parentProjectId)) {
-        const parentNode = projectMap.get(p.parentProjectId)!;
+      if (p.parent_project_id && projectMap.has(p.parent_project_id)) {
+        const parentNode = projectMap.get(p.parent_project_id)!;
         parentNode.children.push(projectNode);
         projectNode.level = parentNode.level + 1;
       }
     });
     
     projects.forEach(p => {
-        if (!p.parentProjectId) {
+        if (!p.parent_project_id) {
             tree.push(projectMap.get(p.id)!);
         }
     });
 
-    const flattenedTree: (AppProject & { level: number })[] = [];
-    function flatten(nodes: (AppProject & { children: AppProject[], level: number })[]) {
+    const flattenedTree: (Project & { level: number })[] = [];
+    function flatten(nodes: (Project & { children: Project[], level: number })[]) {
         nodes.sort((a,b) => a.name.localeCompare(b.name)).forEach(node => {
             flattenedTree.push({ ...node });
             if (node.children.length > 0) {

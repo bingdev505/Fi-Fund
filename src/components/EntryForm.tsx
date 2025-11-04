@@ -37,35 +37,35 @@ const formSchema = z.object({
   category: z.string().optional(),
   clientName: z.string().optional(), // For debts OR for income/expense
   description: z.string().optional(),
-  dueDate: z.date().optional(),
-  accountId: z.string().optional(), // for income/expense/debts
-  fromAccountId: z.string().optional(), // for transfer
-  toAccountId: z.string().optional(), // for transfer
-  projectId: z.string().optional(),
+  due_date: z.date().optional(),
+  account_id: z.string().optional(), // for income/expense/debts
+  from_account_id: z.string().optional(), // for transfer
+  to_account_id: z.string().optional(), // for transfer
+  project_id: z.string().optional(),
 }).refine(data => {
-    if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.accountId) {
+    if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.account_id) {
         return false;
     }
     return true;
 }, {
     message: "Please select a bank account.",
-    path: ["accountId"],
+    path: ["account_id"],
 }).refine(data => {
-    if (data.entryType === 'transfer' && (!data.fromAccountId || !data.toAccountId)) {
+    if (data.entryType === 'transfer' && (!data.from_account_id || !data.to_account_id)) {
         return false;
     }
     return true;
 }, {
     message: "Please select both from and to accounts for transfer.",
-    path: ["fromAccountId"],
+    path: ["from_account_id"],
 }).refine(data => {
-    if (data.entryType === 'transfer' && data.fromAccountId === data.toAccountId) {
+    if (data.entryType === 'transfer' && data.from_account_id === data.to_account_id) {
         return false;
     }
     return true;
 }, {
     message: "From and To accounts cannot be the same.",
-    path: ["toAccountId"],
+    path: ["to_account_id"],
 })
 .refine(data => {
   if ((data.entryType === 'income' || data.entryType === 'expense') && !data.category) {
@@ -118,49 +118,49 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       description: '',
       category: '',
       clientName: '',
-      accountId: '',
-      fromAccountId: '',
-      toAccountId: '',
-      dueDate: undefined,
-      projectId: activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal',
+      account_id: bankAccounts.find(acc => acc.is_primary)?.id,
+      from_account_id: undefined,
+      to_account_id: undefined,
+      due_date: undefined,
+      project_id: activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal',
     },
   });
 
   const entryType = form.watch('entryType');
-  const selectedProjectId = form.watch('projectId');
+  const selectedProjectId = form.watch('project_id');
 
   const filteredClients = useMemo(() => {
     const projectId = selectedProjectId === 'personal' ? undefined : selectedProjectId;
-    if (!projectId) return clients.filter(c => !c.projectId);
-    return clients.filter(c => c.projectId === projectId);
+    if (!projectId) return clients.filter(c => !c.project_id);
+    return clients.filter(c => c.project_id === projectId);
   }, [clients, selectedProjectId]);
 
   const filteredCategories = useMemo(() => {
     const projectId = selectedProjectId === 'personal' ? undefined : selectedProjectId;
     const baseCategories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
     const projectCategories = customCategories
-        .filter(c => c.type === entryType && ((!projectId && !c.projectId) || c.projectId === projectId))
+        .filter(c => c.type === entryType && ((!projectId && !c.project_id) || c.project_id === projectId))
         .map(c => c.name);
     return [...new Set([...baseCategories, ...projectCategories])];
   }, [entryType, customCategories, selectedProjectId]);
   
    useEffect(() => {
-    form.setValue('projectId', activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal');
+    form.setValue('project_id', activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal');
   }, [activeProject, form]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
 
-    const projectId = data.projectId === 'personal' ? undefined : data.projectId;
+    const project_id = data.project_id === 'personal' ? undefined : data.project_id;
 
     let finalClientId: string | undefined;
 
     // Handle client creation/selection for all types that use clientName
     if (data.clientName) {
-        let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && ((!c.projectId && !projectId) || c.projectId === projectId));
+        let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && ((!c.project_id && !project_id) || c.project_id === project_id));
         if (!client) {
-            client = await addClient({ name: data.clientName! }, projectId);
+            client = await addClient({ name: data.clientName! }, project_id);
         }
         finalClientId = client.id;
     }
@@ -169,7 +169,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       
       // Auto-create category if it's new
       if (data.category && !filteredCategories.includes(data.category) && (entryType === 'income' || entryType === 'expense')) {
-        await addCategory({ name: data.category, type: entryType }, projectId);
+        await addCategory({ name: data.category, type: entryType }, project_id);
       }
 
       await addTransaction({
@@ -177,11 +177,11 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         amount: data.amount,
         category: entryType === 'transfer' ? 'Bank Transfer' : data.category!,
         description: data.description!,
-        accountId: data.accountId,
-        fromAccountId: data.fromAccountId,
-        toAccountId: data.toAccountId,
-        clientId: finalClientId,
-        projectId: projectId,
+        account_id: data.account_id,
+        from_account_id: data.from_account_id,
+        to_account_id: data.to_account_id,
+        client_id: finalClientId,
+        project_id: project_id,
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
@@ -196,12 +196,11 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       await addDebt({
         type: entryType,
         amount: data.amount,
-        clientId: finalClientId,
-        name: data.clientName,
+        client_id: finalClientId,
         description: data.description!,
-        dueDate: data.dueDate,
-        accountId: data.accountId!,
-        projectId: projectId,
+        due_date: data.due_date,
+        account_id: data.account_id!,
+        project_id: project_id,
       });
       toast({
         title: `${entryType === 'creditor' ? 'Loan Taken' : 'Loan Given'} added`,
@@ -228,9 +227,9 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                     entryType: value as any,
                     category: '',
                     clientName: '',
-                    accountId: '',
-                    fromAccountId: '',
-                    toAccountId: '',
+                    account_id: bankAccounts.find(acc => acc.is_primary)?.id,
+                    from_account_id: undefined,
+                    to_account_id: undefined,
                   });
               }} defaultValue={field.value}>
                 <FormControl>
@@ -253,7 +252,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
 
         <FormField
             control={form.control}
-            name="projectId"
+            name="project_id"
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Business (Optional)</FormLabel>
@@ -295,7 +294,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="fromAccountId"
+              name="from_account_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>From Account</FormLabel>
@@ -319,7 +318,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
             />
             <FormField
               control={form.control}
-              name="toAccountId"
+              name="to_account_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>To Account</FormLabel>
@@ -366,7 +365,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
             />
              <FormField
                 control={form.control}
-                name="accountId"
+                name="account_id"
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>Account</FormLabel>
@@ -415,7 +414,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                 />
                 <FormField
                     control={form.control}
-                    name="accountId"
+                    name="account_id"
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Account</FormLabel>
@@ -468,7 +467,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
             <FormItem>
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
-                <Textarea placeholder="e.g. Lunch with colleagues" {...field} />
+                <Textarea placeholder="e.g. Lunch with colleagues" {...field} value={field.value || ''}/>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -478,7 +477,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         {(entryType === 'creditor' || entryType === 'debtor') && (
           <FormField
             control={form.control}
-            name="dueDate"
+            name="due_date"
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Due Date (Optional)</FormLabel>

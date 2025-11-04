@@ -38,16 +38,16 @@ const formSchema = z.object({
   category: z.string().optional(),
   name: z.string().optional(), // For debts
   description: z.string().optional(),
-  dueDate: z.date().optional(),
-  accountId: z.string().optional(),
+  due_date: z.date().optional(),
+  account_id: z.string().optional(),
 }).refine(data => {
-    if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.accountId) {
+    if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.account_id) {
         return false;
     }
     return true;
 }, {
     message: "Please select a bank account.",
-    path: ["accountId"],
+    path: ["account_id"],
 })
 .refine(data => {
   if ((data.entryType === 'income' || data.entryType === 'expense') && !data.category) {
@@ -87,8 +87,8 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       amount: entry.amount,
       description: entry.description || '',
       category: isTransaction ? (entry as Transaction).category : (entry as Debt).name,
-      accountId: entry.accountId,
-      dueDate: (entry as Debt).dueDate ? parseISO((entry as Debt).dueDate!) : undefined
+      account_id: entry.account_id,
+      due_date: (entry as Debt).due_date ? parseISO((entry as Debt).due_date!) : undefined
     },
   });
 
@@ -111,7 +111,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       updatedEntry = finalTransaction;
       toast({ title: "Transaction Updated" });
     } else {
-      const finalDebt = { ...entry, ...data, name: category, dueDate: data.dueDate?.toISOString(), description: data.description || '' } as Debt;
+      const finalDebt = { ...entry, ...data, name: category, due_date: data.due_date?.toISOString(), description: data.description || '' } as Debt;
       updateDebt(entry as Debt, finalDebt);
       updatedEntry = finalDebt;
       toast({ title: "Debt Updated" });
@@ -202,7 +202,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
             />
              <FormField
                 control={form.control}
-                name="accountId"
+                name="account_id"
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>Account</FormLabel>
@@ -253,7 +253,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
                 />
                 <FormField
                     control={form.control}
-                    name="accountId"
+                    name="account_id"
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Account</FormLabel>
@@ -295,7 +295,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
         {(watchedEntryType === 'creditor' || watchedEntryType === 'debtor') && (
           <FormField
             control={form.control}
-            name="dueDate"
+            name="due_date"
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Due Date (Optional)</FormLabel>

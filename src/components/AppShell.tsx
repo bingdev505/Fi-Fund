@@ -39,7 +39,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useFinancials, type AppProject } from '@/hooks/useFinancials';
+import { useFinancials } from '@/hooks/useFinancials';
+import type { Project } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from './ui/command';
 import { Separator } from './ui/separator';
@@ -47,7 +48,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import ProjectForm from './ProjectForm';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
 
-const ALL_BUSINESS_PROJECT: AppProject = { id: 'all', name: 'All Business', userId: '', createdAt: new Date().toISOString() };
+const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', user_id: '', created_at: new Date().toISOString() };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -107,7 +108,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  const handleProjectSelect = (project: AppProject) => {
+  const handleProjectSelect = (project: Project) => {
     setActiveProject(project);
     setOpen(false);
   }
