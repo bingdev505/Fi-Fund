@@ -29,7 +29,7 @@ type ComboboxProps = {
 }
 
 export function Combobox({ 
-    options, _
+    options,
     value, 
     onChange,
     placeholder = "Select an option...",
@@ -37,12 +37,15 @@ export function Combobox({
     noResultsText = "No results found."
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [query, setQuery] = React.useState('');
   
   const handleSelect = (currentValue: string) => {
     const newValue = currentValue === value ? "" : currentValue;
     onChange(newValue);
     setOpen(false)
   }
+
+  const filteredOptions = query ? options.filter(option => option.label.toLowerCase().includes(query.toLowerCase())) : options;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -61,15 +64,29 @@ export function Combobox({
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          <CommandInput 
+            placeholder={searchPlaceholder}
+            value={query}
+            onValueChange={setQuery}
+          />
           <CommandList>
-            <CommandEmpty>
-                <div className="p-2 text-sm text-center">
-                    {noResultsText}
-                </div>
-            </CommandEmpty>
+            {filteredOptions.length === 0 && query.length > 0 ? (
+                 <CommandItem
+                    value={query}
+                    onSelect={() => handleSelect(query)}
+                    className="cursor-pointer"
+                >
+                    Create "{query}"
+                </CommandItem>
+            ) : (
+                <CommandEmpty>
+                    <div className="p-2 text-sm text-center">
+                        {noResultsText}
+                    </div>
+                </CommandEmpty>
+            )}
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
