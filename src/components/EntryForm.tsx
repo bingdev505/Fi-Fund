@@ -115,7 +115,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       entryType: 'expense',
-      amount: '' as any,
+      amount: '',
       description: '',
       category: '',
       clientName: '',
@@ -359,7 +359,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                       options={categoryOptions}
                       value={field.value}
                       onChange={field.onChange}
-                      placeholder="Select or create category..."
+                      placeholder="Category"
                       searchPlaceholder="Search categories..."
                       noResultsText="No categories found."
                   />
