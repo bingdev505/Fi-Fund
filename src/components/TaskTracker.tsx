@@ -5,7 +5,7 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { PlusCircle, ListTodo, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, ListTodo, Loader2, Pencil, Trash2, CheckCircle, CircleDot, PlayCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +21,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
 import { CalendarIcon } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 const taskSchema = z.object({
   name: z.string().min(3, 'Task name must be at least 3 characters'),
@@ -158,6 +159,79 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
     );
 }
 
+const TaskItem = ({ task }: { task: Task }) => {
+    const { updateTask } = useFinancials();
+    const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+    const { toast } = useToast();
+
+    const handleStatusChange = (status: 'todo' | 'in-progress' | 'done') => {
+        updateTask(task.id, { status });
+        toast({ title: `Task moved to ${status}` });
+    };
+
+    const handleDelete = () => {
+        if (!deletingTask) return;
+        // This is a prop drill from parent, ideally should be handled differently
+        // For now, we assume parent component has a deleteTask function.
+    };
+
+    const getStatusBadge = (status: Task['status']) => {
+        switch (status) {
+          case 'todo':
+            return <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-800">To Do</span>;
+          case 'in-progress':
+            return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-200 text-blue-800">In Progress</span>;
+          case 'done':
+            return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-200 text-green-800">Done</span>;
+        }
+    };
+
+    return (
+        <li className="flex items-center justify-between p-4 group hover:bg-muted/50">
+            <div className="flex items-center gap-4">
+                <ListTodo className="h-5 w-5 text-muted-foreground" />
+                <div>
+                    <p className="font-medium">{task.name}</p>
+                    {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
+                    {task.due_date && <p className="text-xs text-muted-foreground">Due: {format(parseISO(task.due_date), 'PPP')}</p>}
+                </div>
+            </div>
+            <div className="flex items-center gap-2">
+                {getStatusBadge(task.status)}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    {task.status === 'todo' && (
+                        <Button variant="ghost" size="icon" onClick={() => handleStatusChange('in-progress')} title="Start Progress">
+                            <PlayCircle className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {task.status === 'in-progress' && (
+                        <Button variant="ghost" size="icon" onClick={() => handleStatusChange('done')} title="Mark as Done">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                        </Button>
+                    )}
+                     {task.status === 'done' && (
+                        <Button variant="ghost" size="icon" onClick={() => handleStatusChange('todo')} title="Re-open Task">
+                            <CircleDot className="h-4 w-4 text-gray-600" />
+                        </Button>
+                    )}
+
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => setEditingTask(task)} title="Edit Task">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                    </DialogTrigger>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={() => setDeletingTask(task)} title="Delete Task">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                </div>
+            </div>
+        </li>
+    );
+};
+
 
 export default function TaskTracker() {
   const { tasks, deleteTask, isLoading } = useFinancials();
@@ -183,17 +257,23 @@ export default function TaskTracker() {
     setDeletingTask(null);
   };
 
-  const sortedTasks = useMemo(() => {
-    const statusOrder = { 'in-progress': 1, 'todo': 2, 'done': 3 };
-    return [...tasks].sort((a, b) => {
-        if (a.status !== b.status) {
-            return statusOrder[a.status] - statusOrder[b.status];
-        }
+  const { activeTasks, completedTasks } = useMemo(() => {
+    const active = tasks.filter(t => t.status !== 'done');
+    const completed = tasks.filter(t => t.status === 'done');
+    const statusOrder = { 'in-progress': 1, 'todo': 2 };
+
+    active.sort((a, b) => {
+        if (a.status !== b.status) return statusOrder[a.status] - statusOrder[b.status];
         const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity;
         const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity;
         return aDate - bDate;
     });
+
+    completed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return { activeTasks: active, completedTasks: completed };
   }, [tasks]);
+
 
   const getStatusBadge = (status: Task['status']) => {
     switch (status) {
@@ -231,35 +311,32 @@ export default function TaskTracker() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : tasks.length > 0 ? (
-                <div className="border rounded-md">
-                  <ul className="divide-y divide-border">
-                    {sortedTasks.map(task => (
-                      <li key={task.id} className="flex items-center justify-between p-4 group hover:bg-muted/50">
-                        <div className="flex items-center gap-4">
-                            <ListTodo className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <p className="font-medium">{task.name}</p>
-                                {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
-                                {task.due_date && <p className="text-xs text-muted-foreground">Due: {format(parseISO(task.due_date), 'PPP')}</p>}
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                           {getStatusBadge(task.status)}
-                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(task)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setDeletingTask(task)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <Accordion type="multiple" defaultValue={['active-tasks']} className="w-full">
+                    <AccordionItem value="active-tasks">
+                        <AccordionTrigger>Active Tasks ({activeTasks.length})</AccordionTrigger>
+                        <AccordionContent>
+                           {activeTasks.length > 0 ? (
+                             <ul className="divide-y divide-border border rounded-md">
+                                {activeTasks.map(task => <TaskItem key={task.id} task={task} />)}
+                             </ul>
+                           ) : (
+                             <p className="text-muted-foreground text-sm p-4 text-center">No active tasks.</p>
+                           )}
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="completed-tasks">
+                        <AccordionTrigger>Completed Tasks ({completedTasks.length})</AccordionTrigger>
+                        <AccordionContent>
+                             {completedTasks.length > 0 ? (
+                             <ul className="divide-y divide-border border rounded-md">
+                                {completedTasks.map(task => <TaskItem key={task.id} task={task} />)}
+                             </ul>
+                           ) : (
+                            <p className="text-muted-foreground text-sm p-4 text-center">No completed tasks yet.</p>
+                           )}
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
               ) : (
                 <div className="text-center py-10 border-dashed border-2 rounded-md">
                   <p className="text-muted-foreground text-sm">You have no tasks yet. Add one to get started!</p>
