@@ -104,7 +104,9 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     addClient, 
     addCategory,
     projects,
-    activeProject
+    activeProject,
+    contacts,
+    addContact
   } = useFinancials();
   const { toast } = useToast();
 
@@ -173,19 +175,37 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
 
-    // Convert empty strings to undefined for optional fields
     const projectId = data.project_id || undefined;
     let finalContactId = data.contact_id || undefined;
     const finalDescription = data.description || undefined;
 
-    // Handle client creation/selection for all types that use clientName
-    if (finalContactId && (entryType === 'loanGiven' || entryType === 'loanTaken')) {
-        let client = clients.find(c => c.id.toLowerCase() === finalContactId!.toLowerCase() && ((!c.project_id && projectId === personalProject?.id) || c.project_id === projectId));
-        if (!client) {
-            client = await addClient({ name: finalContactId! }, projectId);
+    if ((entryType === 'loanGiven' || entryType === 'loanTaken') && finalContactId) {
+        // Check if the provided contact_id is a UUID. If not, it's a new contact name.
+        const isNewContact = !contacts.some(c => c.id === finalContactId);
+        if (isNewContact) {
+            try {
+                const newContact = await addContact({ name: finalContactId });
+                finalContactId = newContact.id;
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Could not create contact.' });
+                return;
+            }
         }
-        finalContactId = client.id;
     }
+    
+    if ((entryType === 'income' || entryType === 'expense') && finalContactId) {
+         const isNewClient = !clients.some(c => c.id === finalContactId);
+        if (isNewClient) {
+            try {
+                const newClient = await addClient({ name: finalContactId }, projectId);
+                finalContactId = newClient.id;
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Could not create client.' });
+                return;
+            }
+        }
+    }
+
 
     if (entryType === 'income' || entryType === 'expense' || entryType === 'transfer') {
       
@@ -202,7 +222,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         account_id: data.account_id,
         from_account_id: data.from_account_id,
         to_account_id: data.to_account_id,
-        client_id: finalContactId, // client_id might be used for income/expense
+        client_id: (entryType === 'income' || entryType === 'expense') ? finalContactId : undefined,
         project_id: projectId,
       });
       toast({
@@ -227,7 +247,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       });
       toast({
         title: `${entryType === 'loanTaken' ? 'Loan Taken' : 'Loan Given'} added`,
-        description: `Loan related to ${clients.find(c => c.id === finalContactId)?.name || finalContactId} for ${formatCurrency(data.amount)} has been logged.`,
+        description: `Loan related to ${contacts.find(c => c.id === finalContactId)?.name || finalContactId} for ${formatCurrency(data.amount)} has been logged.`,
       });
     }
     form.reset();
@@ -235,6 +255,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   }
 
   const clientOptions = useMemo(() => filteredClients.map(c => ({ value: c.id, label: c.name })), [filteredClients]);
+  const contactOptions = useMemo(() => contacts.map(c => ({ value: c.id, label: c.name })), [contacts]);
   const categoryOptions = useMemo(() => filteredCategories.map(c => ({ value: c, label: c })), [filteredCategories]);
 
   return (
@@ -424,7 +445,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                             {entryType === 'loanTaken' ? "Lender's Name" : "Borrower's Name"}
                           </FormLabel>
                           <Combobox
-                            options={clientOptions}
+                            options={contactOptions}
                             value={field.value}
                             onChange={field.onChange}
                             placeholder="Contact"

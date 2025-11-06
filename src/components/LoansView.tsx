@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -69,11 +69,17 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
 
   async function onSubmit(values: z.infer<typeof loanSchema>) {
     let contactId = values.contact_id;
-    const isNewContact = !contactOptions.some(c => c.value === contactId);
+    // Check if the provided contact_id is a UUID. If not, it's a new contact name.
+    const isNewContact = !contacts.some(c => c.id === contactId);
 
-    if (isNewContact) {
-        const newClient = await addContact({ name: contactId });
-        contactId = newClient.id;
+    if (isNewContact && contactId) {
+        try {
+            const newContact = await addContact({ name: contactId });
+            contactId = newContact.id;
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Could not create contact.' });
+            return;
+        }
     }
     
     const finalValues = {
@@ -495,7 +501,7 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
             <div className="flex items-center gap-4">
                 <Handshake className="h-5 w-5 text-muted-foreground" />
                 <div>
-                    <p className="font-medium">{contactName} - <span className={cn("font-normal", loan.type === 'loanGiven' ? 'text-green-600' : 'text-red-600')}>{formatCurrency(loan.amount)}</span></p>
+                    <p className="font-medium">{contactName} - <span className={cn("font-normal", loan.type === 'loanGiven' ? 'text-red-600' : 'text-green-600')}>{formatCurrency(loan.amount)}</span></p>
                     <p className="text-sm text-muted-foreground">{loan.description}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {loan.due_date && <span>Due: {format(parseISO(loan.due_date), 'PPP')}</span>}
