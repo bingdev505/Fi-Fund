@@ -2,13 +2,14 @@ import { getOAuth2Client } from "@/services/google-auth";
 import { type NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase_client";
 import { cookies } from 'next/headers'
+import { createServerClient } from "@supabase/ssr";
 
 
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
     const cookieStore = cookies();
-    const supabaseClient = createServerClient(
+    const supabaseServer = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
@@ -20,14 +21,14 @@ export async function GET(request: NextRequest) {
         }
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: { user } } = await supabaseServer.auth.getUser();
 
     if (!user) {
         return NextResponse.redirect(new URL('/login?error=unauthenticated', request.url));
     }
 
     if (!code) {
-        return NextResponse.redirect(new URL('/settings?error=oauth_failed', request.url));
+        return NextResponse.redirect(new URL('/business?error=oauth_failed', request.url));
     }
 
     try {

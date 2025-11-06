@@ -26,6 +26,25 @@ service cloud.firestore {
       allow update: if isSignedIn() && isOwner(userId);
       allow delete: if isSignedIn() && isOwner(userId);
     }
+    
+     /**
+     * @description Controls access to user's Google credentials.
+     * @path /user_google_credentials/{userId}
+     * @allow (get, create, update, delete) - User can manage their own credentials.
+     * @deny - User cannot access another user's credentials.
+     */
+    match /user_google_credentials/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow read, write: if isSignedIn() && isOwner(userId);
+    }
+
 
     /**
      * @description Controls access to transaction entries (income and expenses) for a specific user.
