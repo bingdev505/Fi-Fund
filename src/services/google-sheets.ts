@@ -3,19 +3,21 @@
 import { google } from 'googleapis';
 import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput } from '@/lib/types';
 
-const SERVICE_ACCOUNT_EMAIL = "finance-flow-service-account@studio-9503278955-c489b.iam.gserviceaccount.com";
+// This is a placeholder for a more robust credential management system
+const serviceAccountCreds = {
+    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+}
 
 async function getGoogleSheetsClient() {
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-    if (!privateKey) {
+    if (!serviceAccountCreds.client_email || !serviceAccountCreds.private_key) {
         throw new Error("Google service account credentials are not set in environment variables.");
     }
-
+    
     const auth = new google.auth.GoogleAuth({
         credentials: {
-            client_email: SERVICE_ACCOUNT_EMAIL,
-            private_key: privateKey,
+            client_email: serviceAccountCreds.client_email,
+            private_key: serviceAccountCreds.private_key,
         },
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
