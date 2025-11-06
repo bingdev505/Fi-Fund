@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -172,15 +173,16 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
 
-    const project_id = data.project_id;
-
-    let finalContactId: string | undefined = data.contact_id;
+    // Convert empty strings to undefined for optional fields
+    const projectId = data.project_id || undefined;
+    let finalContactId = data.contact_id || undefined;
+    const finalDescription = data.description || undefined;
 
     // Handle client creation/selection for all types that use clientName
-    if (data.contact_id && (entryType === 'loanGiven' || entryType === 'loanTaken')) {
-        let client = clients.find(c => c.id.toLowerCase() === data.contact_id!.toLowerCase() && ((!c.project_id && project_id === personalProject?.id) || c.project_id === project_id));
+    if (finalContactId && (entryType === 'loanGiven' || entryType === 'loanTaken')) {
+        let client = clients.find(c => c.id.toLowerCase() === finalContactId!.toLowerCase() && ((!c.project_id && projectId === personalProject?.id) || c.project_id === projectId));
         if (!client) {
-            client = await addClient({ name: data.contact_id! }, project_id);
+            client = await addClient({ name: finalContactId! }, projectId);
         }
         finalContactId = client.id;
     }
@@ -189,19 +191,19 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       
       // Auto-create category if it's new
       if (data.category && !filteredCategories.includes(data.category) && (entryType === 'income' || entryType === 'expense')) {
-        await addCategory({ name: data.category, type: entryType as 'income' | 'expense' }, project_id);
+        await addCategory({ name: data.category, type: entryType as 'income' | 'expense' }, projectId);
       }
 
       await addTransaction({
         type: entryType as 'income' | 'expense' | 'transfer',
         amount: data.amount,
         category: entryType === 'transfer' ? 'Bank Transfer' : data.category!,
-        description: data.description!,
+        description: finalDescription,
         account_id: data.account_id,
         from_account_id: data.from_account_id,
         to_account_id: data.to_account_id,
-        client_id: data.contact_id,
-        project_id: project_id,
+        client_id: finalContactId, // client_id might be used for income/expense
+        project_id: projectId,
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
@@ -217,11 +219,11 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         type: entryType,
         amount: data.amount,
         contact_id: finalContactId,
-        description: data.description!,
+        description: finalDescription,
         due_date: data.due_date?.toISOString(),
         status: 'active',
         account_id: data.account_id!,
-        project_id: project_id,
+        project_id: projectId,
       });
       toast({
         title: `${entryType === 'loanTaken' ? 'Loan Taken' : 'Loan Given'} added`,
@@ -552,3 +554,5 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
+
+    
