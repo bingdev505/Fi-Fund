@@ -7,7 +7,7 @@ export type Transaction = {
   id: string;
   user_id: string;
   project_id?: string;
-  type: 'income' | 'expense' | 'transfer' | 'repayment';
+  type: 'income' | 'expense' | 'transfer';
   category: string;
   amount: number;
   description: string;
@@ -15,22 +15,7 @@ export type Transaction = {
   account_id?: string;
   from_account_id?: string;
   to_account_id?: string;
-  debt_id?: string; // To link repayment to a debt
   client_id?: string; // To link income/expense to a client
-};
-
-export type Debt = {
-  id:string;
-  user_id: string;
-  project_id?: string;
-  type: 'creditor' | 'debtor';
-  name: string; // This will now be the client's name from the Client list
-  client_id: string; // Link to the Client
-  amount: number;
-  description: string;
-  due_date?: LocalTimestamp;
-  date: LocalTimestamp;
-  account_id: string;
 };
 
 export type Loan = {
@@ -78,7 +63,7 @@ export type ChatMessage = {
     content: string;
     timestamp: LocalTimestamp;
     transaction_id?: string;
-    entry_type?: 'income' | 'expense' | 'creditor' | 'debtor';
+    entry_type?: 'income' | 'expense' | 'loanGiven' | 'loanTaken';
 };
 
 export type Client = {

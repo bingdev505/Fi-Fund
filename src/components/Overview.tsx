@@ -1,7 +1,7 @@
 'use client';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowRight, PlusCircle, CheckCircle } from 'lucide-react';
+import { ArrowRight, PlusCircle, CheckCircle, HandCoins } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import Link from 'next/link';
@@ -13,7 +13,7 @@ import SummaryCard from './SummaryCard';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Overview() {
-  const { transactions, debts, currency, isLoading, bankAccounts } = useFinancials();
+  const { transactions, loans, currency, isLoading, bankAccounts } = useFinancials();
   const { user } = useAuth();
   const [entryFormOpen, setEntryFormOpen] = useState(false);
 
@@ -25,22 +25,22 @@ export default function Overview() {
     totalIncome,
     totalExpenses,
     primaryAccount,
-    totalDebtors,
+    totalLoansGiven,
   } = useMemo(() => {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     
     let primaryAcc = bankAccounts.find(acc => acc.is_primary) || bankAccounts[0];
 
-    const debtors = debts.filter(d => d.type === 'debtor' && d.amount > 0).reduce((sum, d) => sum + d.amount, 0);
+    const loansGiven = loans.filter(d => d.type === 'loanGiven' && d.status === 'active').reduce((sum, d) => sum + d.amount, 0);
     
     return {
       totalIncome: income,
       totalExpenses: expenses,
       primaryAccount: primaryAcc,
-      totalDebtors: debtors,
+      totalLoansGiven: loansGiven,
     };
-  }, [transactions, bankAccounts, debts]);
+  }, [transactions, bankAccounts, loans]);
   
   if (isLoading) {
     // A more detailed skeleton can be built here if desired
@@ -67,7 +67,7 @@ export default function Overview() {
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard title="Total Income" value={formatCurrency(totalIncome)} icon="income" />
           <SummaryCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon="expense" />
-          <SummaryCard title="Owed to You" value={formatCurrency(totalDebtors)} icon="debtor" />
+          <SummaryCard title="Loans Given" value={formatCurrency(totalLoansGiven)} icon="debtor" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

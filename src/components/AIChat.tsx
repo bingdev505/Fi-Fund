@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Bot, Loader2, Send, User, Paperclip, ArrowUpCircle, ArrowDownCircle, PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { Bot, Loader2, Send, User, Paperclip, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +9,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import type { ChatMessage, Debt, Transaction } from '@/lib/types';
+import type { ChatMessage, Loan, Transaction } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
-import RepaymentForm from './RepaymentForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import EditEntryForm from './EditEntryForm';
@@ -93,36 +92,28 @@ export default function AIChat() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const { 
     addTransaction, 
-    addDebt, 
+    addLoan,
     currency, 
     transactions, 
-    debts, 
+    loans, 
     bankAccounts,
+    clients,
     getTransactionById,
-    getDebtById,
+    getLoanById,
     deleteTransaction,
-    deleteDebt,
+    deleteLoan,
   } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading } = useChatHistory();
 
-  const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
-  const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
+  const [editingEntry, setEditingEntry] = useState<Transaction | Loan | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<Transaction | Loan | null>(null);
 
-  const [repaymentPopoverOpen, setRepaymentPopoverOpen] = useState(false);
-  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
-  const [repaymentDialogOpen, setRepaymentDialogOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
 
-  const { debtors, creditors } = useMemo(() => {
-    return {
-      debtors: debts.filter(d => d.type === 'debtor' && d.amount > 0),
-      creditors: debts.filter(d => d.type === 'creditor' && d.amount > 0),
-    }
-  }, [debts]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -155,21 +146,10 @@ export default function AIChat() {
     document.getElementById('chat-input')?.focus();
   };
 
-  const handleRepaymentSelect = (debt: Debt) => {
-    setSelectedDebt(debt);
-    setRepaymentDialogOpen(true);
-    setRepaymentPopoverOpen(false);
-  };
-  
-  const handleRepaymentFinished = () => {
-    setRepaymentDialogOpen(false);
-    setSelectedDebt(null);
-  };
-
   const handleEditClick = (message: ChatMessage) => {
     if (!message.transaction_id) return;
     
-    const entry = getDebtById(message.transaction_id) || getTransactionById(message.transaction_id);
+    const entry = getLoanById(message.transaction_id) || getTransactionById(message.transaction_id);
 
     if (entry) {
         setEditingEntry(entry);
@@ -185,8 +165,8 @@ export default function AIChat() {
       deleteTransaction(deletingEntry as Transaction);
       toast({ title: "Transaction Deleted" });
     } else {
-      deleteDebt(deletingEntry as Debt);
-      toast({ title: "Debt Deleted" });
+      deleteLoan((deletingEntry as Loan).id);
+      toast({ title: "Loan Deleted" });
     }
 
     if (messageToDelete) {
@@ -196,7 +176,7 @@ export default function AIChat() {
     setDeletingEntry(null);
   };
 
-  const handleEditFinished = (originalEntry: Transaction | Debt, updatedEntry: Transaction | Debt) => {
+  const handleEditFinished = (originalEntry: Transaction | Loan, updatedEntry: Transaction | Loan) => {
     const messageToUpdate = messages.find(m => m.transaction_id === originalEntry.id);
     if (messageToUpdate) {
         let newContent = '';
@@ -205,9 +185,9 @@ export default function AIChat() {
             const accountName = bankAccounts.find(ba => ba.id === tx.account_id)?.name || 'an account';
             newContent = `${tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} of ${formatCurrency(tx.amount)} in ${tx.category} logged to ${accountName}.`
         } else {
-            const debt = updatedEntry as Debt;
-            const accountName = bankAccounts.find(ba => ba.id === debt.account_id)?.name || 'an account';
-            newContent = `${debt.type.charAt(0).toUpperCase() + debt.type.slice(1)} of ${formatCurrency(debt.amount)} for ${debt.name} logged against ${accountName}.`
+            const loan = updatedEntry as Loan;
+            const accountName = bankAccounts.find(ba => ba.id === loan.account_id)?.name || 'an account';
+            newContent = `${loan.type.charAt(0).toUpperCase() + loan.type.slice(1)} of ${formatCurrency(loan.amount)} for ${clients.find(c => c.id === loan.contact_id)?.name} logged against ${accountName}.`
         }
 
         updateMessage({ ...messageToUpdate, content: newContent });
@@ -231,7 +211,7 @@ export default function AIChat() {
     setIsAiLoading(true);
 
     try {
-      const financialData = JSON.stringify({ transactions, debts, bankAccounts });
+      const financialData = JSON.stringify({ transactions, loans, bankAccounts });
       
       let chatHistoryForContext = '';
       const lastMessage = messages[messages.length - 1];
@@ -257,7 +237,7 @@ export default function AIChat() {
 
       let assistantResponse = '';
       let newEntryId: string | undefined;
-      let newEntryType: 'income' | 'expense' | 'creditor' | 'debtor' | undefined;
+      let newEntryType: 'income' | 'expense' | 'loanGiven' | 'loanTaken' | undefined;
 
       if (result.intent === 'logData') {
         const logResult = result.result;
@@ -303,7 +283,7 @@ export default function AIChat() {
                     account_id: accountIdToUse,
                 };
                 const newDocRef = await addTransaction(newTransaction, true);
-                newEntryId = newDocRef?.id;
+                newEntryId = (newDocRef as {id: string})?.id;
                 newEntryType = newTransaction.type;
                 
                 const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
@@ -312,19 +292,18 @@ export default function AIChat() {
                     title: 'Logged via AI Chat',
                     description: toastDescription,
                 });
-            } else { // creditor or debtor
-                const newDebt = {
+            } else { // loanGiven or loanTaken
+                const newLoan = {
                     type: logResult.transaction_type,
                     amount: logResult.amount,
-                    name: logResult.category, // Name is in category field for debts from AI
-                    description: logResult.description || 'AI Logged Debt',
+                    contact_id: logResult.category, // Name is in category field for loans from AI
+                    description: logResult.description || 'AI Logged Loan',
                     account_id: accountIdToUse,
-                    client_id: '' // Client ID needs to be resolved or created
+                    status: 'active'
                 };
-                const newDocRef = await addDebt(newDebt, true);
-                newEntryId = newDocRef?.id;
-                newEntryType = newDebt.type;
-
+                await addLoan(newLoan);
+                // We don't get the ID back from addLoan easily, so can't set newEntryId here.
+                
                 const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
                 toast({
@@ -361,52 +340,16 @@ export default function AIChat() {
       setIsAiLoading(false);
     }
   };
-  
-  const renderRepaymentContent = () => {
-    return (
-        <Command>
-            <CommandInput placeholder="Search debts..." />
-            <CommandList>
-            {(creditors.length === 0 && debtors.length === 0) && <div className="p-4 text-sm text-muted-foreground">No outstanding debts found.</div>}
-            {creditors.length > 0 && (
-                <CommandGroup heading="You Owe (Creditors)">
-                {creditors.map((debt) => (
-                    <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
-                    <div className="flex justify-between w-full">
-                        <span>{debt.name}</span>
-                        <span className="text-red-600">{formatCurrency(debt.amount)}</span>
-                    </div>
-                    </CommandItem>
-                ))}
-                </CommandGroup>
-            )}
-            {debtors.length > 0 && (
-                <CommandGroup heading="They Owe You (Debtors)">
-                {debtors.map((debt) => (
-                    <CommandItem key={debt.id} onSelect={() => handleRepaymentSelect(debt)}>
-                    <div className="flex justify-between w-full">
-                        <span>{debt.name}</span>
-                        <span className="text-green-600">{formatCurrency(debt.amount)}</span>
-                    </div>
-                    </CommandItem>
-                ))}
-                </CommandGroup>
-            )}
-            </CommandList>
-        </Command>
-    );
-  };
 
   const quickActions = [
     ...bankAccounts.filter(acc => !acc.is_primary).map(acc => ({ label: acc.name, action: acc.name, type: 'bank' as const })),
-    { label: 'Creditor', action: 'creditor', type: 'prefix' as const },
-    { label: 'Debtor', action: 'debtor', type: 'prefix' as const },
+    { label: 'Loan Given', action: 'loan given', type: 'prefix' as const },
+    { label: 'Loan Taken', action: 'loan taken', type: 'prefix' as const },
     { label: 'Income', action: 'income', type: 'prefix' as const },
     { label: 'Expense', action: 'expense', type: 'prefix' as const },
   ];
 
   return (
-    <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
     <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
     <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
     <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
@@ -437,7 +380,7 @@ export default function AIChat() {
                         </Button>
                       </DialogTrigger>
                       <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setDeletingEntry(getDebtById(message.transaction_id!) || getTransactionById(message.transaction_id!))}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setDeletingEntry(getLoanById(message.transaction_id!) || getTransactionById(message.transaction_id!))}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                       </AlertDialogTrigger>
@@ -490,21 +433,6 @@ export default function AIChat() {
                 </PopoverContent>
             </Popover>
 
-            <Popover open={repaymentPopoverOpen} onOpenChange={setRepaymentPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" className="flex-shrink-0 rounded-full">
-                  <Paperclip className="h-5 w-5 text-muted-foreground" />
-                  <span className="sr-only">Log Repayment</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent 
-                side="top" 
-                align="start"
-                className="w-auto p-0"
-                >
-                {renderRepaymentContent()}
-              </PopoverContent>
-            </Popover>
             <Input
                 id="chat-input"
                 value={input}
@@ -560,18 +488,6 @@ export default function AIChat() {
         </DialogContent>
     </Dialog>
     </AlertDialog>
-      {selectedDebt && (
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Log a Repayment</DialogTitle>
-                <DialogDescription>
-                    Log a full or partial payment for this debt. This will update the outstanding balance.
-                </DialogDescription>
-            </DialogHeader>
-            <RepaymentForm debt={selectedDebt} onFinished={handleRepaymentFinished} />
-        </DialogContent>
-      )}
-    </Dialog>
     </Dialog>
   );
 }

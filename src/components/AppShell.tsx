@@ -18,7 +18,7 @@ import {
   Tag,
   ChevronRight,
   Landmark,
-  HandCoins,
+  Handshake,
   ArrowRightLeft,
   Wallet,
   ListTodo,
@@ -57,7 +57,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { projects, activeProject, setActiveProject, isLoading: isFinancialsLoading } = useFinancials();
   const [open, setOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
-  const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(pathname.startsWith('/transactions') || pathname.startsWith('/debts') || pathname.startsWith('/reports'));
+  const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(pathname.startsWith('/transactions') || pathname.startsWith('/reports'));
 
 
   useEffect(() => {
@@ -76,7 +76,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   
   const financeNavItems = [
     { href: '/transactions', icon: ArrowRightLeft, label: 'Transactions' },
-    { href: '/debts', icon: HandCoins, label: 'Debts' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
   ];
 
@@ -121,7 +120,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Collapsible open={isFinanceMenuOpen} onOpenChange={setIsFinanceMenuOpen}>
         <CollapsibleTrigger asChild>
           <button
-            className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname.startsWith('/transactions') || pathname.startsWith('/debts') || pathname.startsWith('/reports') })}
+            className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname.startsWith('/transactions') || pathname.startsWith('/reports') })}
           >
             <div className="flex items-center gap-3">
               <Wallet className="h-5 w-5" />

@@ -33,10 +33,10 @@ import { useMemo, useEffect } from 'react';
 import { Combobox } from './ui/combobox';
 
 const formSchema = z.object({
-  entryType: z.enum(['expense', 'income', 'creditor', 'debtor', 'transfer']),
+  entryType: z.enum(['expense', 'income', 'transfer', 'loanGiven', 'loanTaken']),
   amount: z.coerce.number().positive('Amount must be positive'),
   category: z.string().optional(),
-  clientName: z.string().optional(), // For debts OR for income/expense
+  contact_id: z.string().optional(),
   description: z.string().optional(),
   due_date: z.date().optional(),
   account_id: z.string().optional(), // for income/expense/debts
@@ -44,7 +44,7 @@ const formSchema = z.object({
   to_account_id: z.string().optional(), // for transfer
   project_id: z.string().optional(),
 }).refine(data => {
-    if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'creditor' || data.entryType === 'debtor') && !data.account_id) {
+    if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'loanGiven' || data.entryType === 'loanTaken') && !data.account_id) {
         return false;
     }
     return true;
@@ -78,13 +78,13 @@ const formSchema = z.object({
   path: ["category"],
 })
 .refine(data => {
-    if ((data.entryType === 'creditor' || data.entryType === 'debtor') && !data.clientName) {
+    if ((data.entryType === 'loanGiven' || data.entryType === 'loanTaken') && !data.contact_id) {
         return false;
     }
     return true;
   }, {
-    message: "Please provide a name.",
-    path: ["clientName"],
+    message: "Please provide a contact.",
+    path: ["contact_id"],
 });
 
 type EntryFormProps = {
@@ -95,7 +95,7 @@ type EntryFormProps = {
 export default function EntryForm({ onFinished }: EntryFormProps) {
   const { 
     addTransaction, 
-    addDebt, 
+    addLoan, 
     currency, 
     allBankAccounts, 
     clients, 
@@ -120,7 +120,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       amount: '' as any,
       description: '',
       category: '',
-      clientName: '',
+      contact_id: '',
       account_id: allBankAccounts.find(acc => acc.is_primary)?.id,
       from_account_id: undefined,
       to_account_id: undefined,
@@ -174,64 +174,65 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
 
     const project_id = data.project_id;
 
-    let finalClientId: string | undefined;
+    let finalContactId: string | undefined = data.contact_id;
 
     // Handle client creation/selection for all types that use clientName
-    if (data.clientName) {
-        let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && ((!c.project_id && project_id === personalProject?.id) || c.project_id === project_id));
+    if (data.contact_id && (entryType === 'loanGiven' || entryType === 'loanTaken')) {
+        let client = clients.find(c => c.id.toLowerCase() === data.contact_id!.toLowerCase() && ((!c.project_id && project_id === personalProject?.id) || c.project_id === project_id));
         if (!client) {
-            client = await addClient({ name: data.clientName! }, project_id);
+            client = await addClient({ name: data.contact_id! }, project_id);
         }
-        finalClientId = client.id;
+        finalContactId = client.id;
     }
 
     if (entryType === 'income' || entryType === 'expense' || entryType === 'transfer') {
       
       // Auto-create category if it's new
       if (data.category && !filteredCategories.includes(data.category) && (entryType === 'income' || entryType === 'expense')) {
-        await addCategory({ name: data.category, type: entryType }, project_id);
+        await addCategory({ name: data.category, type: entryType as 'income' | 'expense' }, project_id);
       }
 
       await addTransaction({
-        type: entryType,
+        type: entryType as 'income' | 'expense' | 'transfer',
         amount: data.amount,
         category: entryType === 'transfer' ? 'Bank Transfer' : data.category!,
         description: data.description!,
         account_id: data.account_id,
         from_account_id: data.from_account_id,
         to_account_id: data.to_account_id,
-        client_id: finalClientId,
+        client_id: data.contact_id,
         project_id: project_id,
       });
       toast({
         title: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} added`,
         description: `${formatCurrency(data.amount)} has been logged.`,
       });
-    } else { // creditor or debtor
-      if (!data.clientName || !finalClientId) {
-        toast({ variant: 'destructive', title: 'Client name is required for loans.' });
+    } else { // loanGiven or loanTaken
+      if (!finalContactId) {
+        toast({ variant: 'destructive', title: 'Contact is required for loans.' });
         return;
       }
       
-      await addDebt({
+      await addLoan({
         type: entryType,
         amount: data.amount,
-        client_id: finalClientId,
+        contact_id: finalContactId,
         description: data.description!,
-        due_date: data.due_date,
+        due_date: data.due_date?.toISOString(),
+        status: 'active',
         account_id: data.account_id!,
         project_id: project_id,
       });
       toast({
-        title: `${entryType === 'creditor' ? 'Loan Taken' : 'Loan Given'} added`,
-        description: `Debt related to ${data.clientName} for ${formatCurrency(data.amount)} has been logged.`,
+        title: `${entryType === 'loanTaken' ? 'Loan Taken' : 'Loan Given'} added`,
+        description: `Loan related to ${clients.find(c => c.id === finalContactId)?.name || finalContactId} for ${formatCurrency(data.amount)} has been logged.`,
       });
     }
     form.reset();
     onFinished();
   }
 
-  const clientOptions = useMemo(() => filteredClients.map(c => ({ value: c.name, label: c.name })), [filteredClients]);
+  const clientOptions = useMemo(() => filteredClients.map(c => ({ value: c.id, label: c.name })), [filteredClients]);
   const categoryOptions = useMemo(() => filteredCategories.map(c => ({ value: c, label: c })), [filteredCategories]);
 
   return (
@@ -250,7 +251,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                       ...form.getValues(),
                       entryType: value as any,
                       category: '',
-                      clientName: '',
+                      contact_id: '',
                       account_id: allBankAccounts.find(acc => acc.is_primary)?.id,
                       from_account_id: undefined,
                       to_account_id: undefined,
@@ -264,9 +265,9 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                   <SelectContent>
                       <SelectItem value="expense">Expense</SelectItem>
                       <SelectItem value="income">Income</SelectItem>
-                      <SelectItem value="creditor">Loan Taken (Creditor)</SelectItem>
-                      <SelectItem value="debtor">Loan Given (Debtor)</SelectItem>
                       <SelectItem value="transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="loanGiven">Loan Given</SelectItem>
+                      <SelectItem value="loanTaken">Loan Taken</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -410,23 +411,23 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               )}
             />
           </div>
-        ) : (entryType === 'creditor' || entryType === 'debtor') && (
+        ) : (entryType === 'loanGiven' || entryType === 'loanTaken') && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
-                    name="clientName"
+                    name="contact_id"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                           <FormLabel>
-                            {entryType === 'creditor' ? "Creditor Name" : "Debtor Name"}
+                            {entryType === 'loanTaken' ? "Lender's Name" : "Borrower's Name"}
                           </FormLabel>
                           <Combobox
                             options={clientOptions}
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder="Client"
-                            searchPlaceholder="Search clients..."
-                            noResultsText="No clients found."
+                            placeholder="Contact"
+                            searchPlaceholder="Search contacts..."
+                            noResultsText="No contacts found."
                           />
                           <FormMessage />
                       </FormItem>
@@ -464,7 +465,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
             {(entryType === 'income' || entryType === 'expense') && (
               <FormField
                 control={form.control}
-                name="clientName"
+                name="contact_id"
                 render={({ field }) => (
                     <FormItem className="flex flex-col">
                         <FormLabel>Client (Optional)</FormLabel>
@@ -496,7 +497,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               )}
             />
 
-            {(entryType === 'creditor' || entryType === 'debtor') && (
+            {(entryType === 'loanGiven' || entryType === 'loanTaken') && (
               <FormField
                 control={form.control}
                 name="due_date"

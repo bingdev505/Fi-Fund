@@ -12,7 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateFinancialInsightsInputSchema = z.object({
-  financialData: z.string().describe('A string containing the user financial data, including income, expenses, debts owed and debts owed to the user.')
+  financialData: z.string().describe('A string containing the user financial data, including income, expenses, and loans.')
 });
 export type GenerateFinancialInsightsInput = z.infer<typeof GenerateFinancialInsightsInputSchema>;
 

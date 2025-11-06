@@ -12,7 +12,7 @@ import {z} from 'genkit';
 
 const AnswerFinancialQuestionInputSchema = z.object({
   question: z.string().describe('The user\'s question about their finances.'),
-  financialData: z.string().describe('A JSON string of the user\'s financial data, including transactions, debts, and bank accounts.'),
+  financialData: z.string().describe('A JSON string of the user\'s financial data, including transactions, loans, and bank accounts.'),
 });
 export type AnswerFinancialQuestionInput = z.infer<typeof AnswerFinancialQuestionInputSchema>;
 

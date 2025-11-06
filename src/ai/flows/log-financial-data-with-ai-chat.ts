@@ -2,7 +2,7 @@
 /**
  * @fileOverview This file defines a Genkit flow for logging financial data using natural language input.
  *
- * The flow takes a user's chat input, extracts relevant financial information (income, expenses, creditors, debtors),
+ * The flow takes a user's chat input, extracts relevant financial information (income, expenses, loans),
  * and returns a structured object containing the extracted data.
  *
  * @interface LogFinancialDataInput - The input type for the logFinancialData function.
@@ -25,9 +25,9 @@ export type LogFinancialDataInput = z.infer<typeof LogFinancialDataInputSchema>;
 
 const LogFinancialDataOutputSchema = z.object({
   transaction_type: z
-    .enum(['income', 'expense', 'creditor', 'debtor'])
+    .enum(['income', 'expense', 'loanGiven', 'loanTaken'])
     .describe('The type of financial transaction.'),
-  category: z.string().describe('The category of the transaction for income/expense, or the name of the person/entity for creditor/debtor.'),
+  category: z.string().describe('The category of the transaction for income/expense, or the name of the person/entity for loans.'),
   amount: z.number().describe('The amount of the transaction.'),
   description: z.string().optional().describe('A description of the transaction.'),
   account_name: z.string().optional().describe("The specific name of the bank account if the user mentions one (e.g., 'savings', 'checking', 'federal')."),
@@ -42,13 +42,13 @@ const logFinancialDataPrompt = ai.definePrompt({
   name: 'logFinancialDataPrompt',
   input: {schema: LogFinancialDataInputSchema},
   output: {schema: LogFinancialDataOutputSchema},
-  prompt: `You are a financial assistant. Extract the transaction type (income, expense, creditor, debtor), category, amount, description, and bank account name from the following user input.
-- If the user explicitly starts their message with 'income', 'expense', 'creditor', or 'debtor', use that as the transaction type.
-- For 'creditor' or 'debtor' types, the 'category' field should contain the name of the person or entity. For 'income' or 'expense' types, it should be a general category.
+  prompt: `You are a financial assistant. Extract the transaction type (income, expense, loanGiven, loanTaken), category, amount, description, and bank account name from the following user input.
+- If the user explicitly starts their message with 'income', 'expense', 'loanGiven', or 'loanTaken', use that as the transaction type.
+- For 'loanGiven' or 'loanTaken' types, the 'category' field should contain the name of the person or entity. For 'income' or 'expense' types, it should be a general category.
 - If the user mentions a specific bank or account name (e.g., 'in savings', 'from my checking account', 'at Federal bank', 'to gramin', 'Federal salary'), extract it as 'accountName'. 
 - Only extract the name of the account, like 'savings', 'checking', 'federal', or 'gramin'. Do not include the account name in the category or description.
 - If the user does *not* specify a bank account in their latest message, look at the chat history to see if a bank account was mentioned recently. If so, use that account name.
-- For loans, if the user says "[Name] give me loan", it means the user owes money to [Name], so the transactionType is 'creditor'. If the user says "I gave [Name] a loan", it means the user is owed money by [Name], so the transactionType is 'debtor'.
+- For loans, if the user says "I gave [Name] a loan", it means the user is owed money by [Name], so the transactionType is 'loanGiven'. If the user says "[Name] give me loan", it means the user owes money to [Name], so the transactionType is 'loanTaken'.
 
 User Input: {{{chat_input}}}
 

@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user profile information.
+     * @path /users/{userId}
+     * @allow (create) - User with matching auth UID can create their profile.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their profile.
+     * @deny (create) - User tries to create a profile with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's profile.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Controls access to transaction entries (income and expenses) for a specific user.
+     * @path /users/{userId}/transactions/{transactionId}
+     * @allow (create) - User with matching auth UID can create a transaction entry under their user ID.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own transaction entries.
+     * @allow (list) - User can list transactions for their own ID.
+     * @deny (create) - User tries to create a transaction entry with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's transaction entries.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/transactions/{transactionId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Controls access to loan entries for a specific user.
+     * @path /users/{userId}/loans/{loanId}
+     * @allow (create) - User with matching auth UID can create a loan entry under their user ID.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own loan entries.
+     * @allow (list) - User can list loans for their own ID.
+     * @deny (create) - User tries to create a loan entry with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's loan entries.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/loans/{loanId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Controls access to bank account information for a specific user.
+     * @path /users/{userId}/bankAccounts/{accountId}
+     * @allow (create) - User with matching auth UID can create a bank account entry under their user ID.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own bank account entries.
+     * @allow (list) - User can list bank accounts for their own ID.
+     * @deny (create) - User tries to create a bank account entry with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's bank account entries.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/bankAccounts/{accountId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+    /**
+     * @description Controls access to chat message history for a specific user.
+     * @path /users/{userId}/chatHistory/{messageId}
+     * @allow (create) - User with matching auth UID can create a chat message entry under their user ID.
+     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own chat message entries.
+     * @allow (list) - User can list chat history for their own ID.
+     * @deny (create) - User tries to create a chat message entry with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) - User tries to read, update, or delete another user's chat message entries.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/chatHistory/{messageId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+  }
+}

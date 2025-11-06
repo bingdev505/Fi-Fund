@@ -18,7 +18,7 @@ export type RouteUserIntentInput = z.infer<typeof RouteUserIntentInputSchema>;
 
 // Re-define the schemas here since we can't import them from 'use server' files.
 const LogFinancialDataResultSchema = z.object({
-  transaction_type: z.enum(['income', 'expense', 'creditor', 'debtor']),
+  transaction_type: z.enum(['income', 'expense', 'loanGiven', 'loanTaken']),
   category: z.string(),
   amount: z.number(),
   description: z.string().optional(),
@@ -52,7 +52,7 @@ const intentPrompt = ai.definePrompt({
   Examples: "spent 500 on groceries", "got my salary", "income 1000 from freelance", "John owes me 50".
 
 - 'question': The user is asking for information about their finances.
-  Examples: "what's my balance?", "how much did I spend on food?", "show me my debts".
+  Examples: "what's my balance?", "how much did I spend on food?", "show me my loans".
 
 - 'command': The user is telling the system to perform an action like deleting or editing.
   Examples: "delete the last entry", "remove that transaction", "edit the lunch expense".

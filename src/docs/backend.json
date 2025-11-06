@@ -38,7 +38,7 @@
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "projectId": { "type": "string" },
-        "type": { "type": "string", "enum": ["income", "expense", "transfer", "repayment"] },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer"] },
         "category": { "type": "string" },
         "amount": { "type": "number" },
         "description": { "type": "string" },
@@ -46,30 +46,29 @@
         "accountId": { "type": "string" },
         "fromAccountId": { "type": "string" },
         "toAccountId": { "type": "string" },
-        "debtId": { "type": "string" },
         "clientId": { "type": "string" }
       },
       "required": ["id", "userId", "type", "category", "amount", "description", "date"]
     },
-    "Debt": {
+     "Loan": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Debt",
+      "title": "Loan",
+      "description": "Represents a loan taken or given by the user.",
       "type": "object",
-      "description": "Represents a debt owed to or by the user.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "projectId": { "type": "string" },
-        "type": { "type": "string", "enum": ["creditor", "debtor"] },
-        "name": { "type": "string" },
-        "clientId": { "type": "string" },
+        "type": { "type": "string", "enum": ["loanTaken", "loanGiven"] },
+        "contactId": { "type": "string" },
         "amount": { "type": "number" },
         "description": { "type": "string" },
         "dueDate": { "type": "string", "format": "date-time" },
-        "date": { "type": "string", "format": "date-time" },
-        "accountId": { "type": "string" }
+        "status": { "type": "string", "enum": ["active", "paid"] },
+        "accountId": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "type", "name", "clientId", "amount", "description", "date", "accountId"]
+      "required": ["id", "userId", "type", "contactId", "amount", "status", "created_at", "accountId"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -91,6 +90,7 @@
       "properties": {
         "id": { "type": "string", "description": "Unique identifier for the bank account." },
         "userId": { "type": "string", "description": "Reference to the User who owns this account." },
+        "projectId": { "type": "string", "description": "Optional reference to a Project/Business." },
         "name": { "type": "string", "description": "The name of the bank account (e.g., 'Savings', 'Checking')." },
         "balance": { "type": "number", "description": "The current balance of the account." },
         "isPrimary": { "type": "boolean", "description": "Indicates if this is the user's primary bank account." }

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
-import type { Transaction, Debt, BankAccount, Project, Client, Category, Task, Credential, Loan } from '@/lib/types';
+import type { Transaction, Loan, BankAccount, Project, Client, Category, Task, Credential } from '@/lib/types';
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
@@ -19,23 +19,16 @@ interface FinancialContextType {
   transactions: Transaction[];
   allTransactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'user_id'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  updateTransaction: (originalTransaction: Transaction, updatedData: Partial<Transaction>) => Promise<void>;
+  updateTransaction: (transactionId: string, updatedData: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (transaction: Transaction) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
   
-  debts: Debt[];
-  allDebts: Debt[];
-  addDebt: (debt: Omit<Debt, 'id' | 'date' | 'user_id' | 'name'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  updateDebt: (originalDebt: Debt, updatedData: Partial<Debt>) => Promise<void>;
-  deleteDebt: (debt: Debt) => Promise<void>;
-  addRepayment: (debt: Debt, amount: number, account_id: string) => Promise<void>;
-  getDebtById: (id: string) => Debt | undefined;
-
   loans: Loan[];
   allLoans: Loan[];
   addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string) => Promise<void>;
+  getLoanById: (id: string) => Loan | undefined;
 
   bankAccounts: BankAccount[];
   allBankAccounts: BankAccount[];
@@ -92,7 +85,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [activeProject, _setActiveProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
   const [defaultProject, _setDefaultProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
-  const [allDebts, setAllDebts] = useState<Debt[]>([]);
   const [allBankAccounts, setAllBankAccounts] = useState<BankAccount[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -109,7 +101,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       let [
         projectsRes,
         transactionsRes,
-        debtsRes,
         bankAccountsRes,
         clientsRes,
         categoriesRes,
@@ -120,7 +111,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       ] = await Promise.all([
         supabase.from('projects').select('*').eq('user_id', userId),
         supabase.from('transactions').select('*').eq('user_id', userId),
-        supabase.from('debts').select('*').eq('user_id', userId),
         supabase.from('bank_accounts').select('*').eq('user_id', userId),
         supabase.from('clients').select('*').eq('user_id', userId),
         supabase.from('categories').select('*').eq('user_id', userId),
@@ -148,15 +138,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           }
       }
 
-
-      const clients = clientsRes.data || [];
-      const debts = (debtsRes.data || []).map(d => ({ ...d, name: clients.find(c => c.id === d.client_id)?.name || 'Unknown Client' }));
-      
       setAllProjects(projects);
       setAllTransactions(transactionsRes.data || []);
-      setAllDebts(debts);
       setAllBankAccounts(bankAccountsRes.data || []);
-      setAllClients(clients);
+      setAllClients(clientsRes.data || []);
       setAllCategories(categoriesRes.data || []);
       setAllTasks(tasksRes.data || []);
       setAllCredentials(credentialsRes.data || []);
@@ -253,7 +238,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User not authenticated");
     
     // This is a simplified cascade delete. For production, you might want to use database-level cascade deletes.
-    const tablesToDeleteFrom = ['transactions', 'debts', 'clients', 'categories', 'tasks', 'credentials', 'bank_accounts', 'loans'];
+    const tablesToDeleteFrom = ['transactions', 'clients', 'categories', 'tasks', 'credentials', 'bank_accounts', 'loans'];
     for (const table of tablesToDeleteFrom) {
         const { error } = await supabase.from(table).delete().eq('project_id', projectId);
         if (error) {
@@ -272,7 +257,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     // Optimistically update state
     setAllProjects(prev => prev.filter(p => p.id !== projectId));
     setAllTransactions(prev => prev.filter(t => t.project_id !== projectId));
-    setAllDebts(prev => prev.filter(d => d.project_id !== projectId));
     setAllClients(prev => prev.filter(c => c.project_id !== projectId));
     setAllCategories(prev => prev.filter(c => c.project_id !== projectId));
     setAllTasks(prev => prev.filter(t => t.project_id !== projectId));
@@ -300,7 +284,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: updatedClient, error } = await supabase.from('clients').update(clientData).eq('id', clientId).select().single();
     if (error) throw error;
     setAllClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
-    setAllDebts(prev => prev.map(d => d.client_id === updatedClient.id ? { ...d, name: updatedClient.name } : d));
   };
 
   const deleteClient = async (clientId: string) => {
@@ -368,12 +351,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (returnRef) { return { id: newTransaction.id }; }
   };
 
-  const updateTransaction = async (originalTransaction: Transaction, updatedData: Partial<Transaction>) => {
+  const updateTransaction = async (transactionId: string, updatedData: Partial<Transaction>) => {
+    const originalTransaction = allTransactions.find(t => t.id === transactionId);
+    if (!originalTransaction) return;
+    
     if (originalTransaction.account_id) {
       if (originalTransaction.type === 'income') await updateAccountBalance(originalTransaction.account_id, originalTransaction.amount, 'subtract');
       if (originalTransaction.type === 'expense') await updateAccountBalance(originalTransaction.account_id, originalTransaction.amount, 'add');
     }
-    const { data: updatedTransaction, error } = await supabase.from('transactions').update(updatedData).eq('id', originalTransaction.id).select().single();
+    const { data: updatedTransaction, error } = await supabase.from('transactions').update(updatedData).eq('id', transactionId).select().single();
     if (error) throw error;
     
     setAllTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
@@ -392,54 +378,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
     if (error) throw error;
     setAllTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
-  };
-
-  const addDebt = async (debtData: Omit<Debt, 'id' | 'date' | 'user_id' | 'name'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user || !debtData.account_id) throw new Error("User not authenticated or missing account_id");
-    
-    const dbDebt: Omit<Debt, 'id'|'date'|'user_id'|'name'> & {user_id: string; date: string} = {
-        ...debtData,
-        user_id: user.id,
-        date: new Date().toISOString(),
-    };
-    
-    const { data: newDebt, error } = await supabase.from('debts').insert(dbDebt).select().single();
-    if (error) throw error;
-    
-    const debtName = allClients.find(c => c.id === newDebt.client_id)?.name || 'Unknown Client';
-    setAllDebts(prev => [...prev, {...newDebt, name: debtName}]);
-
-    if (newDebt.type === 'creditor') { await updateAccountBalance(newDebt.account_id, newDebt.amount, 'add'); } 
-    else if (newDebt.type === 'debtor') { await updateAccountBalance(newDebt.account_id, newDebt.amount, 'subtract'); }
-    if (returnRef) { return { id: newDebt.id }; }
-  };
-
-  const updateDebt = async (originalDebt: Debt, updatedData: Partial<Debt>) => {
-    const amountDifference = (updatedData.amount ?? originalDebt.amount) - originalDebt.amount;
-    if (amountDifference !== 0 && originalDebt.account_id) {
-        if (originalDebt.type === 'creditor') { await updateAccountBalance(originalDebt.account_id, amountDifference, 'add'); } 
-        else { await updateAccountBalance(originalDebt.account_id, amountDifference, 'subtract'); }
-    }
-    const { data: updatedDebt, error } = await supabase.from('debts').update(updatedData).eq('id', originalDebt.id).select().single();
-    if (error) throw error;
-
-    const debtName = allClients.find(c => c.id === updatedDebt.client_id)?.name || 'Unknown Client';
-    setAllDebts(prev => prev.map(d => d.id === updatedDebt.id ? {...updatedDebt, name: debtName} : d));
-  };
-
-  const deleteDebt = async (debtToDelete: Debt) => {
-    if (debtToDelete.account_id) {
-        if (debtToDelete.type === 'creditor') { await updateAccountBalance(debtToDelete.account_id, debtToDelete.amount, 'subtract'); } 
-        else { await updateAccountBalance(debtToDelete.account_id, debtToDelete.amount, 'add'); }
-    }
-    const { error } = await supabase.from('debts').delete().eq('id', debtToDelete.id);
-    if (error) throw error;
-    setAllDebts(prev => prev.filter(d => d.id !== debtToDelete.id));
-  };
-
-  const addRepayment = async (debt: Debt, amount: number, account_id: string) => {
-    await updateDebt(debt, { amount: debt.amount - amount });
-    await addTransaction({ type: 'repayment', amount, category: 'Debt Repayment', description: `Payment for debt: ${debt.name}`, debt_id: debt.id, account_id: account_id, project_id: debt.project_id });
   };
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string) => {
@@ -498,7 +436,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const getTransactionById = useCallback((id: string) => allTransactions.find(t => t.id === id), [allTransactions]);
-  const getDebtById = useCallback((id: string) => allDebts.find(d => d.id === id), [allDebts]);
+  const getLoanById = useCallback((id: string) => allLoans.find(l => l.id === id), [allLoans]);
 
   const addTask = async (taskData: Omit<Task, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return;
@@ -621,14 +559,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       : allTransactions.filter(t => t.project_id === personalProject?.id || !t.project_id);
   }, [allTransactions, activeProject, allProjects]);
 
-  const filteredDebts = useMemo(() => {
-    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
-    if (activeProject && activeProject.id !== 'all') {
-      return allDebts.filter(d => d.project_id === activeProject.id);
-    }
-    return allDebts.filter(d => d.project_id === personalProject?.id || !d.project_id);
-  }, [allDebts, activeProject, allProjects]);
-  
   const filteredClients = useMemo(() => {
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
       if (activeProject && activeProject.id !== 'all') {
@@ -679,30 +609,27 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const contextValue: FinancialContextType = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
     transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
-    debts: filteredDebts, allDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, addClient, updateClient, deleteClient,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
-    loans: filteredLoans, allLoans, addLoan, updateLoan, deleteLoan,
+    loans: filteredLoans, allLoans, addLoan, updateLoan, deleteLoan, getLoanById,
     currency, setCurrency,
     isLoading: isLoading || isUserLoading,
   }), [
       allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject,
       filteredTransactions, allTransactions, getTransactionById,
-      filteredDebts, allDebts, getDebtById,
       filteredBankAccounts, allBankAccounts,
       filteredClients,
       filteredCategories,
       filteredTasks,
       filteredCredentials,
-      filteredLoans, allLoans,
+      filteredLoans, allLoans, getLoanById,
       currency, setCurrency,
       isLoading, isUserLoading,
       updateAccountBalance,
       addTransaction, updateTransaction, deleteTransaction,
-      addDebt, updateDebt, deleteDebt, addRepayment,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
       addClient, updateClient, deleteClient,
       addCategory, updateCategory, deleteCategory,

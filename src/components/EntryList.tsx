@@ -13,8 +13,9 @@ import {
   Loader2,
   Trash2,
   Pencil,
+  Handshake,
 } from 'lucide-react';
-import type { Transaction, Debt } from '@/lib/types';
+import type { Transaction, Loan } from '@/lib/types';
 import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -29,9 +30,9 @@ type EntryListProps = {
 }
 
 export default function EntryList({ limit, showHeader = true }: EntryListProps) {
-  const { transactions, debts, currency, bankAccounts, clients, isLoading, deleteTransaction, deleteDebt } = useFinancials();
-  const [editingEntry, setEditingEntry] = useState<Transaction | Debt | null>(null);
-  const [deletingEntry, setDeletingEntry] = useState<Transaction | Debt | null>(null);
+  const { transactions, loans, currency, bankAccounts, clients, isLoading, deleteTransaction, deleteLoan } = useFinancials();
+  const [editingEntry, setEditingEntry] = useState<Transaction | Loan | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<Transaction | Loan | null>(null);
   const { toast } = useToast();
 
   const allEntries = useMemo(() => {
@@ -41,9 +42,9 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
         return new Date();
     }
 
-    const combined: (Transaction | Debt)[] = [
+    const combined: (Transaction | Loan)[] = [
       ...transactions.map(t => ({...t, date: toDate(t.date)})),
-      ...debts.map(d => ({...d, date: toDate(d.date), due_date: d.due_date ? toDate(d.due_date) : undefined })),
+      ...loans.map(l => ({...l, date: toDate(l.created_at), due_date: l.due_date ? toDate(l.due_date) : undefined })),
     ];
     
     const sorted = combined.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -53,7 +54,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     }
 
     return sorted;
-  }, [transactions, debts, limit]);
+  }, [transactions, loans, limit]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -76,8 +77,8 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
       deleteTransaction(deletingEntry as Transaction);
       toast({ title: "Transaction Deleted" });
     } else {
-      deleteDebt(deletingEntry as Debt);
-      toast({ title: "Debt Deleted" });
+      deleteLoan((deletingEntry as Loan).id);
+      toast({ title: "Loan Deleted" });
     }
     setDeletingEntry(null);
   };
@@ -103,7 +104,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     );
   }
 
-  const renderIcon = (entry: Transaction | Debt) => {
+  const renderIcon = (entry: Transaction | Loan) => {
     const iconContainerClass = "h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-full";
     const iconClass = "h-5 w-5";
 
@@ -114,18 +115,17 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
         return <div className={`${iconContainerClass} bg-red-100 dark:bg-red-900/50`}><TrendingDown className={`${iconClass} text-red-600 dark:text-red-400`} /></div>;
       case 'transfer':
         return <div className={`${iconContainerClass} bg-blue-100 dark:bg-blue-900/50`}><ArrowRightLeft className={`${iconClass} text-blue-600 dark:text-blue-400`} /></div>;
-      case 'creditor':
-        return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><Landmark className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
-      case 'debtor':
-        return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><User className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
-      case 'repayment':
-          return <div className={`${iconContainerClass} bg-gray-100 dark:bg-gray-900/50`}><Landmark className={`${iconClass} text-gray-600 dark:text-gray-400`} /></div>;
+      case 'loanGiven':
+        return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><Handshake className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
+      case 'loanTaken':
+        return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><Handshake className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
+      
     }
   };
 
-  const renderEntry = (entry: Transaction | Debt) => {
+  const renderEntry = (entry: Transaction | Loan) => {
     const isTransaction = 'category' in entry;
-    const color = entry.type === 'income' || entry.type === 'debtor' ? 'text-green-600' : entry.type === 'transfer' ? '' : 'text-red-600';
+    const color = entry.type === 'income' || entry.type === 'loanTaken' ? 'text-green-600' : entry.type === 'transfer' ? '' : 'text-red-600';
     
     let subtext = '';
     if (isTransaction) {
@@ -137,12 +137,12 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
             subtext = `${tx.category}${clientName} (${getAccountName(tx.account_id)})`;
         }
     } else {
-        const debt = entry as Debt;
-        subtext = `${debt.description} (${getAccountName(debt.account_id)})`;
+        const loan = entry as Loan;
+        subtext = `${loan.description} (${getAccountName(loan.account_id)})`;
     }
 
     const entryDate = entry.date as Date;
-    const dueDate = (entry as Debt).due_date as Date | undefined;
+    const dueDate = (entry as Loan).due_date as Date | undefined;
 
     return (
         <div className="flex items-start justify-between py-3 group">
@@ -150,7 +150,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
                 {renderIcon(entry)}
                 <div>
                     <p className="text-sm font-medium leading-none">
-                        {isTransaction ? (entry as Transaction).description : (entry as Debt).name}
+                        {isTransaction ? (entry as Transaction).description : getClientName((entry as Loan).contact_id)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                         {subtext} • {entryDate instanceof Date ? entryDate.toLocaleDateString() : entryDate}

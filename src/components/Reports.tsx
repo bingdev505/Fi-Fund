@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 type ReportPeriod = 'weekly' | 'monthly' | 'annual';
 
 export default function Reports() {
-  const { transactions, debts } = useFinancials();
+  const { transactions, loans } = useFinancials();
   const [insight, setInsight] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [period, setPeriod] = useState<ReportPeriod>('annual');
@@ -24,8 +24,8 @@ export default function Reports() {
     const financialData = `
       Income: ${JSON.stringify(transactions.filter(t => t.type === 'income'))}
       Expenses: ${JSON.stringify(transactions.filter(t => t.type === 'expense'))}
-      Creditors (You Owe): ${JSON.stringify(debts.filter(d => d.type === 'creditor'))}
-      Debtors (Owed to You): ${JSON.stringify(debts.filter(d => d.type === 'debtor'))}
+      Loans Given: ${JSON.stringify(loans.filter(d => d.type === 'loanGiven'))}
+      Loans Taken: ${JSON.stringify(loans.filter(d => d.type === 'loanTaken'))}
     `;
     
     try {
