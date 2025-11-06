@@ -117,7 +117,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
                   options={contactOptions}
                   value={field.value}
                   onChange={field.onChange}
-                  placeholder="Select or create contact..."
+                  placeholder="Select / Create"
                   searchPlaceholder="Search contacts..."
                   noResultsText="No contacts found."
                 />
