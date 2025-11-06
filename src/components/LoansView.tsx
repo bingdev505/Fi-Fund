@@ -95,45 +95,45 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Loan Type</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="loanGiven">Loan Given</SelectItem>
-                    <SelectItem value="loanTaken">Loan Taken</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="contact_id"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Contact</FormLabel>
-                <Combobox
-                  options={contactOptions}
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Select / Create"
-                  searchPlaceholder="Search contacts..."
-                  noResultsText="No contacts found."
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                <FormItem className="flex flex-col">
+                    <FormLabel>Loan Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="loanGiven">Loan Given</SelectItem>
+                        <SelectItem value="loanTaken">Loan Taken</SelectItem>
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="contact_id"
+                render={({ field }) => (
+                <FormItem className="flex flex-col">
+                    <FormLabel>Contact</FormLabel>
+                    <Combobox
+                    options={contactOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Select / Create"
+                    searchPlaceholder="Search contacts..."
+                    noResultsText="No contacts found."
+                    />
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
@@ -318,12 +318,17 @@ export default function LoansView() {
     }
   }, [loans, transactions]);
 
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingLoan(null);
+  }
+
+  const closeRepayForm = () => {
+      setRepayingLoan(null);
+  }
+
   return (
-    <Dialog open={formOpen} onOpenChange={(open) => {
-      setFormOpen(open);
-      if (!open) setEditingLoan(null);
-    }}>
-        <Dialog open={!!repayingLoan} onOpenChange={(open) => !open && setRepayingLoan(null)}>
+    <>
       <AlertDialog>
         <Card>
           <CardHeader>
@@ -401,15 +406,17 @@ export default function LoansView() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <DialogContent>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent>
             <DialogHeader>
                 <DialogTitle>{editingLoan ? 'Edit Loan' : 'Add a New Loan'}</DialogTitle>
             </DialogHeader>
-            <LoanForm loan={editingLoan} onFinished={() => {
-                setFormOpen(false);
-                setEditingLoan(null);
-            }} />
+            <LoanForm loan={editingLoan} onFinished={closeForm} />
         </DialogContent>
+      </Dialog>
+      
+      <Dialog open={!!repayingLoan} onOpenChange={(open) => !open && setRepayingLoan(null)}>
          {repayingLoan && (
             <DialogContent>
                 <DialogHeader>
@@ -418,12 +425,12 @@ export default function LoansView() {
                 <RepaymentForm
                     loan={repayingLoan}
                     outstandingAmount={repayingLoan.amount - (loanRepayments.get(repayingLoan.id) || 0)}
-                    onFinished={() => setRepayingLoan(null)}
+                    onFinished={closeRepayForm}
                 />
             </DialogContent>
         )}
       </Dialog>
-    </Dialog>
+    </>
   );
 }
 
