@@ -117,7 +117,7 @@ export type UserGoogleCredential = {
   refresh_token: string;
   scope: string;
   token_type: string;
-  expiry_date: number;
+  expiry_date: number | null;
 };
 
 

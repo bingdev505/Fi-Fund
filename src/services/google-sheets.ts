@@ -5,7 +5,7 @@ import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput, Transaction, Loan
 import { supabase } from '@/lib/supabase_client';
 import { getOAuth2Client } from './google-auth';
 
-type StructuredRow = (string | number)[];
+type StructuredRow = (string | number | null)[];
 
 function structureDataForSheet(
     transactions: Transaction[],
@@ -13,7 +13,7 @@ function structureDataForSheet(
     bankAccounts: BankAccount[],
     allContacts: (Client | Contact)[]
 ): { headers: string[], rows: StructuredRow[] } {
-    const headers = ["transaction_id", "Date", "Type", "Account", "Category/Contact", "Amount"];
+    const headers = ["transaction_id", "Date", "Type", "Account", "Category", "Contact", "Description", "Amount"];
     
     const combinedEntries: (Transaction | Loan)[] = [...transactions, ...loans];
     const sortedEntries = combinedEntries.sort((a, b) => new Date(a.date || a.created_at).getTime() - new Date(b.date || b.created_at).getTime());
@@ -27,7 +27,9 @@ function structureDataForSheet(
             new Date(entry.date || entry.created_at).toLocaleDateString('en-CA'), // YYYY-MM-DD
             '', // Type
             '', // Account
-            '', // Category/Contact
+            '', // Category
+            '', // Contact
+            entry.description || '', // Description
             0   // Amount
         ];
 
@@ -38,36 +40,40 @@ function structureDataForSheet(
             const tx = entry as Transaction;
             type = tx.type.charAt(0).toUpperCase() + tx.type.slice(1);
             row[3] = accountMap.get(tx.account_id || '') || '';
+            row[4] = tx.category;
+            row[5] = tx.client_id ? contactMap.get(tx.client_id) : '';
+
             if (tx.type === 'transfer') {
-                type = 'Transfer';
                 const from = accountMap.get(tx.from_account_id || '') || 'Unknown';
                 const to = accountMap.get(tx.to_account_id || '') || 'Unknown';
                 row[4] = `${from} -> ${to}`;
-            } else {
-                 row[4] = tx.client_id ? `${tx.category} (${contactMap.get(tx.client_id) || ''})` : tx.category;
             }
 
-            if (tx.type === 'expense') amount = -Math.abs(amount);
-            else if (tx.type === 'repayment') {
-                const relatedLoan = loans.find(l => l.id === tx.loan_id);
-                if (relatedLoan?.type === 'loanTaken') amount = -Math.abs(amount);
-                else amount = Math.abs(amount);
-            } else {
+            if (tx.type === 'repayment' && tx.loan_id) {
+                 const relatedLoan = loans.find(l => l.id === tx.loan_id);
+                 row[5] = relatedLoan ? contactMap.get(relatedLoan.contact_id) : '';
+                 row[6] = `Repayment for loan regarding ${row[5]}`;
+
+                 if (relatedLoan?.type === 'loanTaken') amount = -Math.abs(amount);
+                 else amount = Math.abs(amount);
+            } else if (tx.type === 'income') {
                 amount = Math.abs(amount);
+            } else { // expense or other
+                amount = -Math.abs(amount);
             }
 
         } else { // It's a Loan
             const loan = entry as Loan;
             type = loan.type === 'loanGiven' ? 'Loan Given' : 'Loan Taken';
             row[3] = accountMap.get(loan.account_id) || '';
-            row[4] = contactMap.get(loan.contact_id) || 'Unknown Contact';
+            row[5] = contactMap.get(loan.contact_id) || 'Unknown Contact';
 
             if (loan.type === 'loanGiven') amount = -Math.abs(amount);
             else amount = Math.abs(amount);
         }
         
         row[2] = type;
-        row[5] = amount;
+        row[7] = amount;
 
         return row;
     });
@@ -75,56 +81,112 @@ function structureDataForSheet(
     return { headers, rows };
 }
 
+type ParsedSheetData = {
+    newTransactions: Omit<Transaction, 'id' | 'user_id'>[];
+    updatedTransactions: Partial<Transaction> & { id: string }[];
+    newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[];
+    updatedLoans: Partial<Loan> & { id: string }[];
+};
+
 function parseSheetData(
     sheetData: any[][],
     userTransactions: Transaction[],
     userLoans: Loan[],
-): { newTransactions: Omit<Transaction, 'id' | 'user_id'>[], newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[] } {
-    const newTransactions: Omit<Transaction, 'id' | 'user_id'>[] = [];
-    const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[] = [];
-
-    const existingIds = new Set([...userTransactions.map(t => t.id), ...userLoans.map(l => l.id)]);
+    allContacts: (Client|Contact)[],
+    allBankAccounts: BankAccount[]
+): ParsedSheetData {
+    const result: ParsedSheetData = {
+        newTransactions: [],
+        updatedTransactions: [],
+        newLoans: [],
+        updatedLoans: [],
+    };
     
-    // Skip header row by starting at 1
+    const transactionMap = new Map(userTransactions.map(t => [t.id, t]));
+    const loanMap = new Map(userLoans.map(l => [l.id, l]));
+
+    const contactMap = new Map(allContacts.map(c => [c.name.toLowerCase(), c.id]));
+    const accountMap = new Map(allBankAccounts.map(a => [a.name.toLowerCase(), a.id]));
+
+    // Skip header row
     for (let i = 1; i < sheetData.length; i++) {
         const row = sheetData[i];
-        const id = row[0];
+        const [id, dateStr, type, accountName, category, contactName, description, amountStr] = row;
+        
+        const amount = parseFloat(amountStr);
+        if (!type || isNaN(amount)) continue;
 
-        if (id && existingIds.has(id)) {
-            continue; // Skip existing entries
-        }
+        const lowerCaseType = type.toLowerCase();
+        
+        const isLoan = lowerCaseType.includes('loan');
+        
+        if (id && (transactionMap.has(id) || loanMap.has(id))) {
+            // Existing Entry - check for updates
+            if (isLoan) {
+                const existingLoan = loanMap.get(id)!;
+                const update: Partial<Loan> & { id: string } = { id };
+                let needsUpdate = false;
 
-        const date = row[1] ? new Date(row[1]).toISOString() : new Date().toISOString();
-        const type = (row[2] || '').toLowerCase();
-        const categoryOrContact = row[4] || '';
-        const amount = parseFloat(row[5] || '0');
+                if (Math.abs(existingLoan.amount) !== Math.abs(amount)) {
+                    update.amount = Math.abs(amount);
+                    needsUpdate = true;
+                }
+                if (description && existingLoan.description !== description) {
+                    update.description = description;
+                    needsUpdate = true;
+                }
+                if(needsUpdate) result.updatedLoans.push(update);
 
-        if (!type || isNaN(amount)) continue; // Skip empty or invalid rows
+            } else { // Is Transaction
+                const existingTx = transactionMap.get(id)!;
+                const update: Partial<Transaction> & { id: string } = { id };
+                let needsUpdate = false;
 
-        if (type.includes('income') || type.includes('expense')) {
-            newTransactions.push({
-                date,
-                type: type as 'income' | 'expense',
-                amount: Math.abs(amount),
-                category: categoryOrContact,
-                description: 'From Google Sheet',
-                // These need to be resolved or defaulted in the calling function
-                account_id: '', 
-            });
-        } else if (type.includes('loan')) {
-             newLoans.push({
-                type: type.includes('given') ? 'loanGiven' : 'loanTaken',
-                contact_id: categoryOrContact,
-                amount: Math.abs(amount),
-                status: 'active',
-                description: 'From Google Sheet',
-                date: date, // Using date from sheet as created_at
-                account_id: '' // This needs to be resolved or defaulted
-            } as Omit<Loan, 'id' | 'user_id' | 'created_at'>);
+                if (Math.abs(existingTx.amount) !== Math.abs(amount)) {
+                    update.amount = Math.abs(amount);
+                    needsUpdate = true;
+                }
+                 if (description && existingTx.description !== description) {
+                    update.description = description;
+                    needsUpdate = true;
+                }
+                 if (category && existingTx.category !== category) {
+                    update.category = category;
+                    needsUpdate = true;
+                }
+                if(needsUpdate) result.updatedTransactions.push(update);
+            }
+
+        } else {
+            // New Entry
+            const date = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString();
+            const accountId = accountMap.get(accountName?.toLowerCase()) || allBankAccounts[0]?.id;
+            
+            if (isLoan) {
+                result.newLoans.push({
+                    type: lowerCaseType.includes('given') ? 'loanGiven' : 'loanTaken',
+                    contact_id: contactMap.get(contactName?.toLowerCase()) || contactName,
+                    amount: Math.abs(amount),
+                    status: 'active',
+                    description: description || 'From Google Sheet',
+                    created_at: date,
+                    account_id: accountId,
+                });
+            } else {
+                result.newTransactions.push({
+                    date,
+                    type: lowerCaseType.includes('income') ? 'income' : 'expense',
+                    amount: Math.abs(amount),
+                    category: category,
+                    description: description || 'From Google Sheet',
+                    account_id: accountId,
+                    client_id: contactMap.get(contactName?.toLowerCase()) || undefined,
+                });
+            }
         }
     }
 
-    return { newTransactions, newLoans };
+    return result;
 }
 
 
@@ -141,7 +203,7 @@ async function getGoogleSheetsClient(userId?: string) {
                 expiry_date: creds.expiry_date,
             });
 
-            if (new Date(creds.expiry_date) < new Date()) {
+            if (creds.expiry_date && new Date(creds.expiry_date) < new Date()) {
                 const { credentials } = await oauth2Client.refreshAccessToken();
                  await supabase.from('user_google_credentials').update({
                     access_token: credentials.access_token,
@@ -227,15 +289,33 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
         if (input.readFromSheet) {
             const sheetData = await readFromSheet(sheets, input.sheetId, sheetName);
             if (sheetData && sheetData.length > 1) { // More than just a header
-                const { newTransactions, newLoans } = parseSheetData(sheetData, transactions, loans);
+                const { newTransactions, newLoans, updatedTransactions, updatedLoans } = parseSheetData(
+                    sheetData, 
+                    transactions, 
+                    loans,
+                    allContacts,
+                    input.bankAccounts
+                );
 
                 for (const entry of newTransactions) {
-                     const { data, error } = await supabase.from('transactions').insert({...entry, account_id: primaryAccount.id, user_id: input.userId!}).select().single();
+                     const { data, error } = await supabase.from('transactions').insert({...entry, account_id: entry.account_id || primaryAccount.id, user_id: input.userId!}).select().single();
                      if (!error && data) transactions.push(data);
                 }
                  for (const entry of newLoans) {
-                     const { data, error } = await supabase.from('loans').insert({...entry, account_id: primaryAccount.id, created_at: entry.date, user_id: input.userId!}).select().single();
+                     const { data, error } = await supabase.from('loans').insert({...entry, account_id: entry.account_id || primaryAccount.id, user_id: input.userId!}).select().single();
                      if (!error && data) loans.push(data);
+                }
+                 for (const entry of updatedTransactions) {
+                    const { data, error } = await supabase.from('transactions').update(entry).eq('id', entry.id).select().single();
+                    if (!error && data) {
+                        transactions = transactions.map(t => t.id === data.id ? data : t);
+                    }
+                }
+                 for (const entry of updatedLoans) {
+                    const { data, error } = await supabase.from('loans').update(entry).eq('id', entry.id).select().single();
+                     if (!error && data) {
+                        loans = loans.map(l => l.id === data.id ? data : l);
+                    }
                 }
             }
         }
