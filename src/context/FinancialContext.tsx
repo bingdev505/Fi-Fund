@@ -5,7 +5,7 @@ import type { Transaction, Loan, BankAccount, Project, Client, Category, Task, C
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
-import { syncToGoogleSheet } from '@/app/actions';
+import { syncTransactionsToSheet } from '@/services/google-sheets';
 
 interface FinancialContextType {
   projects: Project[];
@@ -227,7 +227,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const project = allProjects.find(p => p.id === projectId);
     if (project?.google_sheet_id && user) {
         console.log(`Auto-syncing project: ${project.name}`);
-        await syncToGoogleSheet({
+        await syncTransactionsToSheet({
             sheetId: project.google_sheet_id,
             transactions: allTransactions.filter(t => t.project_id === projectId),
             loans: allLoans.filter(l => l.project_id === projectId),
