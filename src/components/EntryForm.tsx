@@ -418,7 +418,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               control={form.control}
               name="account_id"
               render={({ field }) => (
-              <FormItem>
+              <FormItem className="flex flex-col">
                   <FormLabel>Account</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value || ''}>
                   <FormControl>
