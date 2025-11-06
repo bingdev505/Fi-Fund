@@ -83,7 +83,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
 
     setCurrentProject(updatedProject);
 
-    if (values.google_sheet_id) {
+    if (!project && values.google_sheet_id) { // Only show popup on create
         setShowSyncPopup(true);
     } else {
         onFinished();
@@ -112,6 +112,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
               clients: projectClients,
               contacts: projectContacts,
               userId: user?.id,
+              readFromSheet: true,
           });
           setSyncResult(result);
       } catch (error: any) {
@@ -178,38 +179,40 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
             )}
             />
 
-        <Tabs defaultValue="service-account">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="service-account">Service Account</TabsTrigger>
-                <TabsTrigger value="oauth">Google Account</TabsTrigger>
-            </TabsList>
-            <TabsContent value="service-account" className="pt-4">
-                 <FormField
-                    control={form.control}
-                    name="google_sheet_id"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Google Sheet ID</FormLabel>
-                        <FormControl>
-                            <Input placeholder="Paste your Google Sheet ID here" {...field} value={field.value ?? ''} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-            </TabsContent>
-            <TabsContent value="oauth" className="pt-4">
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="space-y-2">
-                            <h3 className="font-semibold">Connect your Google Account</h3>
-                            <p className="text-sm text-muted-foreground">For a more seamless experience, connect your Google account to select sheets directly and enable auto-sync.</p>
-                            <Button type="button" onClick={handleConnectGoogle} className='w-full'>Connect with Google</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-        </Tabs>
+        {!project && (
+            <Tabs defaultValue="service-account">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="service-account">Service Account</TabsTrigger>
+                    <TabsTrigger value="oauth">Google Account</TabsTrigger>
+                </TabsList>
+                <TabsContent value="service-account" className="pt-4">
+                    <FormField
+                        control={form.control}
+                        name="google_sheet_id"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Google Sheet ID (Optional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Paste your Google Sheet ID here" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                </TabsContent>
+                <TabsContent value="oauth" className="pt-4">
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="space-y-2">
+                                <h3 className="font-semibold">Connect your Google Account</h3>
+                                <p className="text-sm text-muted-foreground">For a more seamless experience, connect your Google account to select sheets directly and enable auto-sync.</p>
+                                <Button type="button" onClick={handleConnectGoogle} className='w-full'>Connect with Google</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+        )}
 
         
         <Button type="submit" className="w-full">
