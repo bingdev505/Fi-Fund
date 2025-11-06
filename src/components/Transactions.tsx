@@ -1,3 +1,4 @@
+
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import EntryForm from './EntryForm';
@@ -72,20 +73,20 @@ export default function Transactions() {
         <div className="space-y-6">
         <Card>
             <CardHeader>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div>
                         <CardTitle>Transactions</CardTitle>
                         <CardDescription>View and manage all your transactions.</CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={handleGoogleSync} disabled={activeProject?.id === 'all' || isSyncing}>
-                            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                            Sync with Google
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <Button variant="outline" onClick={handleGoogleSync} disabled={activeProject?.id === 'all' || isSyncing} className="w-full md:w-auto">
+                            {isSyncing ? <Loader2 className="mr-0 md:mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-0 md:mr-2 h-4 w-4" />}
+                            <span className="hidden md:inline">Sync with Google</span>
                         </Button>
                         <DialogTrigger asChild>
-                            <Button>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Add Transaction
+                            <Button className="w-full md:w-auto">
+                                <PlusCircle className="mr-0 md:mr-2 h-4 w-4" />
+                                <span className="hidden md:inline">Add Transaction</span>
                             </Button>
                         </DialogTrigger>
                     </div>
