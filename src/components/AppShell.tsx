@@ -57,7 +57,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { projects, activeProject, setActiveProject, isLoading: isFinancialsLoading } = useFinancials();
   const [open, setOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
-  const [isBusinessMenuOpen, setIsBusinessMenuOpen] = useState(pathname.startsWith('/business'));
   const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(pathname.startsWith('/transactions') || pathname.startsWith('/debts') || pathname.startsWith('/reports'));
 
 
@@ -72,19 +71,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },
     { href: '/tasks', icon: ListTodo, label: 'Tasks' },
     { href: '/passwords', icon: KeyRound, label: 'Passwords' },
+    { href: '/business', icon: Briefcase, label: 'Business' },
   ];
   
   const financeNavItems = [
     { href: '/transactions', icon: ArrowRightLeft, label: 'Transactions' },
     { href: '/debts', icon: HandCoins, label: 'Debts' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
-  ];
-
-  const businessNavItems = [
-    { href: '/business', label: 'Dashboard', icon: Briefcase },
-    { href: '/business/clients', label: 'Clients', icon: Users },
-    { href: '/business/categories', label: 'Categories', icon: Tag },
-    { href: '/business/accounts', label: 'Accounts', icon: Landmark },
   ];
 
   const handleLogout = async () => {
@@ -119,7 +112,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Link
           key={item.label}
           href={item.href}
-          className={cn("flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}
+          className={cn("flex items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname.startsWith(item.href) })}
         >
           <item.icon className="h-5 w-5" />
           {item.label}
@@ -140,29 +133,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <CollapsibleContent>
           <div className="ml-7 mt-2 flex flex-col gap-1 border-l pl-4">
             {financeNavItems.map(item => (
-              <Link key={item.label} href={item.href} className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}>
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-      <Collapsible open={isBusinessMenuOpen} onOpenChange={setIsBusinessMenuOpen}>
-        <CollapsibleTrigger asChild>
-          <button
-            className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname.startsWith('/business') })}
-          >
-            <div className="flex items-center gap-3">
-              <Briefcase className="h-5 w-5" />
-              <span>Business</span>
-            </div>
-            <ChevronRight className={cn("h-5 w-5 transition-transform", isBusinessMenuOpen && "rotate-90")} />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="ml-7 mt-2 flex flex-col gap-1 border-l pl-4">
-            {businessNavItems.map(item => (
               <Link key={item.label} href={item.href} className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}>
                   <item.icon className="h-4 w-4" />
                   <span>{item.label}</span>

@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, Folder, Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
 import { useState, useMemo } from 'react';
@@ -10,10 +10,12 @@ import type { Project } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 export default function Business() {
-  const { isLoading, projects, deleteProject, currency, allTransactions, allDebts } = useFinancials();
+  const { isLoading, projects, deleteProject, currency, allTransactions, allDebts, setActiveProject } = useFinancials();
   const { toast } = useToast();
+  const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
@@ -34,6 +36,11 @@ export default function Business() {
     toast({ title: "Business Deleted" });
     setDeletingProject(null);
   };
+  
+  const handleIconNavigation = (project: Project, path: string) => {
+    setActiveProject(project);
+    router.push(path);
+  }
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -158,11 +165,21 @@ export default function Business() {
                               <span className={cn("font-medium", project.level > 0 && "text-sm")}>{project.name}</span>
                             </div>
                         </div>
-                        <div className='flex items-center gap-4'>
+                        <div className='flex items-center gap-2'>
                           <div className="font-semibold text-right">
                               {formatCurrency(projectBalances.get(project.id) || 0)}
                           </div>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-background rounded-full border ml-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/clients')}>
+                              <Users className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/categories')}>
+                              <Tag className="h-4 w-4" />
+                            </Button>
+                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/accounts')}>
+                              <Landmark className="h-4 w-4" />
+                            </Button>
+                            <Separator orientation="vertical" className="h-6 mx-1" />
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
