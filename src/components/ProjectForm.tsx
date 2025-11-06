@@ -15,16 +15,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Save, Link } from 'lucide-react';
+import { PlusCircle, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { Project } from '@/lib/types';
-import { useState } from 'react';
-import { getGoogleAuthUrl } from '@/app/actions';
-
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters'),
   parent_project_id: z.string().optional(),
+  google_sheet_id: z.string().optional(),
 });
 
 type ProjectFormProps = {
@@ -41,22 +39,9 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
     defaultValues: {
       name: project?.name || '',
       parent_project_id: project?.parent_project_id || 'none',
+      google_sheet_id: project?.google_sheet_id || '',
     },
   });
-  
-  const handleConnectGoogle = async () => {
-    try {
-        const { url } = await getGoogleAuthUrl();
-        window.location.href = url;
-    } catch (error) {
-        console.error("Failed to get Google Auth URL", error);
-        toast({
-            variant: 'destructive',
-            title: 'Could not connect to Google',
-            description: 'There was an error generating the authentication URL. Please try again.'
-        })
-    }
-  }
 
   async function onSubmit(values: z.infer<typeof projectSchema>) {
     if (project?.name === 'Personal' && values.name !== 'Personal') {
@@ -128,13 +113,19 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
             )}
             />
 
-        <div className='space-y-2'>
-            <FormLabel>Integrations</FormLabel>
-            <Button variant="outline" type="button" className="w-full" onClick={handleConnectGoogle}>
-                <Link className="mr-2" />
-                Connect with Google
-            </Button>
-        </div>
+        <FormField
+          control={form.control}
+          name="google_sheet_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Google Sheet ID (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="Paste your Google Sheet ID here" {...field} value={field.value ?? ''} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
         <Button type="submit" className="w-full">
           {project ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
