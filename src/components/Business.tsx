@@ -153,18 +153,18 @@ export default function Business() {
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {projectTree.map(project => (
-                      <li key={project.id} className="flex items-center justify-between p-4 group hover:bg-muted/50">
-                        <div className="flex items-center gap-4">
-                            <Folder className="h-6 w-6 text-muted-foreground" />
-                            <div style={{ marginLeft: `${project.level * 1.5}rem`}}>
-                              <span className={cn("font-medium", project.level > 0 && "text-sm")}>{project.name}</span>
-                            </div>
-                        </div>
-                        <div className='flex items-center gap-2'>
-                          <div className="font-semibold text-right">
+                      <li key={project.id} className="p-4 group hover:bg-muted/50">
+                        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
+                          <div className="flex items-center gap-4">
+                              <Folder className="h-6 w-6 text-muted-foreground" />
+                              <div style={{ marginLeft: `${project.level * 1.5}rem`}}>
+                                <span className={cn("font-medium", project.level > 0 && "text-sm")}>{project.name}</span>
+                              </div>
+                          </div>
+                          <div className="font-semibold text-left md:text-right">
                               {formatCurrency(projectBalances.get(project.id) || 0)}
                           </div>
-                          <div className="flex items-center bg-background rounded-full border ml-2">
+                          <div className="flex flex-wrap items-center bg-background rounded-full border md:ml-2">
                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/transactions')}>
                               <ArrowRightLeft className="h-4 w-4" />
                             </Button>
