@@ -5,25 +5,16 @@ import {
   BarChart2,
   LayoutDashboard,
   Menu,
-  BookUser,
   Cog,
   LogOut,
   Loader2,
   User,
-  ChevronsUpDown,
-  PlusCircle,
-  Folder,
   Briefcase,
-  Users,
-  Tag,
-  ChevronRight,
-  Landmark,
-  Handshake,
-  ArrowRightLeft,
   Wallet,
   ListTodo,
   KeyRound,
   Contact,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -40,26 +31,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useFinancials } from '@/hooks/useFinancials';
 import type { Project } from '@/lib/types';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from './ui/command';
-import { Separator } from './ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import ProjectForm from './ProjectForm';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
-
-const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', user_id: '', created_at: new Date().toISOString() };
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading: isUserLoading, signOut } = useAuth();
-  const { projects, activeProject, setActiveProject, isLoading: isFinancialsLoading } = useFinancials();
-  const [open, setOpen] = useState(false);
   const [addProjectOpen, setAddProjectOpen] = useState(false);
-  const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(pathname.startsWith('/transactions') || pathname.startsWith('/reports'));
-
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -73,7 +53,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/tasks', icon: ListTodo, label: 'Tasks' },
     { href: '/passwords', icon: KeyRound, label: 'Passwords' },
     { href: '/business', icon: Briefcase, label: 'Business' },
-    { href: '/contacts', icon: Contact, label: 'Contacts' },
   ];
   
   const financeNavItems = [
@@ -90,7 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
 
-  if (isUserLoading || isFinancialsLoading) {
+  if (isUserLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -103,7 +82,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const handleProjectSelect = (project: Project) => {
-    setActiveProject(project);
     setOpen(false);
   }
   
@@ -119,29 +97,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {item.label}
         </Link>
       ))}
-      <Collapsible open={isFinanceMenuOpen} onOpenChange={setIsFinanceMenuOpen}>
-        <CollapsibleTrigger asChild>
-          <button
-            className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname.startsWith('/transactions') || pathname.startsWith('/reports') })}
-          >
-            <div className="flex items-center gap-3">
-              <Wallet className="h-5 w-5" />
-              <span>Finance</span>
-            </div>
-            <ChevronRight className={cn("h-5 w-5 transition-transform", isFinanceMenuOpen && "rotate-90")} />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="ml-7 mt-2 flex flex-col gap-1 border-l pl-4">
-            {financeNavItems.map(item => (
-              <Link key={item.label} href={item.href} className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}>
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-              </Link>
-            ))}
+       <div className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname.startsWith('/transactions') || pathname.startsWith('/reports') })}>
+          <div className="flex items-center gap-3">
+            <Wallet className="h-5 w-5" />
+            <span>Finance</span>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </div>
+        <div className="ml-7 mt-2 flex flex-col gap-1 border-l pl-4">
+          {financeNavItems.map(item => (
+            <Link key={item.label} href={item.href} className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}>
+                <item.icon className="h-4 w-4" />
+                <span>{item.label}</span>
+            </Link>
+          ))}
+        </div>
     </nav>
   );
 
@@ -189,8 +158,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div className="p-4">
                 <NavContent />
               </div>
-                 <Separator className="my-2 bg-sidebar-border" />
-                 <nav className="grid gap-2 p-4">
+              <div className="mt-auto p-4">
                  <SheetClose asChild>
                     <Link
                         href={'/settings'}
@@ -207,7 +175,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <LogOut className="h-5 w-5" />
                     Logout
                   </div>
-              </nav>
+                </div>
             </SheetContent>
           </Sheet>
           

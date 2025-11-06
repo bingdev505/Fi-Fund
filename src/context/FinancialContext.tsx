@@ -639,6 +639,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       return allClients.filter(c => c.project_id === personalProject?.id || !c.project_id);
   }, [allClients, activeProject, allProjects]);
 
+  const filteredContacts = useMemo(() => {
+    return allContacts;
+  }, [allContacts]);
+
   const filteredCategories = useMemo(() => {
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
       if (activeProject && activeProject.id !== 'all') {
@@ -683,7 +687,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, addClient, updateClient, deleteClient,
-    contacts: allContacts, addContact, updateContact, deleteContact,
+    contacts: filteredContacts, addContact, updateContact, deleteContact,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
@@ -691,11 +695,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     currency, setCurrency,
     isLoading: isLoading || isUserLoading,
   }), [
-      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, allContacts,
+      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject,
       filteredTransactions, allTransactions, getTransactionById, addRepayment,
       filteredBankAccounts, allBankAccounts,
       filteredClients,
-      allContacts,
+      filteredContacts, allContacts,
       filteredCategories,
       filteredTasks,
       filteredCredentials,

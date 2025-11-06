@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark, Handshake } from 'lucide-react';
+import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark, Handshake, Contact } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
 import { useState, useMemo } from 'react';
@@ -83,11 +83,10 @@ export default function Business() {
     const projectMap = new Map(projects.map(p => [p.id, { ...p, children: [], level: 0 }]));
 
     projects.forEach(p => {
-      const projectNode = projectMap.get(p.id)!;
       if (p.parent_project_id && projectMap.has(p.parent_project_id)) {
         const parentNode = projectMap.get(p.parent_project_id)!;
-        parentNode.children.push(projectNode);
-        projectNode.level = parentNode.level + 1;
+        parentNode.children.push(projectMap.get(p.id)!);
+        projectMap.get(p.id)!.level = parentNode.level + 1;
       }
     });
     
@@ -111,7 +110,7 @@ export default function Business() {
     
     return { projectTree: flattenedTree, projectBalances: balances };
 
-  }, [projects, allTransactions, allLoans, currency]);
+  }, [projects, allTransactions, allLoans]);
 
 
   return (
@@ -156,6 +155,9 @@ export default function Business() {
                               {formatCurrency(projectBalances.get(project.id) || 0)}
                           </div>
                           <div className="flex items-center bg-background rounded-full border ml-2">
+                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/contacts')}>
+                              <Contact className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/clients')}>
                               <Users className="h-4 w-4" />
                             </Button>
