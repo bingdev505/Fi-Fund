@@ -73,6 +73,12 @@ export type Client = {
   name: string;
 };
 
+export type Contact = {
+  id: string;
+  user_id: string;
+  name: string;
+};
+
 export type Category = {
   id: string;
   user_id: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
-import type { Transaction, Loan, BankAccount, Project, Client, Category, Task, Credential } from '@/lib/types';
+import type { Transaction, Loan, BankAccount, Project, Client, Category, Task, Credential, Contact } from '@/lib/types';
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
@@ -42,6 +42,11 @@ interface FinancialContextType {
   addClient: (clientData: Omit<Client, 'id' | 'user_id' | 'project_id'>, project_id?: string) => Promise<Client>;
   updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id' | 'user_id'>>) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
+
+  contacts: Contact[];
+  addContact: (contactData: Omit<Contact, 'id' | 'user_id'>) => Promise<Contact>;
+  updateContact: (contactId: string, contactData: Partial<Omit<Contact, 'id' | 'user_id'>>) => Promise<void>;
+  deleteContact: (contactId: string) => Promise<void>;
 
   categories: Category[];
   addCategory: (categoryData: Omit<Category, 'id' | 'user_id' | 'project_id'>, project_id?: string) => Promise<Category>;
@@ -87,6 +92,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [allBankAccounts, setAllBankAccounts] = useState<BankAccount[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
@@ -103,6 +109,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         transactionsRes,
         bankAccountsRes,
         clientsRes,
+        contactsRes,
         categoriesRes,
         tasksRes,
         credentialsRes,
@@ -113,6 +120,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('transactions').select('*').eq('user_id', userId),
         supabase.from('bank_accounts').select('*').eq('user_id', userId),
         supabase.from('clients').select('*').eq('user_id', userId),
+        supabase.from('contacts').select('*').eq('user_id', userId),
         supabase.from('categories').select('*').eq('user_id', userId),
         supabase.from('tasks').select('*').eq('user_id', userId),
         supabase.from('credentials').select('*').eq('user_id', userId),
@@ -142,6 +150,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllTransactions(transactionsRes.data || []);
       setAllBankAccounts(bankAccountsRes.data || []);
       setAllClients(clientsRes.data || []);
+      setAllContacts(contactsRes.data || []);
       setAllCategories(categoriesRes.data || []);
       setAllTasks(tasksRes.data || []);
       setAllCredentials(credentialsRes.data || []);
@@ -290,6 +299,27 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from('clients').delete().eq('id', clientId);
     if (error) throw error;
     setAllClients(prev => prev.filter(c => c.id !== clientId));
+  };
+
+  const addContact = async (contactData: Omit<Contact, 'id' | 'user_id'>): Promise<Contact> => {
+    if (!user) throw new Error("User not authenticated");
+
+    const { data: newContact, error } = await supabase.from('contacts').insert({ ...contactData, user_id: user.id }).select().single();
+    if (error) throw error;
+    setAllContacts(prev => [...prev, newContact]);
+    return newContact;
+  };
+
+  const updateContact = async (contactId: string, contactData: Partial<Omit<Contact, 'id' | 'user_id'>>) => {
+    const { data: updatedContact, error } = await supabase.from('contacts').update(contactData).eq('id', contactId).select().single();
+    if (error) throw error;
+    setAllContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
+  };
+
+  const deleteContact = async (contactId: string) => {
+    const { error } = await supabase.from('contacts').delete().eq('id', contactId);
+    if (error) throw error;
+    setAllContacts(prev => prev.filter(c => c.id !== contactId));
   };
 
   const addCategory = async (categoryData: Omit<Category, 'id' | 'user_id' | 'project_id'>, project_id?: string): Promise<Category> => {
@@ -611,6 +641,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, addClient, updateClient, deleteClient,
+    contacts: allContacts, addContact, updateContact, deleteContact,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
@@ -622,6 +653,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       filteredTransactions, allTransactions, getTransactionById,
       filteredBankAccounts, allBankAccounts,
       filteredClients,
+      allContacts,
       filteredCategories,
       filteredTasks,
       filteredCredentials,
@@ -632,6 +664,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       addTransaction, updateTransaction, deleteTransaction,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
       addClient, updateClient, deleteClient,
+      addContact, updateContact, deleteContact,
       addCategory, updateCategory, deleteCategory,
       addTask, updateTask, deleteTask,
       addCredential, updateCredential, deleteCredential,

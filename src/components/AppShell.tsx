@@ -23,6 +23,7 @@ import {
   Wallet,
   ListTodo,
   KeyRound,
+  Contact,
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/tasks', icon: ListTodo, label: 'Tasks' },
     { href: '/passwords', icon: KeyRound, label: 'Passwords' },
     { href: '/business', icon: Briefcase, label: 'Business' },
+    { href: '/contacts', icon: Contact, label: 'Contacts' },
   ];
   
   const financeNavItems = [

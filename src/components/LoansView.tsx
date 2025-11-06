@@ -37,7 +37,7 @@ const loanSchema = z.object({
 
 
 function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => void; }) {
-  const { addLoan, updateLoan, projects, activeProject, clients, addClient, bankAccounts, currency } = useFinancials();
+  const { addLoan, updateLoan, projects, activeProject, contacts, addContact, bankAccounts, currency } = useFinancials();
   const { toast } = useToast();
   const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
 
@@ -57,18 +57,9 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
     }
   });
 
-  const selectedProjectId = form.watch('project_id');
-  const isPersonalContext = selectedProjectId === personalProject?.id;
-
   const contactOptions = useMemo(() => {
-    const relevantClients = clients.filter(c => {
-        if (isPersonalContext) {
-            return c.project_id === personalProject?.id || !c.project_id;
-        }
-        return c.project_id === selectedProjectId;
-    });
-    return relevantClients.map(c => ({ value: c.id, label: c.name }));
-  }, [clients, selectedProjectId, isPersonalContext, personalProject]);
+    return contacts.map(c => ({ value: c.id, label: c.name }));
+  }, [contacts]);
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -79,7 +70,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
     const isNewContact = !contactOptions.some(c => c.value === contactId);
 
     if (isNewContact) {
-        const newClient = await addClient({ name: contactId }, values.project_id);
+        const newClient = await addContact({ name: contactId });
         contactId = newClient.id;
     }
     
@@ -120,7 +111,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
           name="contact_id"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Client / Contact</FormLabel>
+              <FormLabel>Contact</FormLabel>
               <Combobox
                 options={contactOptions}
                 value={field.value}
@@ -233,7 +224,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
 
 
 export default function LoansView() {
-  const { loans, deleteLoan, isLoading, clients, currency, updateLoan } = useFinancials();
+  const { loans, deleteLoan, isLoading, contacts, currency, updateLoan } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
@@ -267,7 +258,7 @@ export default function LoansView() {
   };
   
   const getContactName = (contactId: string) => {
-    return clients.find(c => c.id === contactId)?.name || 'Unknown Contact';
+    return contacts.find(c => c.id === contactId)?.name || 'Unknown Contact';
   }
 
   const { loansGiven, loansTaken } = useMemo(() => {
