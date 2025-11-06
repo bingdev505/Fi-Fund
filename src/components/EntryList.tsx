@@ -34,23 +34,11 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
   const { toast } = useToast();
 
   const allEntries = useMemo(() => {
-    const toDate = (date: any): Date => {
-        if (date instanceof Date) return date;
-        if (typeof date === 'string') return parseISO(date);
-        // Fallback for potentially undefined date, although data should be clean.
-        // Using created_at for loans if date is missing.
-        const entry = (loans.find(l => l.id === (date as any)?.id) || {}) as Loan;
-        return entry.created_at ? parseISO(entry.created_at) : new Date();
-    }
-
-    const combined: (Transaction | Loan)[] = [
-      ...transactions.map(t => ({...t, date: toDate(t.date)})),
-      ...loans.map(l => ({...l, date: toDate(l.date), due_date: l.due_date ? toDate(l.due_date) : undefined })),
-    ];
+    const combined: (Transaction | Loan)[] = [...transactions, ...loans];
     
     const sorted = combined.sort((a, b) => {
-        const dateA = a.date instanceof Date ? a.date.getTime() : 0;
-        const dateB = b.date instanceof Date ? b.date.getTime() : 0;
+        const dateA = new Date(a.date || (a as Loan).created_at).getTime();
+        const dateB = new Date(b.date || (b as Loan).created_at).getTime();
         return dateB - dateA;
     });
     
@@ -137,8 +125,21 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
 
   const renderEntry = (entry: Transaction | Loan) => {
     const isTransaction = 'category' in entry;
-    const color = entry.type === 'income' || entry.type === 'loanTaken' ? 'text-green-600' : entry.type === 'transfer' ? '' : 'text-red-600';
     
+    let color = '';
+    if (entry.type === 'income' || entry.type === 'loanTaken') {
+        color = 'text-green-600';
+    } else if (entry.type === 'expense' || entry.type === 'loanGiven') {
+        color = 'text-red-600';
+    } else if (entry.type === 'repayment') {
+        const relatedLoan = loans.find(l => l.id === (entry as Transaction).loan_id);
+        if (relatedLoan?.type === 'loanGiven') { // Repayment for a loan you gave out is money IN
+            color = 'text-green-600';
+        } else { // Repayment for a loan you took is money OUT
+            color = 'text-red-600';
+        }
+    }
+
     let title = '';
     let subtext = '';
 
@@ -162,8 +163,8 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
         subtext = `${description}${accountName ? `(${accountName})` : ''}`;
     }
 
-    const entryDate = entry.date as Date;
-    const dueDate = (entry as Loan).due_date as Date | undefined;
+    const entryDate = entry.date ? parseISO(entry.date as any) : parseISO((entry as Loan).created_at);
+    const dueDate = (entry as Loan).due_date ? parseISO((entry as Loan).due_date) : undefined;
 
     return (
         <div className="flex items-start justify-between py-3 group">
