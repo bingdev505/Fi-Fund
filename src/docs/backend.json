@@ -170,6 +170,21 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "siteName", "username", "created_at"]
+    },
+     "UserGoogleCredential": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User Google Credential",
+      "description": "Stores OAuth credentials for a user's Google account.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string", "description": "The user's unique ID." },
+        "access_token": { "type": "string", "description": "The OAuth2 access token." },
+        "refresh_token": { "type": "string", "description": "The OAuth2 refresh token." },
+        "scope": { "type": "string", "description": "The scopes of access granted." },
+        "token_type": { "type": "string", "description": "The type of token (e.g., 'Bearer')." },
+        "expiry_date": { "type": "number", "description": "The token's expiration timestamp." }
+      },
+      "required": ["user_id", "access_token", "refresh_token", "scope", "token_type", "expiry_date"]
     }
   },
   "auth": {

@@ -5,6 +5,7 @@ import type { Transaction, Loan, BankAccount, Project, Client, Category, Task, C
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
+import { syncToGoogleSheet } from '@/app/actions';
 
 interface FinancialContextType {
   projects: Project[];
@@ -40,6 +41,7 @@ interface FinancialContextType {
   linkBankAccount: (accountId: string, projectId: string) => Promise<void>;
   
   clients: Client[];
+  allClients: Client[];
   addClient: (clientData: Omit<Client, 'id' | 'user_id' | 'project_id'>, project_id?: string) => Promise<Client>;
   updateClient: (clientId: string, clientData: Partial<Omit<Client, 'id' | 'user_id'>>) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
@@ -67,6 +69,7 @@ interface FinancialContextType {
   currency: string;
   setCurrency: (currency: string) => void;
   isLoading: boolean;
+  triggerSync: (projectId: string) => Promise<void>;
 }
 
 export const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -190,6 +193,24 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   }, [toast, currencyKey, defaultProjectKey, activeProjectKey]);
+  
+  const triggerSync = useCallback(async (projectId: string) => {
+    const project = allProjects.find(p => p.id === projectId);
+    if (project?.google_sheet_id) {
+        console.log(`Auto-syncing project: ${project.name}`);
+        await syncToGoogleSheet({
+            sheetId: project.google_sheet_id,
+            transactions: allTransactions.filter(t => t.project_id === projectId),
+            loans: allLoans.filter(l => l.project_id === projectId),
+            bankAccounts: allBankAccounts.filter(b => b.project_id === projectId),
+            clients: allClients.filter(c => c.project_id === projectId),
+            contacts: allContacts,
+            userId: user!.id,
+            readFromSheet: false, // Don't read from sheet on auto-syncs to avoid loops
+        });
+    }
+  }, [allProjects, allTransactions, allLoans, allBankAccounts, allClients, allContacts, user]);
+
 
   useEffect(() => {
     if (user && !isUserLoading) {
@@ -287,6 +308,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newClient, error } = await supabase.from('clients').insert({ ...clientData, project_id: finalProjectId, user_id: user.id }).select().single();
     if (error) throw error;
     setAllClients(prev => [...prev, newClient]);
+    if (finalProjectId) triggerSync(finalProjectId);
     return newClient;
   };
 
@@ -294,12 +316,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: updatedClient, error } = await supabase.from('clients').update(clientData).eq('id', clientId).select().single();
     if (error) throw error;
     setAllClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+    if (updatedClient.project_id) triggerSync(updatedClient.project_id);
   };
 
   const deleteClient = async (clientId: string) => {
+    const clientToDelete = allClients.find(c => c.id === clientId);
     const { error } = await supabase.from('clients').delete().eq('id', clientId);
     if (error) throw error;
     setAllClients(prev => prev.filter(c => c.id !== clientId));
+    if (clientToDelete?.project_id) triggerSync(clientToDelete.project_id);
   };
 
   const addContact = async (contactData: Omit<Contact, 'id' | 'user_id'>): Promise<Contact> => {
@@ -330,6 +355,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newCategory, error } = await supabase.from('categories').insert({ ...categoryData, project_id: finalProjectId, user_id: user.id }).select().single();
     if (error) throw error;
     setAllCategories(prev => [...prev, newCategory]);
+    if (finalProjectId) triggerSync(finalProjectId);
     return newCategory;
   };
 
@@ -337,12 +363,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: updatedCategory, error } = await supabase.from('categories').update(categoryData).eq('id', categoryId).select().single();
     if (error) throw error;
     setAllCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
+    if (updatedCategory.project_id) triggerSync(updatedCategory.project_id);
   };
   
   const deleteCategory = async (categoryId: string) => {
+    const categoryToDelete = allCategories.find(c => c.id === categoryId);
     const { error } = await supabase.from('categories').delete().eq('id', categoryId);
     if (error) throw error;
     setAllCategories(prev => prev.filter(c => c.id !== categoryId));
+    if (categoryToDelete?.project_id) triggerSync(categoryToDelete.project_id);
   };
 
   const updateAccountBalance = useCallback(async (account_id: string, amount: number, operation: 'add' | 'subtract') => {
@@ -379,6 +408,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         await updateAccountBalance(newTransaction.from_account_id, newTransaction.amount, 'subtract');
         await updateAccountBalance(newTransaction.to_account_id, newTransaction.amount, 'add');
     }
+    if (newTransaction.project_id) triggerSync(newTransaction.project_id);
     if (returnRef) { return { id: newTransaction.id }; }
   };
 
@@ -399,6 +429,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         if (updatedTransaction.type === 'income') await updateAccountBalance(updatedTransaction.account_id, updatedTransaction.amount, 'add');
         if (updatedTransaction.type === 'expense') await updateAccountBalance(updatedTransaction.account_id, updatedTransaction.amount, 'subtract');
     }
+    if (updatedTransaction.project_id) triggerSync(updatedTransaction.project_id);
   };
 
   const deleteTransaction = async (transactionToDelete: Transaction) => {
@@ -409,6 +440,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
     if (error) throw error;
     setAllTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
+    if (transactionToDelete.project_id) triggerSync(transactionToDelete.project_id);
   };
     
   const addRepayment = async (loan: Loan, amount: number, accountId: string) => {
@@ -451,24 +483,29 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newAccount, error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, project_id: finalProjectId, is_primary: allBankAccounts.length === 0 }).select().single();
     if (error) throw error;
     setAllBankAccounts(prev => [...prev, newAccount]);
+    if (finalProjectId) triggerSync(finalProjectId);
   };
 
   const updateBankAccount = async (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'user_id'>>) => {
     const { data: updatedAccount, error } = await supabase.from('bank_accounts').update(accountData).eq('id', accountId).select().single();
     if (error) throw error;
     setAllBankAccounts(prev => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
+     if (updatedAccount.project_id) triggerSync(updatedAccount.project_id);
   };
   
   const linkBankAccount = async (accountId: string, projectId: string) => {
     const { data: updatedAccount, error } = await supabase.from('bank_accounts').update({ project_id: projectId }).eq('id', accountId).select().single();
     if (error) throw error;
     setAllBankAccounts(prev => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
+    if (updatedAccount.project_id) triggerSync(updatedAccount.project_id);
   };
 
   const deleteBankAccount = async (accountId: string) => {
+    const accountToDelete = allBankAccounts.find(b => b.id === accountId);
     const { error } = await supabase.from('bank_accounts').delete().eq('id', accountId);
     if (error) throw error;
     setAllBankAccounts(prev => prev.filter(b => b.id !== accountId));
+    if (accountToDelete?.project_id) triggerSync(accountToDelete.project_id);
   };
 
   const setCurrency = useCallback((newCurrency: string) => { setCurrencyState(newCurrency); }, []);
@@ -565,6 +602,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
 
     setAllLoans(prev => [...prev, newLoan]);
+    if (finalProjectId) triggerSync(finalProjectId);
   };
 
   const updateLoan = async (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => {
@@ -576,6 +614,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       const { data: updatedLoan, error } = await supabase.from('loans').update(loanData).eq('id', loanId).select().single();
       if (error) throw error;
       setAllLoans(prev => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
+      if (updatedLoan.project_id) triggerSync(updatedLoan.project_id);
       return;
     }
 
@@ -605,6 +644,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
 
     setAllLoans(prev => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
+    if (updatedLoan.project_id) triggerSync(updatedLoan.project_id);
   };
 
   const deleteLoan = async (loanId: string) => {
@@ -622,6 +662,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
     
     setAllLoans(prev => prev.filter(l => l.id !== loanId));
+    if (loanToDelete.project_id) triggerSync(loanToDelete.project_id);
   };
 
   const filteredTransactions = useMemo(() => {
@@ -686,7 +727,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
     transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
-    clients: filteredClients, addClient, updateClient, deleteClient,
+    clients: filteredClients, allClients, addClient, updateClient, deleteClient,
     contacts: filteredContacts, addContact, updateContact, deleteContact,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
@@ -694,11 +735,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     loans: filteredLoans, allLoans, addLoan, updateLoan, deleteLoan, getLoanById,
     currency, setCurrency,
     isLoading: isLoading || isUserLoading,
+    triggerSync,
   }), [
       allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject,
       filteredTransactions, allTransactions, getTransactionById, addRepayment,
       filteredBankAccounts, allBankAccounts,
-      filteredClients,
+      filteredClients, allClients,
       filteredContacts, allContacts,
       filteredCategories,
       filteredTasks,
@@ -715,7 +757,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       addTask, updateTask, deleteTask,
       addCredential, updateCredential, deleteCredential,
       addLoan, updateLoan, deleteLoan,
-      addProject, updateProject, deleteProject
+      addProject, updateProject, deleteProject,
+      triggerSync
     ]);
 
   return (

@@ -126,6 +126,7 @@ const TransactionSchemaForSync = z.custom<Transaction>();
 const LoanSchemaForSync = z.custom<Loan>();
 const BankAccountSchemaForSync = z.custom<BankAccount>();
 const ClientSchemaForSync = z.custom<Client>();
+const ContactSchemaForSync = z.custom<Contact>();
 
 
 export const SyncToGoogleSheetInputSchema = z.object({
@@ -135,6 +136,8 @@ export const SyncToGoogleSheetInputSchema = z.object({
   loans: z.array(LoanSchemaForSync).describe("An array of user's loans."),
   bankAccounts: z.array(BankAccountSchemaForSync).describe("An array of user's bank accounts."),
   clients: z.array(ClientSchemaForSync).describe("An array of user's clients."),
+  contacts: z.array(ContactSchemaForSync).describe("An array of user's personal contacts."),
+  readFromSheet: z.boolean().optional().describe("Whether to read data from the sheet and add it to the database."),
 });
 export type SyncToGoogleSheetInput = z.infer<typeof SyncToGoogleSheetInputSchema>;
 
