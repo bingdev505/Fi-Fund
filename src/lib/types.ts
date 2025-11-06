@@ -43,6 +43,7 @@ export type Loan = {
   description: string;
   due_date?: LocalTimestamp;
   status: 'active' | 'paid';
+  account_id: string;
   created_at: LocalTimestamp;
 };
 

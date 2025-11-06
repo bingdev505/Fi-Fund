@@ -32,11 +32,12 @@ const loanSchema = z.object({
   due_date: z.date().optional(),
   project_id: z.string().optional(),
   status: z.enum(['active', 'paid']),
+  account_id: z.string({ required_error: 'Please select a bank account.' }),
 });
 
 
 function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => void; }) {
-  const { addLoan, updateLoan, projects, activeProject, clients, addClient } = useFinancials();
+  const { addLoan, updateLoan, projects, activeProject, clients, addClient, bankAccounts, currency } = useFinancials();
   const { toast } = useToast();
   const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
 
@@ -52,10 +53,15 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
       description: '',
       status: 'active',
       project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
+      account_id: bankAccounts.find(acc => acc.is_primary)?.id
     }
   });
 
   const clientOptions = useMemo(() => clients.map(c => ({ value: c.id, label: c.name })), [clients]);
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  };
 
   async function onSubmit(values: z.infer<typeof loanSchema>) {
     let contactId = values.contact_id;
@@ -124,6 +130,30 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
             <FormMessage />
           </FormItem>
         )} />
+         <FormField
+            control={form.control}
+            name="account_id"
+            render={({ field }) => (
+            <FormItem>
+                <FormLabel>Account</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                    <SelectTrigger>
+                    <SelectValue placeholder="Select an account" />
+                    </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                    {bankAccounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                        {acc.name} ({formatCurrency(acc.balance)})
+                    </SelectItem>
+                    ))}
+                </SelectContent>
+                </Select>
+                <FormMessage />
+            </FormItem>
+            )}
+        />
         <FormField control={form.control} name="description" render={({ field }) => (
           <FormItem>
             <FormLabel>Description</FormLabel>

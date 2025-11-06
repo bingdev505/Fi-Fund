@@ -38,7 +38,7 @@ interface FinancialContextType {
 
   bankAccounts: BankAccount[];
   allBankAccounts: BankAccount[];
-  addBankAccount: (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>) => Promise<void>;
+  addBankAccount: (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string | undefined) => Promise<void>;
   updateBankAccount: (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'user_id'>>) => Promise<void>;
   deleteBankAccount: (accountId: string) => Promise<void>;
   setPrimaryBankAccount: (accountId: string) => Promise<void>;
@@ -250,6 +250,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const deleteProject = async (projectId: string) => {
     if (!user) throw new Error("User not authenticated");
+    
+    if (projectId === allProjects.find(p => p.name === 'Personal')?.id) {
+        toast({ variant: 'destructive', title: "Cannot delete personal project" });
+        return;
+    }
 
     // This is a simplified cascade delete. For production, you might want to use database-level cascade deletes.
     const tablesToDeleteFrom = ['transactions', 'debts', 'clients', 'categories', 'tasks', 'credentials', 'bank_accounts', 'loans'];
@@ -441,9 +446,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     await addTransaction({ type: 'repayment', amount, category: 'Debt Repayment', description: `Payment for debt: ${debt.name}`, debt_id: debt.id, account_id: account_id, project_id: debt.project_id });
   };
 
-  const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>) => {
+  const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string) => {
     if (!user) return;
-    const { data: newAccount, error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, project_id: activeProject?.id, is_primary: allBankAccounts.length === 0 }).select().single();
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    const finalProjectId = project_id === personalProject?.id ? project_id : (project_id && project_id !== 'all' ? project_id : personalProject?.id);
+
+    const { data: newAccount, error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, project_id: finalProjectId, is_primary: allBankAccounts.length === 0 }).select().single();
     if (error) throw error;
     setAllBankAccounts(prev => [...prev, newAccount]);
   };
@@ -552,18 +560,61 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const finalProjectId = loanData.project_id || personalProject?.id;
     const { data: newLoan, error } = await supabase.from('loans').insert({ ...loanData, project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
     if (error) throw error;
+
+    if (newLoan.type === 'loanTaken') {
+        await updateAccountBalance(newLoan.account_id, newLoan.amount, 'add');
+    } else { // loanGiven
+        await updateAccountBalance(newLoan.account_id, newLoan.amount, 'subtract');
+    }
+
     setAllLoans(prev => [...prev, newLoan]);
   };
 
   const updateLoan = async (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => {
+    const originalLoan = allLoans.find(l => l.id === loanId);
+    if (!originalLoan) return;
+
+    // Revert old balance change
+    if (originalLoan.type === 'loanTaken') {
+        await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'subtract');
+    } else {
+        await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'add');
+    }
+
     const { data: updatedLoan, error } = await supabase.from('loans').update(loanData).eq('id', loanId).select().single();
-    if (error) throw error;
+    if (error) { // If update fails, revert the balance reversion
+         if (originalLoan.type === 'loanTaken') {
+            await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'add');
+        } else {
+            await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'subtract');
+        }
+        throw error;
+    }
+    
+    // Apply new balance change
+    if (updatedLoan.type === 'loanTaken') {
+        await updateAccountBalance(updatedLoan.account_id, updatedLoan.amount, 'add');
+    } else {
+        await updateAccountBalance(updatedLoan.account_id, updatedLoan.amount, 'subtract');
+    }
+
     setAllLoans(prev => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
   };
 
   const deleteLoan = async (loanId: string) => {
+    const loanToDelete = allLoans.find(l => l.id === loanId);
+    if (!loanToDelete) return;
+
     const { error } = await supabase.from('loans').delete().eq('id', loanId);
     if (error) throw error;
+    
+    // Revert balance change
+    if (loanToDelete.type === 'loanTaken') {
+        await updateAccountBalance(loanToDelete.account_id, loanToDelete.amount, 'subtract');
+    } else { // loanGiven
+        await updateAccountBalance(loanToDelete.account_id, loanToDelete.amount, 'add');
+    }
+    
     setAllLoans(prev => prev.filter(l => l.id !== loanId));
   };
 
