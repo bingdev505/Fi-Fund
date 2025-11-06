@@ -12,7 +12,7 @@ import {z} from 'genkit';
 
 const AnswerFinancialQuestionInputSchema = z.object({
   question: z.string().describe('The user\'s question about their finances.'),
-  financialData: z.string().describe('A JSON string of the user\'s financial data, including transactions, loans, and bank accounts.'),
+  financialData: z.string().describe('A JSON string of the user\'s financial data, including transactions, loans, and bank accounts for a specific business.'),
 });
 export type AnswerFinancialQuestionInput = z.infer<typeof AnswerFinancialQuestionInputSchema>;
 
@@ -29,16 +29,16 @@ const prompt = ai.definePrompt({
   name: 'answerFinancialQuestionPrompt',
   input: {schema: AnswerFinancialQuestionInputSchema},
   output: {schema: AnswerFinancialQuestionOutputSchema},
-  prompt: `You are a friendly and helpful financial assistant. Your role is to answer questions based *only* on the financial data provided. 
+  prompt: `You are a friendly and helpful financial assistant. Your role is to answer questions based *only* on the financial data provided for the specified business. 
 - If the user asks a general question or greeting (like 'hi', 'hello', 'how are you?'), respond in a friendly, conversational way.
 - If the user asks a question about their finances, answer it using the data provided.
-- If the answer cannot be found in the data, politely say that you don't have enough information to answer. 
+- If the answer cannot be found in the data, politely say that you don't have enough information to answer for the current business context. 
 - Do not make up information.
 - When referencing amounts, be sure to mention the currency.
 
 User's Question: {{{question}}}
 
-Financial Data:
+Financial Data (for the current business context):
 \`\`\`json
 {{{financialData}}}
 \`\`\`

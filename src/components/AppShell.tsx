@@ -34,6 +34,7 @@ import {
 import type { Project } from '@/lib/types';
 import ProjectForm from './ProjectForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import ProjectSwitcher from './ProjectSwitcher';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -163,7 +164,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </Sheet>
           
           <div className="w-full flex-1">
-             
+            {pathname === '/ai-chat' && <ProjectSwitcher />}
           </div>
 
           <DropdownMenu>

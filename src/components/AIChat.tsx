@@ -103,6 +103,7 @@ export default function AIChat() {
     getLoanById,
     deleteTransaction,
     deleteLoan,
+    activeProject
   } = useFinancials();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -212,7 +213,12 @@ export default function AIChat() {
     setIsAiLoading(true);
 
     try {
-      const financialData = JSON.stringify({ transactions, loans, bankAccounts });
+      const financialData = JSON.stringify({
+        businessName: activeProject?.name || 'Personal',
+        transactions,
+        loans,
+        bankAccounts,
+      });
       
       let chatHistoryForContext = '';
       const lastMessage = messages[messages.length - 1];
