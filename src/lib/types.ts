@@ -1,4 +1,5 @@
 'use client';
+import { z } from 'zod';
 
 // Timestamps are stored as ISO 8061 strings.
 export type LocalTimestamp = string;
@@ -109,3 +110,32 @@ export type Credential = {
   totp_secret?: string;
   created_at: LocalTimestamp;
 };
+
+// Zod schemas for Google Sheet Sync Flow
+const TransactionSchemaForSync = z.object({
+  id: z.string(),
+  user_id: z.string(),
+  project_id: z.string().optional(),
+  type: z.enum(['income', 'expense', 'transfer', 'repayment']),
+  category: z.string(),
+  amount: z.number(),
+  description: z.string(),
+  date: z.string(),
+  account_id: z.string().optional(),
+  from_account_id: z.string().optional(),
+  to_account_id: z.string().optional(),
+  client_id: z.string().optional(),
+  loan_id: z.string().optional(),
+});
+
+export const SyncToGoogleSheetInputSchema = z.object({
+  sheetId: z.string().describe('The ID of the Google Sheet to sync to.'),
+  transactions: z.array(TransactionSchemaForSync).describe("An array of user's transactions."),
+});
+export type SyncToGoogleSheetInput = z.infer<typeof SyncToGoogleSheetInputSchema>;
+
+export const SyncToGoogleSheetOutputSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+export type SyncToGoogleSheetOutput = z.infer<typeof SyncToGoogleSheetOutputSchema>;

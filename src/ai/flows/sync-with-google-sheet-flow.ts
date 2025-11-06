@@ -5,35 +5,8 @@
 
 import { ai } from '@/ai/genkit';
 import { updateGoogleSheet } from '@/ai/tools/google-sheets';
-import { z } from 'genkit';
+import { SyncToGoogleSheetInputSchema, SyncToGoogleSheetOutputSchema, type SyncToGoogleSheetInput, type SyncToGoogleSheetOutput } from '@/lib/types';
 
-const TransactionSchema = z.object({
-  id: z.string(),
-  user_id: z.string(),
-  project_id: z.string().optional(),
-  type: z.enum(['income', 'expense', 'transfer', 'repayment']),
-  category: z.string(),
-  amount: z.number(),
-  description: z.string(),
-  date: z.string(),
-  account_id: z.string().optional(),
-  from_account_id: z.string().optional(),
-  to_account_id: z.string().optional(),
-  client_id: z.string().optional(),
-  loan_id: z.string().optional(),
-});
-
-export const SyncToGoogleSheetInputSchema = z.object({
-  sheetId: z.string().describe('The ID of the Google Sheet to sync to.'),
-  transactions: z.array(TransactionSchema).describe("An array of user's transactions."),
-});
-export type SyncToGoogleSheetInput = z.infer<typeof SyncToGoogleSheetInputSchema>;
-
-export const SyncToGoogleSheetOutputSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-});
-export type SyncToGoogleSheetOutput = z.infer<typeof SyncToGoogleSheetOutputSchema>;
 
 export async function syncToGoogleSheet(input: SyncToGoogleSheetInput): Promise<SyncToGoogleSheetOutput> {
   return syncToGoogleSheetFlow(input);

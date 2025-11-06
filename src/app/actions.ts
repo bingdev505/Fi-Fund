@@ -5,7 +5,7 @@ import { routeUserIntent as routeUserIntentFlow } from '@/ai/flows/route-user-in
 import { syncToGoogleSheet as syncToGoogleSheetFlow } from '@/ai/flows/sync-with-google-sheet-flow';
 import type { GenerateFinancialInsightsInput, GenerateFinancialInsightsOutput } from '@/ai/flows/generate-financial-insights-with-ai';
 import type { RouteUserIntentInput, RouteUserIntentOutput } from '@/ai/flows/route-user-intent-flow';
-import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput } from '@/ai/flows/sync-with-google-sheet-flow';
+import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput } from '@/lib/types';
 
 
 export async function generateFinancialInsights(input: GenerateFinancialInsightsInput): Promise<GenerateFinancialInsightsOutput> {
