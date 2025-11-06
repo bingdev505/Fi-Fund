@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { Separator } from './ui/separator';
 
 export default function Business() {
   const { isLoading, projects, deleteProject, currency, allTransactions, allDebts, setActiveProject } = useFinancials();
