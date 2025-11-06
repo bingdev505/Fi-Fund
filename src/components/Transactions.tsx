@@ -9,12 +9,14 @@ import { PlusCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import { syncToGoogleSheet } from '@/app/actions';
+import { useAuth } from '@/context/AuthContext';
 
 
 export default function Transactions() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const { activeProject, transactions } = useFinancials();
+  const { activeProject, transactions, loans, bankAccounts, clients } = useFinancials();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const handleGoogleSync = async () => {
@@ -29,6 +31,10 @@ export default function Transactions() {
             const result = await syncToGoogleSheet({
                 sheetId: activeProject.google_sheet_id,
                 transactions: transactions,
+                loans: loans,
+                bankAccounts: bankAccounts,
+                clients: clients,
+                userId: user!.id,
             });
 
             if (result.success) {

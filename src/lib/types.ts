@@ -111,26 +111,30 @@ export type Credential = {
   created_at: LocalTimestamp;
 };
 
+export type UserGoogleCredential = {
+  user_id: string;
+  access_token: string;
+  refresh_token: string;
+  scope: string;
+  token_type: string;
+  expiry_date: number;
+};
+
+
 // Zod schemas for Google Sheet Sync Flow
-const TransactionSchemaForSync = z.object({
-  id: z.string(),
-  user_id: z.string(),
-  project_id: z.string().optional(),
-  type: z.enum(['income', 'expense', 'transfer', 'repayment']),
-  category: z.string(),
-  amount: z.number(),
-  description: z.string(),
-  date: z.string(),
-  account_id: z.string().optional(),
-  from_account_id: z.string().optional(),
-  to_account_id: z.string().optional(),
-  client_id: z.string().optional(),
-  loan_id: z.string().optional(),
-});
+const TransactionSchemaForSync = z.custom<Transaction>();
+const LoanSchemaForSync = z.custom<Loan>();
+const BankAccountSchemaForSync = z.custom<BankAccount>();
+const ClientSchemaForSync = z.custom<Client>();
+
 
 export const SyncToGoogleSheetInputSchema = z.object({
   sheetId: z.string().describe('The ID of the Google Sheet to sync to.'),
+  userId: z.string().optional().describe('The ID of the user performing the sync for OAuth credentials.'),
   transactions: z.array(TransactionSchemaForSync).describe("An array of user's transactions."),
+  loans: z.array(LoanSchemaForSync).describe("An array of user's loans."),
+  bankAccounts: z.array(BankAccountSchemaForSync).describe("An array of user's bank accounts."),
+  clients: z.array(ClientSchemaForSync).describe("An array of user's clients."),
 });
 export type SyncToGoogleSheetInput = z.infer<typeof SyncToGoogleSheetInputSchema>;
 

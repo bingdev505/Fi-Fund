@@ -6,6 +6,7 @@ import type { GenerateFinancialInsightsInput, GenerateFinancialInsightsOutput } 
 import type { RouteUserIntentInput, RouteUserIntentOutput } from '@/ai/flows/route-user-intent-flow';
 import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput } from '@/lib/types';
 import { syncTransactionsToSheet } from '@/services/google-sheets';
+import { getGoogleAuthUrl } from '@/services/google-auth';
 
 
 export async function generateFinancialInsights(input: GenerateFinancialInsightsInput): Promise<GenerateFinancialInsightsOutput> {
@@ -18,4 +19,8 @@ export async function routeUserIntent(input: RouteUserIntentInput): Promise<Rout
 
 export async function syncToGoogleSheet(input: SyncToGoogleSheetInput): Promise<SyncToGoogleSheetOutput> {
     return await syncTransactionsToSheet(input);
+}
+
+export async function getGoogleOAuthUrl(): Promise<{url: string}> {
+    return await getGoogleAuthUrl();
 }

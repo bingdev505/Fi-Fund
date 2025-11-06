@@ -20,8 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import type { Project } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { useState } from 'react';
-import { syncToGoogleSheet } from '@/app/actions';
+import { syncToGoogleSheet, getGoogleOAuthUrl } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -88,7 +89,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
   }
 
   const handleSync = async () => {
-      if (!newSheetId) return;
+      if (!project || !project.google_sheet_id) return;
 
       setIsSyncing(true);
       setSyncResult(null);
@@ -97,7 +98,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
 
       try {
           const result = await syncToGoogleSheet({
-              sheetId: newSheetId,
+              sheetId: project.google_sheet_id,
               transactions: projectTransactions,
           });
           setSyncResult(result);
@@ -107,6 +108,15 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
           setIsSyncing(false);
       }
   }
+
+  const handleConnectGoogle = async () => {
+    try {
+        const { url } = await getGoogleOAuthUrl();
+        window.location.href = url;
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Could not connect to Google', description: 'Please try again later.' });
+    }
+  };
 
   const closePopups = () => {
     setShowSyncPopup(false);
@@ -156,19 +166,39 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
             )}
             />
 
-        <FormField
-          control={form.control}
-          name="google_sheet_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Google Sheet ID (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="Paste your Google Sheet ID here" {...field} value={field.value ?? ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <Tabs defaultValue="service-account">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="service-account">Service Account</TabsTrigger>
+                <TabsTrigger value="oauth">Google Account</TabsTrigger>
+            </TabsList>
+            <TabsContent value="service-account" className="pt-4">
+                 <FormField
+                    control={form.control}
+                    name="google_sheet_id"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Google Sheet ID</FormLabel>
+                        <FormControl>
+                            <Input placeholder="Paste your Google Sheet ID here" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+            </TabsContent>
+            <TabsContent value="oauth" className="pt-4">
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="space-y-2">
+                            <h3 className="font-semibold">Connect your Google Account</h3>
+                            <p className="text-sm text-muted-foreground">For a more seamless experience, connect your Google account to select sheets directly and enable auto-sync.</p>
+                            <Button type="button" onClick={handleConnectGoogle} className='w-full'>Connect with Google</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
+
         
         <Button type="submit" className="w-full">
           {project ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}

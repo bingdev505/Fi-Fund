@@ -1,3 +1,5 @@
+'use server';
+
 import { google } from 'googleapis';
 
 export function getOAuth2Client() {
@@ -14,4 +16,19 @@ export function getOAuth2Client() {
         clientSecret,
         redirectUri
     );
+}
+
+export async function getGoogleAuthUrl() {
+    const oauth2Client = getOAuth2Client();
+    const scopes = [
+        'https://www.googleapis.com/auth/spreadsheets'
+    ];
+
+    const url = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: scopes,
+        prompt: 'consent' // Important to get a refresh token
+    });
+
+    return { url };
 }
