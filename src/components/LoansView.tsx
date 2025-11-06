@@ -22,6 +22,7 @@ import { format, parseISO } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { Combobox } from './ui/combobox';
 import type { Loan } from '@/lib/types';
+import RepaymentForm from './RepaymentForm';
 
 
 const loanSchema = z.object({
@@ -215,27 +216,29 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {loan && (
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name="project_id"
@@ -270,11 +273,12 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
 
 
 export default function LoansView() {
-  const { loans, deleteLoan, isLoading, contacts, currency, updateLoan } = useFinancials();
+  const { loans, deleteLoan, isLoading, contacts, currency, transactions } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [deletingLoan, setDeletingLoan] = useState<Loan | null>(null);
+  const [repayingLoan, setRepayingLoan] = useState<Loan | null>(null);
 
   const handleEditClick = (loan: Loan) => {
     setEditingLoan(loan);
@@ -293,12 +297,6 @@ export default function LoansView() {
     setDeletingLoan(null);
   };
   
-  const handleStatusChange = async (loan: Loan) => {
-    const newStatus = loan.status === 'active' ? 'paid' : 'active';
-    await updateLoan(loan.id, { status: newStatus });
-    toast({ title: `Loan marked as ${newStatus}` });
-  };
-  
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   };
@@ -307,18 +305,25 @@ export default function LoansView() {
     return contacts.find(c => c.id === contactId)?.name || 'Unknown Contact';
   }
 
-  const { loansGiven, loansTaken } = useMemo(() => {
+  const { loansGiven, loansTaken, loanRepayments } = useMemo(() => {
+    const repayments = new Map<string, number>();
+    transactions.filter(t => t.type === 'repayment' && t.loan_id).forEach(t => {
+        repayments.set(t.loan_id!, (repayments.get(t.loan_id!) || 0) + t.amount);
+    });
+
     return {
       loansGiven: loans.filter(l => l.type === 'loanGiven'),
       loansTaken: loans.filter(l => l.type === 'loanTaken'),
+      loanRepayments: repayments
     }
-  }, [loans]);
+  }, [loans, transactions]);
 
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
       setFormOpen(open);
       if (!open) setEditingLoan(null);
     }}>
+        <Dialog open={!!repayingLoan} onOpenChange={(open) => !open && setRepayingLoan(null)}>
       <AlertDialog>
         <Card>
           <CardHeader>
@@ -350,9 +355,10 @@ export default function LoansView() {
                             loan={loan}
                             contactName={getContactName(loan.contact_id)}
                             formatCurrency={formatCurrency}
+                            repaidAmount={loanRepayments.get(loan.id) || 0}
                             onEditClick={handleEditClick}
                             onDeleteClick={setDeletingLoan}
-                            onStatusChange={handleStatusChange}
+                            onRepayClick={setRepayingLoan}
                           />
                         ))}
                       </ul>
@@ -365,14 +371,15 @@ export default function LoansView() {
                      <div className="border rounded-md">
                       <ul className="divide-y divide-border">
                         {loansTaken.map(loan => (
-                          <LoanItem
+                           <LoanItem
                             key={loan.id}
                             loan={loan}
                             contactName={getContactName(loan.contact_id)}
                             formatCurrency={formatCurrency}
+                            repaidAmount={loanRepayments.get(loan.id) || 0}
                             onEditClick={handleEditClick}
                             onDeleteClick={setDeletingLoan}
-                            onStatusChange={handleStatusChange}
+                            onRepayClick={setRepayingLoan}
                           />
                         ))}
                       </ul>
@@ -403,18 +410,34 @@ export default function LoansView() {
                 setEditingLoan(null);
             }} />
         </DialogContent>
+         {repayingLoan && (
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Log Repayment</DialogTitle>
+                </DialogHeader>
+                <RepaymentForm
+                    loan={repayingLoan}
+                    outstandingAmount={repayingLoan.amount - (loanRepayments.get(repayingLoan.id) || 0)}
+                    onFinished={() => setRepayingLoan(null)}
+                />
+            </DialogContent>
+        )}
+      </Dialog>
     </Dialog>
   );
 }
 
-const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClick, onStatusChange }: {
+const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClick, onRepayClick, repaidAmount }: {
   loan: Loan;
   contactName: string;
   formatCurrency: (amount: number) => string;
+  repaidAmount: number;
   onEditClick: (loan: Loan) => void;
   onDeleteClick: (loan: Loan) => void;
-  onStatusChange: (loan: Loan) => void;
+  onRepayClick: (loan: Loan) => void;
 }) => {
+  const outstandingAmount = loan.amount - repaidAmount;
+
   return (
     <li className="p-4 group hover:bg-muted/50">
         <div className="flex items-center justify-between">
@@ -425,12 +448,17 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
                     <p className="text-sm text-muted-foreground">{loan.description}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {loan.due_date && <span>Due: {format(parseISO(loan.due_date), 'PPP')}</span>}
+                        {loan.status === 'active' && outstandingAmount > 0 && (
+                            <span className='font-semibold text-yellow-600'>Outstanding: {formatCurrency(outstandingAmount)}</span>
+                        )}
                         <span className={cn('font-semibold', loan.status === 'active' ? 'text-yellow-600' : 'text-green-600')}>{loan.status}</span>
                     </div>
                 </div>
             </div>
             <div className="flex items-center">
-                <Button variant="ghost" size="sm" onClick={() => onStatusChange(loan)}>Mark as {loan.status === 'active' ? 'Paid' : 'Active'}</Button>
+                 {loan.status === 'active' && (
+                    <Button variant="outline" size="sm" onClick={() => onRepayClick(loan)}>Repay</Button>
+                )}
                 <Button variant="ghost" size="icon" onClick={() => onEditClick(loan)}><Pencil className="h-4 w-4" /></Button>
                 <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={() => onDeleteClick(loan)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

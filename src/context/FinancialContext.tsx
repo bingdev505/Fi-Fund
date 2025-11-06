@@ -22,6 +22,7 @@ interface FinancialContextType {
   updateTransaction: (transactionId: string, updatedData: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (transaction: Transaction) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
+  addRepayment: (loan: Loan, amount: number, accountId: string) => Promise<void>;
   
   loans: Loan[];
   allLoans: Loan[];
@@ -409,6 +410,38 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     setAllTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
   };
+    
+  const addRepayment = async (loan: Loan, amount: number, accountId: string) => {
+    if (!user) throw new Error("User not authenticated");
+
+    const transactionData = {
+        type: 'repayment' as 'repayment',
+        amount,
+        category: 'Loan Repayment',
+        description: `Repayment for loan to/from ${contacts.find(c => c.id === loan.contact_id)?.name || 'Unknown'}`,
+        account_id: accountId,
+        loan_id: loan.id,
+        project_id: loan.project_id
+    };
+
+    await addTransaction(transactionData);
+
+    // Update account balance based on repayment
+    if (loan.type === 'loanGiven') { // You are receiving money
+        await updateAccountBalance(accountId, amount, 'add');
+    } else { // You are paying money back
+        await updateAccountBalance(accountId, amount, 'subtract');
+    }
+    
+    // Check if loan is fully paid
+    const totalRepaid = allTransactions
+        .filter(t => t.loan_id === loan.id && t.type === 'repayment')
+        .reduce((sum, t) => sum + t.amount, 0) + amount;
+        
+    if (totalRepaid >= loan.amount) {
+        await updateLoan(loan.id, { status: 'paid' });
+    }
+  };
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string) => {
     if (!user) return;
@@ -538,6 +571,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const originalLoan = allLoans.find(l => l.id === loanId);
     if (!originalLoan) return;
 
+    if (!loanData.amount || loanData.amount === originalLoan.amount) {
+      // If amount hasn't changed, just update other details
+      const { data: updatedLoan, error } = await supabase.from('loans').update(loanData).eq('id', loanId).select().single();
+      if (error) throw error;
+      setAllLoans(prev => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
+      return;
+    }
+
+
     // Revert old balance change
     if (originalLoan.type === 'loanTaken') {
         await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'subtract');
@@ -638,7 +680,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const contextValue: FinancialContextType = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
-    transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
+    transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, addClient, updateClient, deleteClient,
     contacts: allContacts, addContact, updateContact, deleteContact,
@@ -649,8 +691,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     currency, setCurrency,
     isLoading: isLoading || isUserLoading,
   }), [
-      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject,
-      filteredTransactions, allTransactions, getTransactionById,
+      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, contacts,
+      filteredTransactions, allTransactions, getTransactionById, addRepayment,
       filteredBankAccounts, allBankAccounts,
       filteredClients,
       allContacts,

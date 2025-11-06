@@ -7,7 +7,7 @@ export type Transaction = {
   id: string;
   user_id: string;
   project_id?: string;
-  type: 'income' | 'expense' | 'transfer';
+  type: 'income' | 'expense' | 'transfer' | 'repayment';
   category: string;
   amount: number;
   description: string;
@@ -16,6 +16,7 @@ export type Transaction = {
   from_account_id?: string;
   to_account_id?: string;
   client_id?: string; // To link income/expense to a client
+  loan_id?: string; // To link repayment to a loan
 };
 
 export type Loan = {

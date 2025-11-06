@@ -33,12 +33,12 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Transaction",
       "type": "object",
-      "description": "Represents an income, expense, or transfer transaction for a user.",
+      "description": "Represents an income, expense, transfer, or repayment transaction for a user.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "projectId": { "type": "string" },
-        "type": { "type": "string", "enum": ["income", "expense", "transfer"] },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer", "repayment"] },
         "category": { "type": "string" },
         "amount": { "type": "number" },
         "description": { "type": "string" },
@@ -46,7 +46,8 @@
         "accountId": { "type": "string" },
         "fromAccountId": { "type": "string" },
         "toAccountId": { "type": "string" },
-        "clientId": { "type": "string" }
+        "clientId": { "type": "string" },
+        "loanId": { "type": "string" }
       },
       "required": ["id", "userId", "type", "category", "amount", "description", "date"]
     },
