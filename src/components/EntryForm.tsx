@@ -115,7 +115,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       entryType: 'expense',
-      amount: '',
+      amount: '' as any,
       description: '',
       category: '',
       clientName: '',
@@ -353,7 +353,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               control={form.control}
               name="category"
               render={({ field }) => (
-                <FormItem className="flex flex-col">
+                <FormItem>
                   <FormLabel>Category</FormLabel>
                   <Combobox
                       options={categoryOptions}
