@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { PlusCircle, ListTodo, Loader2, Pencil, Trash2, CheckCircle, CircleDot, PlayCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -159,21 +159,13 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
     );
 }
 
-const TaskItem = ({ task }: { task: Task }) => {
+const TaskItem = ({ task, onEditClick, onDeleteClick }: { task: Task, onEditClick: (task: Task) => void, onDeleteClick: (task: Task) => void }) => {
     const { updateTask } = useFinancials();
-    const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [deletingTask, setDeletingTask] = useState<Task | null>(null);
     const { toast } = useToast();
 
     const handleStatusChange = (status: 'todo' | 'in-progress' | 'done') => {
         updateTask(task.id, { status });
         toast({ title: `Task moved to ${status}` });
-    };
-
-    const handleDelete = () => {
-        if (!deletingTask) return;
-        // This is a prop drill from parent, ideally should be handled differently
-        // For now, we assume parent component has a deleteTask function.
     };
 
     const getStatusBadge = (status: Task['status']) => {
@@ -217,12 +209,12 @@ const TaskItem = ({ task }: { task: Task }) => {
                     )}
 
                     <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => setEditingTask(task)} title="Edit Task">
+                        <Button variant="ghost" size="icon" onClick={() => onEditClick(task)} title="Edit Task">
                           <Pencil className="h-4 w-4" />
                         </Button>
                     </DialogTrigger>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => setDeletingTask(task)} title="Delete Task">
+                      <Button variant="ghost" size="icon" onClick={() => onDeleteClick(task)} title="Delete Task">
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </AlertDialogTrigger>
@@ -275,18 +267,6 @@ export default function TaskTracker() {
   }, [tasks]);
 
 
-  const getStatusBadge = (status: Task['status']) => {
-    switch (status) {
-      case 'todo':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-800">To Do</span>;
-      case 'in-progress':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-200 text-blue-800">In Progress</span>;
-      case 'done':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-200 text-green-800">Done</span>;
-    }
-  };
-
-
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
         setFormOpen(open);
@@ -317,7 +297,7 @@ export default function TaskTracker() {
                         <AccordionContent>
                            {activeTasks.length > 0 ? (
                              <ul className="divide-y divide-border border rounded-md">
-                                {activeTasks.map(task => <TaskItem key={task.id} task={task} />)}
+                                {activeTasks.map(task => <TaskItem key={task.id} task={task} onEditClick={handleEditClick} onDeleteClick={setDeletingTask} />)}
                              </ul>
                            ) : (
                              <p className="text-muted-foreground text-sm p-4 text-center">No active tasks.</p>
@@ -329,7 +309,7 @@ export default function TaskTracker() {
                         <AccordionContent>
                              {completedTasks.length > 0 ? (
                              <ul className="divide-y divide-border border rounded-md">
-                                {completedTasks.map(task => <TaskItem key={task.id} task={task} />)}
+                                {completedTasks.map(task => <TaskItem key={task.id} task={task} onEditClick={handleEditClick} onDeleteClick={setDeletingTask} />)}
                              </ul>
                            ) : (
                             <p className="text-muted-foreground text-sm p-4 text-center">No completed tasks yet.</p>
