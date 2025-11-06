@@ -40,6 +40,8 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
     const { addTask, updateTask, projects, activeProject } = useFinancials();
     const { toast } = useToast();
 
+    const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
+
     const form = useForm<z.infer<typeof taskSchema>>({
         resolver: zodResolver(taskSchema),
         defaultValues: task ? {
@@ -47,19 +49,19 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             description: task.description || '',
             status: task.status,
             due_date: task.due_date ? parseISO(task.due_date) : undefined,
-            project_id: task.project_id || 'personal',
+            project_id: task.project_id || personalProject?.id,
         } : {
             name: '',
             description: '',
             status: 'todo',
-            project_id: activeProject?.id !== 'all' ? activeProject?.id : 'personal',
+            project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
         }
     });
 
     async function onSubmit(values: z.infer<typeof taskSchema>) {
         const finalValues = {
             ...values,
-            project_id: values.project_id === 'personal' ? undefined : values.project_id,
+            project_id: values.project_id,
             due_date: values.due_date?.toISOString(),
         };
 
@@ -132,14 +134,13 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Business (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || 'personal'}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder="Personal / No Business" />
+                                <SelectValue placeholder="Select a Business" />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="personal">Personal</SelectItem>
                             {projects.map((p) => (
                                 <SelectItem key={p.id} value={p.id}>
                                 {p.name}

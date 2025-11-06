@@ -70,6 +70,7 @@ const useLocalStorageKey = (key: string) => {
 };
 
 const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', user_id: '', created_at: new Date().toISOString() };
+const PERSONAL_PROJECT_NAME = "Personal";
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
   const { user, isLoading: isUserLoading } = useAuth();
@@ -96,7 +97,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const fetchData = useCallback(async (userId: string) => {
     setIsLoading(true);
     try {
-      const [
+      let [
         projectsRes,
         transactionsRes,
         debtsRes,
@@ -118,7 +119,25 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('user_settings').select('*').eq('user_id', userId).single(),
       ]);
 
-      const projects = projectsRes.data || [];
+      let projects = projectsRes.data || [];
+      const hasPersonalProject = projects.some(p => p.name === PERSONAL_PROJECT_NAME);
+
+      if (!hasPersonalProject) {
+          const { data: newPersonalProject, error: personalProjectError } = await supabase.from('projects').insert({
+              user_id: userId,
+              name: PERSONAL_PROJECT_NAME,
+              created_at: new Date().toISOString()
+          }).select().single();
+          
+          if (personalProjectError) {
+              throw personalProjectError;
+          }
+          if (newPersonalProject) {
+            projects = [...projects, newPersonalProject];
+          }
+      }
+
+
       const clients = clientsRes.data || [];
       const debts = (debtsRes.data || []).map(d => ({ ...d, name: clients.find(c => c.id === d.client_id)?.name || 'Unknown Client' }));
       
@@ -218,6 +237,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteProject = async (projectId: string) => {
+    const projectToDelete = allProjects.find(p => p.id === projectId);
+    if (projectToDelete?.name === PERSONAL_PROJECT_NAME) {
+        toast({ variant: 'destructive', title: 'Cannot Delete Personal Project' });
+        return;
+    }
     const { error } = await supabase.from('projects').delete().eq('id', projectId);
     if (error) throw error;
     setAllProjects(prev => prev.filter(p => p.id !== projectId));
@@ -226,7 +250,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addClient = async (clientData: Omit<Client, 'id' | 'user_id' | 'project_id'>, project_id?: string): Promise<Client> => {
     if (!user) throw new Error("User not authenticated");
-    const finalProjectId = (project_id && project_id !== 'all') ? project_id : undefined;
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    const finalProjectId = project_id === personalProject?.id ? project_id : (project_id && project_id !== 'all' ? project_id : personalProject?.id);
+
     const { data: newClient, error } = await supabase.from('clients').insert({ ...clientData, project_id: finalProjectId, user_id: user.id }).select().single();
     if (error) throw error;
     setAllClients(prev => [...prev, newClient]);
@@ -248,7 +274,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addCategory = async (categoryData: Omit<Category, 'id' | 'user_id' | 'project_id'>, project_id?: string): Promise<Category> => {
     if (!user) throw new Error("User not authenticated");
-    const finalProjectId = (project_id && project_id !== 'all') ? project_id : undefined;
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    const finalProjectId = project_id === personalProject?.id ? project_id : (project_id && project_id !== 'all' ? project_id : personalProject?.id);
     const { data: newCategory, error } = await supabase.from('categories').insert({ ...categoryData, project_id: finalProjectId, user_id: user.id }).select().single();
     if (error) throw error;
     setAllCategories(prev => [...prev, newCategory]);
@@ -429,7 +456,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addTask = async (taskData: Omit<Task, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return;
-    const { data: newTask, error } = await supabase.from('tasks').insert({ ...taskData, user_id: user.id, created_at: new Date().toISOString() }).select().single();
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    const finalProjectId = taskData.project_id === personalProject?.id ? taskData.project_id : (taskData.project_id || personalProject?.id);
+
+    const { data: newTask, error } = await supabase.from('tasks').insert({ ...taskData, project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
     if (error) throw error;
     setAllTasks(prev => [...prev, newTask]);
   };
@@ -448,8 +478,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addCredential = async (credentialData: Omit<Credential, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return;
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    const finalProjectId = credentialData.project_id === personalProject?.id ? credentialData.project_id : (credentialData.project_id || personalProject?.id);
+    
     const dbData = {
       ...credentialData,
+      project_id: finalProjectId,
       user_id: user.id,
       created_at: new Date().toISOString()
     };
@@ -470,30 +504,50 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setAllCredentials(prev => prev.filter(c => c.id !== credentialId));
   };
   
-  const filteredTransactions = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTransactions.filter(t => t.project_id === activeProject.id) : allTransactions.filter(t => !t.project_id), [allTransactions, activeProject]);
+  const filteredTransactions = useMemo(() => {
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    return (activeProject && activeProject.id !== 'all') 
+      ? allTransactions.filter(t => t.project_id === activeProject.id) 
+      : allTransactions.filter(t => t.project_id === personalProject?.id || !t.project_id);
+  }, [allTransactions, activeProject, allProjects]);
+
   const filteredDebts = useMemo(() => {
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     if (activeProject && activeProject.id !== 'all') {
       return allDebts.filter(d => d.project_id === activeProject.id);
     }
-    return allDebts.filter(d => !d.project_id);
-  }, [allDebts, activeProject]);
+    return allDebts.filter(d => d.project_id === personalProject?.id || !d.project_id);
+  }, [allDebts, activeProject, allProjects]);
   
   const filteredClients = useMemo(() => {
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
       if (activeProject && activeProject.id !== 'all') {
         return allClients.filter(c => c.project_id === activeProject.id);
       }
-      return allClients.filter(c => !c.project_id);
-  }, [allClients, activeProject]);
+      return allClients.filter(c => c.project_id === personalProject?.id || !c.project_id);
+  }, [allClients, activeProject, allProjects]);
 
   const filteredCategories = useMemo(() => {
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
       if (activeProject && activeProject.id !== 'all') {
           return allCategories.filter(c => c.project_id === activeProject.id);
       }
-      return allCategories.filter(c => !c.project_id);
-  }, [allCategories, activeProject]);
+      return allCategories.filter(c => c.project_id === personalProject?.id || !c.project_id);
+  }, [allCategories, activeProject, allProjects]);
 
-  const filteredTasks = useMemo(() => (activeProject && activeProject.id !== 'all') ? allTasks.filter(t => t.project_id === activeProject.id) : allTasks.filter(t => !t.project_id), [allTasks, activeProject]);
-  const filteredCredentials = useMemo(() => (activeProject && activeProject.id !== 'all') ? allCredentials.filter(c => c.project_id === activeProject.id) : allCredentials.filter(c => !c.project_id), [allCredentials, activeProject]);
+  const filteredTasks = useMemo(() => {
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    return (activeProject && activeProject.id !== 'all') 
+      ? allTasks.filter(t => t.project_id === activeProject.id) 
+      : allTasks.filter(t => t.project_id === personalProject?.id || !t.project_id);
+  }, [allTasks, activeProject, allProjects]);
+
+  const filteredCredentials = useMemo(() => {
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    return (activeProject && activeProject.id !== 'all') 
+      ? allCredentials.filter(c => c.project_id === activeProject.id) 
+      : allCredentials.filter(c => c.project_id === personalProject?.id || !c.project_id);
+  }, [allCredentials, activeProject, allProjects]);
 
 
   const contextValue: FinancialContextType = useMemo(() => ({

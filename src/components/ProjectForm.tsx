@@ -52,6 +52,14 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
   });
 
   async function onSubmit(values: z.infer<typeof projectSchema>) {
+    if (project?.name === 'Personal' && values.name !== 'Personal') {
+        toast({
+            variant: 'destructive',
+            title: "Cannot rename 'Personal' project"
+        });
+        return;
+    }
+
     const isNewProject = !project;
     const hasNewSheetId = values.google_sheet_id && values.google_sheet_id !== project?.google_sheet_id;
 
@@ -90,7 +98,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
             <FormItem>
               <FormLabel>Business Name</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. My New Venture" {...field} />
+                <Input placeholder="e.g. My New Venture" {...field} disabled={project?.name === 'Personal'} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -111,7 +119,7 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                    {projects.filter(p => p.id !== project?.id).map((p) => (
+                    {projects.filter(p => p.id !== project?.id && p.name !== 'Personal').map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}
                         </SelectItem>

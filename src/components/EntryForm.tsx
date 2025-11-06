@@ -111,6 +111,8 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   }
 
+  const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -123,7 +125,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       from_account_id: undefined,
       to_account_id: undefined,
       due_date: undefined,
-      project_id: activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal',
+      project_id: activeProject && activeProject.id !== 'all' ? activeProject.id : personalProject?.id,
     },
   });
 
@@ -131,35 +133,45 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
   const selectedProjectId = form.watch('project_id');
 
   const filteredClients = useMemo(() => {
-    const projectId = selectedProjectId === 'personal' ? undefined : selectedProjectId;
-    if (!projectId) return clients.filter(c => !c.project_id);
+    const projectId = selectedProjectId;
+    if (!projectId) return clients.filter(c => c.project_id === personalProject?.id);
     return clients.filter(c => c.project_id === projectId);
-  }, [clients, selectedProjectId]);
+  }, [clients, selectedProjectId, personalProject]);
 
   const filteredCategories = useMemo(() => {
-    const projectId = selectedProjectId === 'personal' ? undefined : selectedProjectId;
+    const projectId = selectedProjectId;
     const baseCategories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-    const projectCategories = customCategories
-        .filter(c => c.type === entryType && ((!projectId && !c.project_id) || c.project_id === projectId))
+    
+    let projectCategories: string[] = [];
+    if (projectId) {
+       projectCategories = customCategories
+        .filter(c => c.type === entryType && c.project_id === projectId)
         .map(c => c.name);
+    } else {
+        projectCategories = customCategories
+        .filter(c => c.type === entryType && (c.project_id === personalProject?.id || !c.project_id))
+        .map(c => c.name);
+    }
+
     return [...new Set([...baseCategories, ...projectCategories])];
-  }, [entryType, customCategories, selectedProjectId]);
+  }, [entryType, customCategories, selectedProjectId, personalProject]);
   
    useEffect(() => {
-    form.setValue('project_id', activeProject && activeProject.id !== 'all' ? activeProject.id : 'personal');
-  }, [activeProject, form]);
+    const personalProj = projects.find(p => p.name === 'Personal');
+    form.setValue('project_id', activeProject && activeProject.id !== 'all' ? activeProject.id : personalProj?.id);
+  }, [activeProject, form, projects]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { entryType, ...data } = values;
 
-    const project_id = data.project_id === 'personal' ? undefined : data.project_id;
+    const project_id = data.project_id;
 
     let finalClientId: string | undefined;
 
     // Handle client creation/selection for all types that use clientName
     if (data.clientName) {
-        let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && ((!c.project_id && !project_id) || c.project_id === project_id));
+        let client = clients.find(c => c.name.toLowerCase() === data.clientName!.toLowerCase() && ((!c.project_id && project_id === personalProject?.id) || c.project_id === project_id));
         if (!client) {
             client = await addClient({ name: data.clientName! }, project_id);
         }
@@ -261,14 +273,13 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               render={({ field }) => (
                   <FormItem>
                   <FormLabel>Business</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || 'personal'}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                       <SelectTrigger>
-                          <SelectValue placeholder="Personal / No Business" />
+                          <SelectValue placeholder="Select a Business" />
                       </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="personal">Personal</SelectItem>
                       {projects.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                           {p.name}

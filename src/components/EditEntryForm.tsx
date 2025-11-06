@@ -89,7 +89,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       category: isTransaction ? (entry as Transaction).category : (entry as Debt).name,
       account_id: entry.account_id,
       due_date: (entry as Debt).due_date ? parseISO((entry as Debt).due_date) : undefined,
-      project_id: entry.project_id || 'personal',
+      project_id: entry.project_id,
     },
   });
 
@@ -106,7 +106,6 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
     const { category, ...data } = values;
     const finalData = {
         ...data,
-        project_id: data.project_id === 'personal' ? undefined : data.project_id,
     };
     
     let updatedEntry;
@@ -289,14 +288,13 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Business (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || 'personal'}>
+                <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                     <SelectTrigger>
-                        <SelectValue placeholder="Personal / No Business" />
+                        <SelectValue placeholder="Select a Business" />
                     </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="personal">Personal</SelectItem>
                     {projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                         {p.name}

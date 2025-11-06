@@ -13,7 +13,7 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { Credential } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
@@ -34,6 +34,7 @@ type CredentialFormProps = {
 function CredentialForm({ credential, onFinished }: CredentialFormProps) {
     const { addCredential, updateCredential, projects, activeProject } = useFinancials();
     const { toast } = useToast();
+    const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
 
     const form = useForm<z.infer<typeof credentialSchema>>({
         resolver: zodResolver(credentialSchema),
@@ -42,13 +43,13 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
             username: credential.username,
             password: credential.password || '',
             totp_secret: credential.totp_secret || '',
-            project_id: credential.project_id || 'personal',
+            project_id: credential.project_id || personalProject?.id,
         } : {
             site_name: '',
             username: '',
             password: '',
             totp_secret: '',
-            project_id: activeProject?.id !== 'all' ? activeProject?.id : 'personal',
+            project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
         }
     });
 
@@ -100,14 +101,13 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Business (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || 'personal'}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder="Personal / No Business" />
+                                <SelectValue placeholder="Select a Business" />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="personal">Personal</SelectItem>
                             {projects.map((p) => (
                                 <SelectItem key={p.id} value={p.id}>
                                 {p.name}
@@ -185,25 +185,25 @@ export default function Passwords() {
       cred.username.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const grouped: { [key: string]: Credential[] } = {
-        'personal': []
-    };
-
+    const grouped: { [key: string]: Credential[] } = {};
+    const projectMap = new Map(projects.map(p => [p.id, p.name]));
+    
     projects.forEach(p => {
         grouped[p.id] = [];
     });
 
     filtered.forEach(cred => {
-        if (cred.project_id && grouped[cred.project_id]) {
-            grouped[cred.project_id].push(cred);
-        } else {
-            grouped['personal'].push(cred);
+        const projectId = cred.project_id || 'personal'; // Should find the real personal project ID.
+        if (grouped[projectId]) {
+            grouped[projectId].push(cred);
+        } else if (!grouped[projectId]) {
+           grouped[projectId] = [cred];
         }
     });
 
-    // Don't show groups with no credentials, unless it's personal
+    // Don't show groups with no credentials
     for (const key in grouped) {
-      if (key !== 'personal' && grouped[key].length === 0) {
+      if (grouped[key].length === 0) {
         delete grouped[key];
       }
     }
@@ -211,6 +211,8 @@ export default function Passwords() {
     return grouped;
 
   }, [credentials, projects, searchTerm]);
+  
+  const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
 
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
@@ -242,27 +244,22 @@ export default function Passwords() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : credentials.length > 0 ? (
-                <Accordion type="multiple" className="w-full" defaultValue={['personal', ...projects.map(p => p.id)]}>
-                    {groupedCredentials.personal?.length > 0 && (
-                        <AccordionItem value="personal">
-                            <AccordionTrigger>Personal ({groupedCredentials.personal.length})</AccordionTrigger>
-                            <AccordionContent>
-                                {groupedCredentials.personal.map(cred => (
-                                    <CredentialItem key={cred.id} cred={cred} onEdit={handleEditClick} onDelete={setDeletingCredential} />
-                                ))}
-                            </AccordionContent>
-                        </AccordionItem>
-                    )}
-                    {projects.map(p => groupedCredentials[p.id] && groupedCredentials[p.id].length > 0 && (
-                         <AccordionItem value={p.id} key={p.id}>
-                            <AccordionTrigger>{p.name} ({groupedCredentials[p.id].length})</AccordionTrigger>
-                            <AccordionContent>
-                               {groupedCredentials[p.id].map(cred => (
-                                    <CredentialItem key={cred.id} cred={cred} onEdit={handleEditClick} onDelete={setDeletingCredential} />
-                                ))}
-                            </AccordionContent>
-                        </AccordionItem>
-                    ))}
+                <Accordion type="multiple" className="w-full" defaultValue={personalProject ? [personalProject.id] : []}>
+                    {Object.entries(groupedCredentials).map(([projectId, creds]) => {
+                         const project = projects.find(p => p.id === projectId);
+                         if (!project || creds.length === 0) return null;
+
+                         return (
+                            <AccordionItem value={projectId} key={projectId}>
+                                <AccordionTrigger>{project.name} ({creds.length})</AccordionTrigger>
+                                <AccordionContent>
+                                {creds.map(cred => (
+                                        <CredentialItem key={cred.id} cred={cred} onEdit={handleEditClick} onDelete={setDeletingCredential} />
+                                    ))}
+                                </AccordionContent>
+                            </AccordionItem>
+                         )
+                    })}
                 </Accordion>
               ) : (
                 <div className="text-center py-10 border-dashed border-2 rounded-md">
