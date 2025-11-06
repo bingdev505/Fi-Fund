@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Save, RefreshCw, Loader2 } from 'lucide-react';
+import { PlusCircle, Save, RefreshCw, Loader2, Sheet } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { Project } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
@@ -23,6 +23,7 @@ import { useState } from 'react';
 import { syncToGoogleSheet, getGoogleOAuthUrl } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Card, CardContent } from './ui/card';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -36,7 +37,7 @@ type ProjectFormProps = {
 }
 
 export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
-  const { addProject, updateProject, projects, allTransactions } = useFinancials();
+  const { addProject, updateProject, projects, allTransactions, allLoans, allBankAccounts, allClients, user } = useFinancials();
   const { toast } = useToast();
   const [showSyncPopup, setShowSyncPopup] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -95,11 +96,19 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
       setSyncResult(null);
 
       const projectTransactions = allTransactions.filter(t => t.project_id === project?.id);
+      const projectLoans = allLoans.filter(l => l.project_id === project?.id);
+      const projectBankAccounts = allBankAccounts.filter(b => b.project_id === project?.id);
+      const projectClients = allClients.filter(c => c.project_id === project?.id);
+
 
       try {
           const result = await syncToGoogleSheet({
               sheetId: project.google_sheet_id,
               transactions: projectTransactions,
+              loans: projectLoans,
+              bankAccounts: projectBankAccounts,
+              clients: projectClients,
+              userId: user?.id,
           });
           setSyncResult(result);
       } catch (error: any) {
