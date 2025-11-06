@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -179,13 +178,17 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     let finalContactId = data.contact_id || undefined;
     const finalDescription = data.description || undefined;
 
-    if ((entryType === 'loanGiven' || entryType === 'loanTaken') && finalContactId) {
-        // Check if the provided contact_id is a UUID. If not, it's a new contact name.
+    if (entryType === 'loanGiven' || entryType === 'loanTaken') {
+        if (!finalContactId) {
+            toast({ variant: 'destructive', title: 'Contact is required for loans.' });
+            return;
+        }
+        // Check if the provided contact_id is a new name. If so, create it.
         const isNewContact = !contacts.some(c => c.id === finalContactId);
         if (isNewContact) {
             try {
                 const newContact = await addContact({ name: finalContactId });
-                finalContactId = newContact.id;
+                finalContactId = newContact.id; // Use the newly created contact's ID
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Could not create contact.' });
                 return;
@@ -231,6 +234,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       });
     } else { // loanGiven or loanTaken
       if (!finalContactId) {
+        // This case should be handled by the check above, but as a fallback.
         toast({ variant: 'destructive', title: 'Contact is required for loans.' });
         return;
       }
@@ -245,9 +249,10 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         account_id: data.account_id!,
         project_id: projectId,
       });
+      const contactName = contacts.find(c => c.id === finalContactId)?.name || finalContactId;
       toast({
         title: `${entryType === 'loanTaken' ? 'Loan Taken' : 'Loan Given'} added`,
-        description: `Loan related to ${contacts.find(c => c.id === finalContactId)?.name || finalContactId} for ${formatCurrency(data.amount)} has been logged.`,
+        description: `Loan related to ${contactName} for ${formatCurrency(data.amount)} has been logged.`,
       });
     }
     form.reset();
@@ -425,7 +430,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                       {filteredBankAccounts.map((acc) => (
                       <SelectItem key={acc.id} value={acc.id}>
                           {acc.name}
-                      </SelectItem>
+                        </SelectItem>
                       ))}
                   </SelectContent>
                   </Select>
@@ -575,5 +580,3 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
-
-    
