@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { Separator } from './ui/separator';
 
 export default function Business() {
-  const { isLoading, projects, deleteProject, currency, allTransactions, allDebts, allLoans, setActiveProject } = useFinancials();
+  const { isLoading, projects, deleteProject, currency, allTransactions, allLoans, setActiveProject } = useFinancials();
   const { toast } = useToast();
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -48,7 +48,7 @@ export default function Business() {
   };
 
   const { projectTree, projectBalances } = useMemo(() => {
-    if (!projects || !allTransactions || !allDebts || !allLoans) {
+    if (!projects || !allTransactions || !allLoans) {
         return { projectTree: [], projectBalances: new Map() };
     }
 
@@ -111,7 +111,7 @@ export default function Business() {
     
     return { projectTree: flattenedTree, projectBalances: balances };
 
-  }, [projects, allTransactions, allDebts, allLoans, currency]);
+  }, [projects, allTransactions, allLoans, currency]);
 
 
   return (
