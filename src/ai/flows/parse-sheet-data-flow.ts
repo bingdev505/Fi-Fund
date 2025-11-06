@@ -7,6 +7,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const ParsedTransactionSchema = z.object({
+  transaction_id: z.string().optional().describe("The unique ID of the transaction if it exists."),
   type: z.enum(['income', 'expense', 'loanGiven', 'loanTaken', 'transfer', 'repayment']),
   amount: z.number(),
   date: z.string().describe("The date of the transaction in ISO 8601 format."),
@@ -45,8 +46,8 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert financial data processor. Your task is to parse raw data from a spreadsheet and convert it into structured financial entries.
 You must identify new entries in the sheet that are not present in the user's existing data.
 
-- Analyze the provided 'sheetData' (JSON array of arrays). The first row is headers.
-- Compare each row against the 'userTransactions' and 'userLoans' to identify new records. A record is considered a duplicate if it has a very similar description, amount, and date.
+- Analyze the provided 'sheetData' (JSON array of arrays). The first row is headers. The first column is 'transaction_id'.
+- Compare each row against the 'userTransactions' and 'userLoans' to identify new records. A record is considered new if it does NOT have a transaction_id, or its transaction_id is not found in the existing user data.
 - For each new record, parse it into a structured object with fields: type, amount, date, description, category/contact, and account details.
 - 'type' should be one of: 'income', 'expense', 'loanGiven', 'loanTaken', 'transfer', 'repayment'.
 - 'category' should be used for income/expenses. For loans, this field should contain the contact's name.

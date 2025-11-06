@@ -31,7 +31,8 @@ const prompt = ai.definePrompt({
   output: { schema: StructuredFinancialDataOutputSchema },
   prompt: `You are an expert at organizing financial data. Your task is to process raw JSON data for transactions, loans, bank accounts, and contacts, and then structure it into a clean, human-readable table format with headers and rows.
 
-- The final output **must** contain these exact columns in this exact order: **Date, Type, Account, Category/Contact, Amount**.
+- The final output **must** contain these exact columns in this exact order: **transaction_id, Date, Type, Account, Category/Contact, Amount**.
+- The 'transaction_id' column should be the unique 'id' of the transaction or loan.
 - For 'income' and 'expense' transactions, the 'Category/Contact' column should show the transaction's category.
 - For 'loanGiven', 'loanTaken', and 'repayment' transactions, the 'Category/Contact' column should show the name of the contact involved.
 - Map all relevant IDs to their human-readable names (e.g., 'account_id' to account name, 'client_id' or 'contact_id' to the person's name).
