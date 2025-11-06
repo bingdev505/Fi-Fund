@@ -5,22 +5,51 @@ import EntryList from './EntryList';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
-import { PlusCircle, RefreshCw } from 'lucide-react';
+import { PlusCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
+import { syncToGoogleSheet } from '@/app/actions';
 
 
 export default function Transactions() {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const { activeProject } = useFinancials();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { activeProject, transactions } = useFinancials();
   const { toast } = useToast();
 
-  const handleGoogleSync = () => {
+  const handleGoogleSync = async () => {
     if (activeProject && activeProject.id !== 'all' && activeProject.google_sheet_id) {
+        setIsSyncing(true);
         toast({
-            title: "Sync Initiated (Placeholder)",
-            description: `Ready to sync with sheet: ${activeProject.google_sheet_id}`
+            title: "Syncing...",
+            description: `Syncing transactions with Google Sheet.`
         });
+        
+        try {
+            const result = await syncToGoogleSheet({
+                sheetId: activeProject.google_sheet_id,
+                transactions: transactions,
+            });
+
+            if (result.success) {
+                toast({
+                    title: "Sync Successful",
+                    description: result.message,
+                });
+            } else {
+                throw new Error(result.message);
+            }
+
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: "Sync Failed",
+                description: error.message || "An unknown error occurred during sync.",
+            });
+        } finally {
+            setIsSyncing(false);
+        }
+
     } else {
         toast({
             variant: 'destructive',
@@ -41,8 +70,8 @@ export default function Transactions() {
                         <CardDescription>View and manage all your transactions.</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={handleGoogleSync} disabled={activeProject?.id === 'all'}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
+                        <Button variant="outline" onClick={handleGoogleSync} disabled={activeProject?.id === 'all' || isSyncing}>
+                            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                             Sync with Google
                         </Button>
                         <DialogTrigger asChild>
