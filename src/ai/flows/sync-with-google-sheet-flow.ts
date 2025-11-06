@@ -33,12 +33,15 @@ const syncToGoogleSheetFlow = ai.defineFlow(
     try {
         await updateGoogleSheet({
             sheetId: input.sheetId,
-            range: 'A1', // Start at the beginning of the sheet
+            range: 'Sheet1!A1', // Write to 'Sheet1' starting at A1
             values: [headers, ...rows]
         });
         return { success: true, message: 'Successfully synced transactions to Google Sheet.' };
     } catch (e: any) {
         console.error("Error in syncToGoogleSheetFlow tool call:", e);
+        if (e.message.includes('permission')) {
+             return { success: false, message: 'Permission denied. Please ensure the service account has Editor access to the Google Sheet.' };
+        }
         return { success: false, message: e.message || 'Failed to sync with Google Sheet.' };
     }
   }
