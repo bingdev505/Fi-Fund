@@ -137,7 +137,7 @@ export const SyncToGoogleSheetInputSchema = z.object({
   bankAccounts: z.array(BankAccountSchemaForSync).describe("An array of user's bank accounts."),
   clients: z.array(ClientSchemaForSync).describe("An array of user's clients."),
   contacts: z.array(ContactSchemaForSync).describe("An array of user's personal contacts."),
-  readFromSheet: z.boolean().optional().describe("Whether to read data from the sheet and add it to the database."),
+  readFromSheet: z.boolean().default(true).describe("Whether to read data from the sheet and add it to the database."),
 });
 export type SyncToGoogleSheetInput = z.infer<typeof SyncToGoogleSheetInputSchema>;
 

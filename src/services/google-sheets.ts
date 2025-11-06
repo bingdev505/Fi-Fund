@@ -1,11 +1,128 @@
 'use server';
 
 import { google } from 'googleapis';
-import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput, Transaction, Loan, Contact, Client } from '@/lib/types';
-import { structureFinancialDataForSheet } from '@/ai/flows/structure-financial-data-for-sheet';
-import { parseSheetData } from '@/ai/flows/parse-sheet-data-flow';
+import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput, Transaction, Loan, Contact, Client, BankAccount } from '@/lib/types';
 import { supabase } from '@/lib/supabase_client';
 import { getOAuth2Client } from './google-auth';
+
+type StructuredRow = (string | number)[];
+
+function structureDataForSheet(
+    transactions: Transaction[],
+    loans: Loan[],
+    bankAccounts: BankAccount[],
+    allContacts: (Client | Contact)[]
+): { headers: string[], rows: StructuredRow[] } {
+    const headers = ["transaction_id", "Date", "Type", "Account", "Category/Contact", "Amount"];
+    
+    const combinedEntries: (Transaction | Loan)[] = [...transactions, ...loans];
+    const sortedEntries = combinedEntries.sort((a, b) => new Date(a.date || a.created_at).getTime() - new Date(b.date || b.created_at).getTime());
+
+    const accountMap = new Map(bankAccounts.map(acc => [acc.id, acc.name]));
+    const contactMap = new Map(allContacts.map(c => [c.id, c.name]));
+
+    const rows: StructuredRow[] = sortedEntries.map(entry => {
+        const row: StructuredRow = [
+            entry.id,
+            new Date(entry.date || entry.created_at).toLocaleDateString('en-CA'), // YYYY-MM-DD
+            '', // Type
+            '', // Account
+            '', // Category/Contact
+            0   // Amount
+        ];
+
+        let type = '';
+        let amount = entry.amount;
+
+        if ('category' in entry) { // It's a Transaction
+            const tx = entry as Transaction;
+            type = tx.type.charAt(0).toUpperCase() + tx.type.slice(1);
+            row[3] = accountMap.get(tx.account_id || '') || '';
+            if (tx.type === 'transfer') {
+                type = 'Transfer';
+                const from = accountMap.get(tx.from_account_id || '') || 'Unknown';
+                const to = accountMap.get(tx.to_account_id || '') || 'Unknown';
+                row[4] = `${from} -> ${to}`;
+            } else {
+                 row[4] = tx.client_id ? `${tx.category} (${contactMap.get(tx.client_id) || ''})` : tx.category;
+            }
+
+            if (tx.type === 'expense') amount = -Math.abs(amount);
+            else if (tx.type === 'repayment') {
+                const relatedLoan = loans.find(l => l.id === tx.loan_id);
+                if (relatedLoan?.type === 'loanTaken') amount = -Math.abs(amount);
+                else amount = Math.abs(amount);
+            } else {
+                amount = Math.abs(amount);
+            }
+
+        } else { // It's a Loan
+            const loan = entry as Loan;
+            type = loan.type === 'loanGiven' ? 'Loan Given' : 'Loan Taken';
+            row[3] = accountMap.get(loan.account_id) || '';
+            row[4] = contactMap.get(loan.contact_id) || 'Unknown Contact';
+
+            if (loan.type === 'loanGiven') amount = -Math.abs(amount);
+            else amount = Math.abs(amount);
+        }
+        
+        row[2] = type;
+        row[5] = amount;
+
+        return row;
+    });
+
+    return { headers, rows };
+}
+
+function parseSheetData(
+    sheetData: any[][],
+    userTransactions: Transaction[],
+    userLoans: Loan[],
+): { newTransactions: Omit<Transaction, 'id' | 'user_id'>[], newLoans: Omit<Loan, 'id' | 'user_id'>[] } {
+    const newTransactions: Omit<Transaction, 'id' | 'user_id'>[] = [];
+    const newLoans: Omit<Loan, 'id' | 'user_id'>[] = [];
+
+    const existingIds = new Set([...userTransactions.map(t => t.id), ...userLoans.map(l => l.id)]);
+    
+    // Skip header row by starting at 1
+    for (let i = 1; i < sheetData.length; i++) {
+        const row = sheetData[i];
+        const id = row[0];
+
+        if (id && existingIds.has(id)) {
+            continue; // Skip existing entries
+        }
+
+        const date = row[1] ? new Date(row[1]).toISOString() : new Date().toISOString();
+        const type = (row[2] || '').toLowerCase();
+        const categoryOrContact = row[4] || '';
+        const amount = parseFloat(row[5] || '0');
+
+        if (type.includes('income') || type.includes('expense')) {
+            newTransactions.push({
+                date,
+                type: type as 'income' | 'expense',
+                amount: Math.abs(amount),
+                category: categoryOrContact,
+                description: 'From Google Sheet',
+            });
+        } else if (type.includes('loan')) {
+             newLoans.push({
+                type: type.includes('given') ? 'loanGiven' : 'loanTaken',
+                contact_id: categoryOrContact,
+                amount: Math.abs(amount),
+                status: 'active',
+                description: 'From Google Sheet',
+                created_at: date,
+                account_id: '' // This needs to be resolved or defaulted
+            });
+        }
+    }
+
+    return { newTransactions, newLoans };
+}
+
 
 async function getGoogleSheetsClient(userId?: string) {
     if (userId) {
@@ -105,64 +222,24 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
         if (input.readFromSheet) {
             const sheetData = await readFromSheet(sheets, input.sheetId, sheetName);
             if (sheetData && sheetData.length > 1) { // More than just a header
-                const parsedResult = await parseSheetData({
-                    sheetData: JSON.stringify(sheetData),
-                    userTransactions: JSON.stringify(input.transactions),
-                    userLoans: JSON.stringify(input.loans),
-                    userBankAccounts: JSON.stringify(input.bankAccounts),
-                    userClients: JSON.stringify(allContacts),
-                });
+                const { newTransactions, newLoans } = parseSheetData(sheetData, transactions, loans);
 
-                for (const entry of parsedResult.parsedEntries) {
-                    const dbEntry = {
-                        user_id: input.userId!,
-                        amount: entry.amount,
-                        description: entry.description,
-                        date: entry.date,
-                        created_at: entry.date,
-                    };
-                    
-                    const account = input.bankAccounts.find(acc => acc.name.toLowerCase() === entry.accountName?.toLowerCase());
-
-                    if (entry.type === 'income' || entry.type === 'expense') {
-                         const newTx: Transaction = {
-                            ...dbEntry,
-                            id: '',
-                            type: entry.type,
-                            category: entry.category || 'Uncategorized',
-                            account_id: account?.id,
-                         };
-                         const { data, error } = await supabase.from('transactions').insert(newTx).select().single();
-                         if (!error && data) transactions.push(data);
-
-                    } else if (entry.type === 'loanGiven' || entry.type === 'loanTaken') {
-                        const contact = allContacts.find(c => c.name.toLowerCase() === entry.category?.toLowerCase());
-                        const newLoan: Loan = {
-                            ...dbEntry,
-                            id: '',
-                            type: entry.type,
-                            contact_id: contact?.id || entry.category!,
-                            status: 'active',
-                            account_id: account?.id!,
-                        };
-                         const { data, error } = await supabase.from('loans').insert(newLoan).select().single();
-                         if (!error && data) loans.push(data);
-                    }
+                for (const entry of newTransactions) {
+                     const { data, error } = await supabase.from('transactions').insert({...entry, user_id: input.userId!}).select().single();
+                     if (!error && data) transactions.push(data);
+                }
+                 for (const entry of newLoans) {
+                     const { data, error } = await supabase.from('loans').insert({...entry, user_id: input.userId!}).select().single();
+                     if (!error && data) loans.push(data);
                 }
             }
         }
         
-        const structuredData = await structureFinancialDataForSheet({
-            transactions: JSON.stringify(transactions),
-            loans: JSON.stringify(loans),
-            bankAccounts: JSON.stringify(input.bankAccounts),
-            clients: JSON.stringify(input.clients),
-            contacts: JSON.stringify(input.contacts),
-        });
+        const { headers, rows } = structureDataForSheet(transactions, loans, input.bankAccounts, allContacts);
 
         const values = [
-            structuredData.headers,
-            ...structuredData.rows
+            headers,
+            ...rows
         ];
         
         await writeToSheet(sheets, input.sheetId, sheetName, values);
