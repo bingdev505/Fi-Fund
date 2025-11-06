@@ -418,7 +418,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         type: 'repayment' as 'repayment',
         amount,
         category: 'Loan Repayment',
-        description: `Repayment for loan to/from ${contacts.find(c => c.id === loan.contact_id)?.name || 'Unknown'}`,
+        description: `Repayment for loan to/from ${allContacts.find(c => c.id === loan.contact_id)?.name || 'Unknown'}`,
         account_id: accountId,
         loan_id: loan.id,
         project_id: loan.project_id
@@ -691,7 +691,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     currency, setCurrency,
     isLoading: isLoading || isUserLoading,
   }), [
-      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, contacts,
+      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, allContacts,
       filteredTransactions, allTransactions, getTransactionById, addRepayment,
       filteredBankAccounts, allBankAccounts,
       filteredClients,
