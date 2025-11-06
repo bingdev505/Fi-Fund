@@ -97,7 +97,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     addTransaction, 
     addDebt, 
     currency, 
-    bankAccounts, 
+    allBankAccounts, 
     clients, 
     categories: customCategories, 
     addClient, 
@@ -121,7 +121,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       description: '',
       category: '',
       clientName: '',
-      account_id: bankAccounts.find(acc => acc.is_primary)?.id,
+      account_id: allBankAccounts.find(acc => acc.is_primary)?.id,
       from_account_id: undefined,
       to_account_id: undefined,
       due_date: undefined,
@@ -137,6 +137,13 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     if (!projectId) return clients.filter(c => c.project_id === personalProject?.id);
     return clients.filter(c => c.project_id === projectId);
   }, [clients, selectedProjectId, personalProject]);
+  
+  const filteredBankAccounts = useMemo(() => {
+    const projectId = selectedProjectId;
+    if (!projectId) return allBankAccounts.filter(acc => acc.project_id === personalProject?.id || !acc.project_id);
+    return allBankAccounts.filter(acc => acc.project_id === projectId);
+  }, [allBankAccounts, selectedProjectId, personalProject]);
+
 
   const filteredCategories = useMemo(() => {
     const projectId = selectedProjectId;
@@ -244,7 +251,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                       entryType: value as any,
                       category: '',
                       clientName: '',
-                      account_id: bankAccounts.find(acc => acc.is_primary)?.id,
+                      account_id: allBankAccounts.find(acc => acc.is_primary)?.id,
                       from_account_id: undefined,
                       to_account_id: undefined,
                     });
@@ -322,7 +329,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {bankAccounts.map((acc) => (
+                      {filteredBankAccounts.map((acc) => (
                         <SelectItem key={acc.id} value={acc.id}>
                           {acc.name}
                         </SelectItem>
@@ -346,7 +353,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {bankAccounts.map((acc) => (
+                      {filteredBankAccounts.map((acc) => (
                         <SelectItem key={acc.id} value={acc.id}>
                           {acc.name}
                         </SelectItem>
@@ -391,7 +398,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                       </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                      {bankAccounts.map((acc) => (
+                      {filteredBankAccounts.map((acc) => (
                       <SelectItem key={acc.id} value={acc.id}>
                           {acc.name}
                       </SelectItem>
@@ -438,7 +445,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {bankAccounts.map((acc) => (
+                            {filteredBankAccounts.map((acc) => (
                             <SelectItem key={acc.id} value={acc.id}>
                                 {acc.name}
                             </SelectItem>
@@ -533,11 +540,11 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           </div>
         )}
 
-        <Button type="submit" className="w-full" disabled={bankAccounts.length === 0}>
+        <Button type="submit" className="w-full" disabled={allBankAccounts.length === 0}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Entry
         </Button>
-        {bankAccounts.length === 0 && (
+        {allBankAccounts.length === 0 && (
             <p className="text-sm text-destructive text-center">Please add a bank account in Settings before adding entries.</p>
         )}
       </form>
