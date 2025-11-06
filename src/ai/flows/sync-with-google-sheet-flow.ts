@@ -19,24 +19,13 @@ const syncToGoogleSheetFlow = ai.defineFlow(
     outputSchema: SyncToGoogleSheetOutputSchema,
   },
   async (input) => {
-    const headers = [
-        "ID", "Date", "Type", "Category", "Amount", "Description", 
-        "Account ID", "From Account ID", "To Account ID", "Client ID", "Loan ID", "Project ID"
-    ];
-
-    const rows = input.transactions.map(t => [
-        t.id, t.date, t.type, t.category, t.amount, t.description,
-        t.account_id || '', t.from_account_id || '', t.to_account_id || '', 
-        t.client_id || '', t.loan_id || '', t.project_id || ''
-    ]);
-
     try {
         await updateGoogleSheet({
             sheetId: input.sheetId,
-            range: 'Sheet1!A1', // Write to 'Sheet1' starting at A1
-            values: [headers, ...rows]
+            range: 'Sheet1!A1',
+            values: [["Connection successful! Full sync coming soon."]]
         });
-        return { success: true, message: 'Successfully synced transactions to Google Sheet.' };
+        return { success: true, message: 'Successfully connected to Google Sheet. Full sync is being implemented.' };
     } catch (e: any) {
         console.error("Error in syncToGoogleSheetFlow tool call:", e);
         if (e.message.includes('permission')) {
