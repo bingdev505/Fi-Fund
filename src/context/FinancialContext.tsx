@@ -219,6 +219,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [toast, currencyKey, defaultProjectKey, activeProjectKey]);
   
   const triggerSync = useCallback(async (projectId: string) => {
+    // Wait for the next render cycle to ensure state is updated
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     const { allProjects, allTransactions, allLoans, allBankAccounts, allClients, allContacts, user } = stateRef.current;
     
     const project = allProjects.find(p => p.id === projectId);
@@ -401,19 +404,24 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const updateAccountBalance = useCallback(async (account_id: string, amount: number, operation: 'add' | 'subtract') => {
-      const accountToUpdate = allBankAccounts.find(acc => acc.id === account_id);
-      if (!accountToUpdate) {
-          console.error("Account not found for balance update");
-          return;
-      }
-      const newBalance = operation === 'add' ? accountToUpdate.balance + amount : accountToUpdate.balance - amount;
-      const { data: updatedAccount, error } = await supabase.from('bank_accounts').update({ balance: newBalance }).eq('id', account_id).select().single();
-      if (error) {
-        console.error("Error updating balance:", error);
-      } else if (updatedAccount) {
-        setAllBankAccounts(prev => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
-      }
-  }, [allBankAccounts]);
+      setAllBankAccounts(prevAccounts => {
+        const accountToUpdate = prevAccounts.find(acc => acc.id === account_id);
+        if (!accountToUpdate) {
+            console.error("Account not found for balance update");
+            return prevAccounts;
+        }
+        const newBalance = operation === 'add' ? accountToUpdate.balance + amount : accountToUpdate.balance - amount;
+        
+        supabase.from('bank_accounts').update({ balance: newBalance }).eq('id', account_id).then(({ error }) => {
+            if (error) {
+                console.error("Error updating balance in DB:", error);
+                // Optionally revert UI change here or show a toast
+            }
+        });
+
+        return prevAccounts.map(acc => acc.id === account_id ? { ...acc, balance: newBalance } : acc);
+      });
+  }, []);
 
   const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'date' | 'user_id'>, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
@@ -442,18 +450,38 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const originalTransaction = allTransactions.find(t => t.id === transactionId);
     if (!originalTransaction) return;
     
-    if (originalTransaction.account_id) {
-      if (originalTransaction.type === 'income') await updateAccountBalance(originalTransaction.account_id, originalTransaction.amount, 'subtract');
-      if (originalTransaction.type === 'expense') await updateAccountBalance(originalTransaction.account_id, originalTransaction.amount, 'add');
+    // Revert old balance change
+    const originalAccountId = originalTransaction.account_id || (originalTransaction.type === 'transfer' ? originalTransaction.from_account_id : undefined);
+    if (originalAccountId) {
+        if (originalTransaction.type === 'income') await updateAccountBalance(originalAccountId, originalTransaction.amount, 'subtract');
+        else if (originalTransaction.type === 'expense') await updateAccountBalance(originalAccountId, originalTransaction.amount, 'add');
+        else if (originalTransaction.type === 'transfer' && originalTransaction.to_account_id) {
+            await updateAccountBalance(originalAccountId, originalTransaction.amount, 'add');
+            await updateAccountBalance(originalTransaction.to_account_id, originalTransaction.amount, 'subtract');
+        }
     }
+    
     const { data: updatedTransaction, error } = await supabase.from('transactions').update(updatedData).eq('id', transactionId).select().single();
-    if (error) throw error;
+    if (error) {
+        // Re-apply old balance if update fails
+        if (originalAccountId) {
+            if (originalTransaction.type === 'income') await updateAccountBalance(originalAccountId, originalTransaction.amount, 'add');
+            else if (originalTransaction.type === 'expense') await updateAccountBalance(originalAccountId, originalTransaction.amount, 'subtract');
+        }
+        throw error;
+    }
     
     setAllTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
 
-    if (updatedTransaction.account_id) {
-        if (updatedTransaction.type === 'income') await updateAccountBalance(updatedTransaction.account_id, updatedTransaction.amount, 'add');
-        if (updatedTransaction.type === 'expense') await updateAccountBalance(updatedTransaction.account_id, updatedTransaction.amount, 'subtract');
+    // Apply new balance change
+    const newAccountId = updatedTransaction.account_id || (updatedTransaction.type === 'transfer' ? updatedTransaction.from_account_id : undefined);
+    if (newAccountId) {
+        if (updatedTransaction.type === 'income') await updateAccountBalance(newAccountId, updatedTransaction.amount, 'add');
+        else if (updatedTransaction.type === 'expense') await updateAccountBalance(newAccountId, updatedTransaction.amount, 'subtract');
+        else if (updatedTransaction.type === 'transfer' && updatedTransaction.to_account_id) {
+            await updateAccountBalance(newAccountId, updatedTransaction.amount, 'subtract');
+            await updateAccountBalance(updatedTransaction.to_account_id, updatedTransaction.amount, 'add');
+        }
     }
     if (updatedTransaction.project_id) triggerSync(updatedTransaction.project_id);
   };
@@ -462,6 +490,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (transactionToDelete.account_id) {
         if (transactionToDelete.type === 'income') { await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'subtract'); } 
         else if (transactionToDelete.type === 'expense') { await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'add'); }
+    } else if (transactionToDelete.type === 'transfer' && transactionToDelete.from_account_id && transactionToDelete.to_account_id) {
+        await updateAccountBalance(transactionToDelete.from_account_id, transactionToDelete.amount, 'add');
+        await updateAccountBalance(transactionToDelete.to_account_id, transactionToDelete.amount, 'subtract');
     }
     const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
     if (error) throw error;
@@ -484,12 +515,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
     await addTransaction(transactionData);
 
-    // Update account balance based on repayment
-    if (loan.type === 'loanGiven') { // You are receiving money
-        await updateAccountBalance(accountId, amount, 'add');
-    } else { // You are paying money back
-        await updateAccountBalance(accountId, amount, 'subtract');
-    }
+    // No need to update balance here, addTransaction handles it for repayment type now.
     
     // Check if loan is fully paid
     const totalRepaid = allTransactions
@@ -763,7 +789,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
-      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, filteredTasks, allTasks, filteredCredentials, allCredentials, filteredLoans, allLoans, currency, isLoading, isUserLoading,
+      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, allTasks, filteredCredentials, allCredentials, filteredLoans, allLoans, currency, isLoading, isUserLoading,
       setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
       addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
