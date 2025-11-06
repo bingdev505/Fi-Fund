@@ -27,7 +27,7 @@ interface FinancialContextType {
   
   loans: Loan[];
   allLoans: Loan[];
-  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>) => Promise<void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string) => Promise<void>;
   getLoanById: (id: string) => Loan | undefined;
@@ -378,6 +378,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteContact = async (contactId: string) => {
+    await supabase.from('loans').update({ contact_id: null }).eq('contact_id', contactId);
     const { error } = await supabase.from('contacts').delete().eq('id', contactId);
     if (error) throw error;
     setAllContacts(prev => prev.filter(c => c.id !== contactId));
@@ -659,11 +660,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setAllCredentials(prev => prev.filter(c => c.id !== credentialId));
   };
   
-  const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>) => {
+  const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>) => {
     if (!user) return;
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     const finalProjectId = loanData.project_id || personalProject?.id;
-    const { data: newLoan, error } = await supabase.from('loans').insert({ ...loanData, project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
+    const { data: newLoan, error } = await supabase.from('loans').insert({ ...loanData, date: new Date().toISOString(), project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
     if (error) throw error;
 
     if (newLoan.type === 'loanTaken') {

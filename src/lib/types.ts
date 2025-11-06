@@ -28,6 +28,7 @@ export type Loan = {
   contact_id: string;
   amount: number;
   description: string;
+  date: LocalTimestamp;
   due_date?: LocalTimestamp;
   status: 'active' | 'paid';
   account_id: string;

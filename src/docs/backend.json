@@ -64,12 +64,13 @@
         "contactId": { "type": "string" },
         "amount": { "type": "number" },
         "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
         "dueDate": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["active", "paid"] },
         "accountId": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "type", "contactId", "amount", "status", "created_at", "accountId"]
+      "required": ["id", "userId", "type", "contactId", "amount", "status", "created_at", "accountId", "date"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",

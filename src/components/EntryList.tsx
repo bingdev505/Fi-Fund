@@ -7,8 +7,6 @@ import { Separator } from '@/components/ui/separator';
 import {
   TrendingUp,
   TrendingDown,
-  Landmark,
-  User,
   ArrowRightLeft,
   Loader2,
   Trash2,
@@ -19,7 +17,7 @@ import type { Transaction, Loan } from '@/lib/types';
 import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import EditEntryForm from './EditEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { parseISO } from 'date-fns';
@@ -30,7 +28,7 @@ type EntryListProps = {
 }
 
 export default function EntryList({ limit, showHeader = true }: EntryListProps) {
-  const { transactions, loans, currency, bankAccounts, clients, isLoading, deleteTransaction, deleteLoan } = useFinancials();
+  const { transactions, loans, currency, bankAccounts, clients, isLoading, deleteTransaction, deleteLoan, contacts } = useFinancials();
   const [editingEntry, setEditingEntry] = useState<Transaction | Loan | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Loan | null>(null);
   const { toast } = useToast();
@@ -44,7 +42,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
 
     const combined: (Transaction | Loan)[] = [
       ...transactions.map(t => ({...t, date: toDate(t.date)})),
-      ...loans.map(l => ({...l, date: toDate(l.created_at), due_date: l.due_date ? toDate(l.due_date) : undefined })),
+      ...loans.map(l => ({...l, date: toDate(l.date), due_date: l.due_date ? toDate(l.due_date) : undefined })),
     ];
     
     const sorted = combined.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -68,6 +66,11 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
   const getClientName = (client_id?: string) => {
     if (!client_id) return '';
     return clients.find(c => c.id === client_id)?.name || '';
+  }
+
+  const getContactName = (contact_id?: string) => {
+    if (!contact_id) return '';
+    return contacts.find(c => c.id === contact_id)?.name || '';
   }
 
   const handleDelete = () => {
@@ -127,10 +130,14 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     const isTransaction = 'category' in entry;
     const color = entry.type === 'income' || entry.type === 'loanTaken' ? 'text-green-600' : entry.type === 'transfer' ? '' : 'text-red-600';
     
+    let title = '';
     let subtext = '';
+
     if (isTransaction) {
         const tx = entry as Transaction;
+        title = tx.description || tx.category;
         if (tx.type === 'transfer') {
+            title = "Bank Transfer";
             subtext = `Transfer: ${getAccountName(tx.from_account_id)} → ${getAccountName(tx.to_account_id)}`;
         } else {
             const clientName = tx.client_id ? ` (${getClientName(tx.client_id)})` : '';
@@ -138,7 +145,10 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
         }
     } else {
         const loan = entry as Loan;
-        subtext = `${loan.description} (${getAccountName(loan.account_id)})`;
+        const contactName = getContactName(loan.contact_id);
+        title = loan.type === 'loanGiven' ? `Loan to ${contactName}` : `Loan from ${contactName}`;
+        const description = loan.description ? `${loan.description} ` : '';
+        subtext = `${description}(${getAccountName(loan.account_id)})`;
     }
 
     const entryDate = entry.date as Date;
@@ -150,13 +160,13 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
                 {renderIcon(entry)}
                 <div>
                     <p className="text-sm font-medium leading-none">
-                        {isTransaction ? (entry as Transaction).description : getClientName((entry as Loan).contact_id)}
+                        {title}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {subtext} • {entryDate instanceof Date ? entryDate.toLocaleDateString() : entryDate}
+                        {subtext} • {entryDate instanceof Date ? entryDate.toLocaleDateString() : String(entryDate)}
                     </p>
                     {!isTransaction && dueDate && (
-                        <p className="text-xs text-muted-foreground">Due: {dueDate instanceof Date ? dueDate.toLocaleDateString() : dueDate}</p>
+                        <p className="text-xs text-muted-foreground">Due: {dueDate instanceof Date ? dueDate.toLocaleDateString() : String(dueDate)}</p>
                     )}
                 </div>
             </div>
