@@ -364,7 +364,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
               control={form.control}
               name="category"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Category</FormLabel>
                   <Combobox
                       options={categoryOptions}
@@ -417,7 +417,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                             options={clientOptions}
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder="Select or create client..."
+                            placeholder="Client"
                             searchPlaceholder="Search clients..."
                             noResultsText="No clients found."
                           />
@@ -465,7 +465,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
                             options={clientOptions}
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder="Select or create client..."
+                            placeholder="Client"
                             searchPlaceholder="Search clients..."
                             noResultsText="No clients found."
                         />
