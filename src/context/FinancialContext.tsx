@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, ReactNode, useMemo, useState, useEffect } from 'react';
+import { createContext, useCallback, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
 import type { Transaction, Loan, BankAccount, Project, Client, Category, Task, Credential, Contact } from '@/lib/types';
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
@@ -105,6 +105,29 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState<string>('INR');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Use refs to hold the latest state for use in callbacks that don't re-render
+  const stateRef = useRef({
+    allProjects,
+    allTransactions,
+    allLoans,
+    allBankAccounts,
+    allClients,
+    allContacts,
+    user,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      allProjects,
+      allTransactions,
+      allLoans,
+      allBankAccounts,
+      allClients,
+      allContacts,
+      user,
+    };
+  }, [allProjects, allTransactions, allLoans, allBankAccounts, allClients, allContacts, user]);
+
   const fetchData = useCallback(async (userId: string) => {
     setIsLoading(true);
     try {
@@ -195,8 +218,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [toast, currencyKey, defaultProjectKey, activeProjectKey]);
   
   const triggerSync = useCallback(async (projectId: string) => {
+    const { allProjects, allTransactions, allLoans, allBankAccounts, allClients, allContacts, user } = stateRef.current;
+    
     const project = allProjects.find(p => p.id === projectId);
-    if (project?.google_sheet_id) {
+    if (project?.google_sheet_id && user) {
         console.log(`Auto-syncing project: ${project.name}`);
         await syncToGoogleSheet({
             sheetId: project.google_sheet_id,
@@ -205,11 +230,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             bankAccounts: allBankAccounts.filter(b => b.project_id === projectId),
             clients: allClients.filter(c => c.project_id === projectId),
             contacts: allContacts,
-            userId: user!.id,
+            userId: user.id,
             readFromSheet: false, // Don't read from sheet on auto-syncs to avoid loops
         });
     }
-  }, [allProjects, allTransactions, allLoans, allBankAccounts, allClients, allContacts, user]);
+  }, []);
 
 
   useEffect(() => {
