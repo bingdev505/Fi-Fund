@@ -57,7 +57,18 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
     }
   });
 
-  const clientOptions = useMemo(() => clients.map(c => ({ value: c.id, label: c.name })), [clients]);
+  const selectedProjectId = form.watch('project_id');
+  const isPersonalContext = selectedProjectId === personalProject?.id;
+
+  const contactOptions = useMemo(() => {
+    const relevantClients = clients.filter(c => {
+        if (isPersonalContext) {
+            return c.project_id === personalProject?.id || !c.project_id;
+        }
+        return c.project_id === selectedProjectId;
+    });
+    return relevantClients.map(c => ({ value: c.id, label: c.name }));
+  }, [clients, selectedProjectId, isPersonalContext, personalProject]);
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -65,8 +76,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
 
   async function onSubmit(values: z.infer<typeof loanSchema>) {
     let contactId = values.contact_id;
-    // Check if the contact is new (i.e., not a UUID)
-    const isNewContact = !clients.some(c => c.id === contactId);
+    const isNewContact = !contactOptions.some(c => c.value === contactId);
 
     if (isNewContact) {
         const newClient = await addClient({ name: contactId }, values.project_id);
@@ -110,9 +120,9 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
           name="contact_id"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Contact</FormLabel>
+              <FormLabel>Client / Contact</FormLabel>
               <Combobox
-                options={clientOptions}
+                options={contactOptions}
                 value={field.value}
                 onChange={field.onChange}
                 placeholder="Select or create contact..."
@@ -157,7 +167,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
         <FormField control={form.control} name="description" render={({ field }) => (
           <FormItem>
             <FormLabel>Description</FormLabel>
-            <FormControl><Textarea placeholder="e.g., For project materials" {...field} /></FormControl>
+            <FormControl><Textarea placeholder="e.g., For project materials" {...field} value={field.value || ''}/></FormControl>
             <FormMessage />
           </FormItem>
         )} />
