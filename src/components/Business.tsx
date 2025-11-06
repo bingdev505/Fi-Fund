@@ -131,12 +131,12 @@ export default function Business() {
         <Dialog open={!!connectSheetProject} onOpenChange={(open) => { if (!open) setConnectSheetProject(null)}}>
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
               <div>
                 <CardTitle>Manage Businesses</CardTitle>
                 <CardDescription>Add or manage your businesses (projects).</CardDescription>
               </div>
-              <Button onClick={handleAddClick}>
+              <Button onClick={handleAddClick} className="w-full md:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add New Business
               </Button>
