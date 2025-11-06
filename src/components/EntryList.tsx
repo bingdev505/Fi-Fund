@@ -17,7 +17,7 @@ import type { Transaction, Loan } from '@/lib/types';
 import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import EditEntryForm from './EditEntryForm';
 import { useToast } from '@/hooks/use-toast';
 import { parseISO } from 'date-fns';
@@ -37,7 +37,10 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     const toDate = (date: any): Date => {
         if (date instanceof Date) return date;
         if (typeof date === 'string') return parseISO(date);
-        return new Date();
+        // Fallback for potentially undefined date, although data should be clean.
+        // Using created_at for loans if date is missing.
+        const entry = (loans.find(l => l.id === (date as any)?.id) || {}) as Loan;
+        return entry.created_at ? parseISO(entry.created_at) : new Date();
     }
 
     const combined: (Transaction | Loan)[] = [
@@ -45,7 +48,11 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
       ...loans.map(l => ({...l, date: toDate(l.date), due_date: l.due_date ? toDate(l.due_date) : undefined })),
     ];
     
-    const sorted = combined.sort((a, b) => b.date.getTime() - a.date.getTime());
+    const sorted = combined.sort((a, b) => {
+        const dateA = a.date instanceof Date ? a.date.getTime() : 0;
+        const dateB = b.date instanceof Date ? b.date.getTime() : 0;
+        return dateB - dateA;
+    });
     
     if (limit) {
       return sorted.slice(0, limit);
@@ -53,6 +60,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
 
     return sorted;
   }, [transactions, loans, limit]);
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -122,7 +130,8 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
         return <div className={`${iconContainerClass} bg-indigo-100 dark:bg-indigo-900/50`}><Handshake className={`${iconClass} text-indigo-600 dark:text-indigo-400`} /></div>;
       case 'loanTaken':
         return <div className={`${iconContainerClass} bg-orange-100 dark:bg-orange-900/50`}><Handshake className={`${iconClass} text-orange-600 dark:text-orange-400`} /></div>;
-      
+       case 'repayment':
+         return <div className={`${iconContainerClass} bg-teal-100 dark:bg-teal-900/50`}><Handshake className={`${iconClass} text-teal-600 dark:text-teal-400`} /></div>;
     }
   };
 
@@ -141,14 +150,16 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
             subtext = `Transfer: ${getAccountName(tx.from_account_id)} → ${getAccountName(tx.to_account_id)}`;
         } else {
             const clientName = tx.client_id ? ` (${getClientName(tx.client_id)})` : '';
-            subtext = `${tx.category}${clientName} (${getAccountName(tx.account_id)})`;
+            const accountName = getAccountName(tx.account_id);
+            subtext = `${tx.category}${clientName}${accountName ? ` (${accountName})` : ''}`;
         }
     } else {
         const loan = entry as Loan;
         const contactName = getContactName(loan.contact_id);
         title = loan.type === 'loanGiven' ? `Loan to ${contactName}` : `Loan from ${contactName}`;
         const description = loan.description ? `${loan.description} ` : '';
-        subtext = `${description}(${getAccountName(loan.account_id)})`;
+        const accountName = getAccountName(loan.account_id);
+        subtext = `${description}${accountName ? `(${accountName})` : ''}`;
     }
 
     const entryDate = entry.date as Date;
