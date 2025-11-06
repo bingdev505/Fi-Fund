@@ -240,15 +240,38 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteProject = async (projectId: string) => {
-    const projectToDelete = allProjects.find(p => p.id === projectId);
-    if (projectToDelete?.name === PERSONAL_PROJECT_NAME) {
-        toast({ variant: 'destructive', title: 'Cannot Delete Personal Project' });
-        return;
+    if (!user) throw new Error("User not authenticated");
+
+    // This is a simplified cascade delete. For production, you might want to use database-level cascade deletes.
+    const tablesToDeleteFrom = ['transactions', 'debts', 'clients', 'categories', 'tasks', 'credentials', 'bank_accounts'];
+    for (const table of tablesToDeleteFrom) {
+        const { error } = await supabase.from(table).delete().eq('project_id', projectId);
+        if (error) {
+            console.error(`Error deleting from ${table}:`, error);
+            throw error;
+        }
     }
-    const { error } = await supabase.from('projects').delete().eq('id', projectId);
-    if (error) throw error;
+    
+    // Now delete the project itself
+    const { error: projectError } = await supabase.from('projects').delete().eq('id', projectId);
+    if (projectError) {
+        console.error("Error deleting project:", projectError);
+        throw projectError;
+    }
+    
+    // Optimistically update state
     setAllProjects(prev => prev.filter(p => p.id !== projectId));
-    if (activeProject?.id === projectId) setActiveProject(ALL_BUSINESS_PROJECT);
+    setAllTransactions(prev => prev.filter(t => t.project_id !== projectId));
+    setAllDebts(prev => prev.filter(d => d.project_id !== projectId));
+    setAllClients(prev => prev.filter(c => c.project_id !== projectId));
+    setAllCategories(prev => prev.filter(c => c.project_id !== projectId));
+    setAllTasks(prev => prev.filter(t => t.project_id !== projectId));
+    setAllCredentials(prev => prev.filter(c => c.project_id !== projectId));
+    setAllBankAccounts(prev => prev.filter(b => b.project_id !== projectId));
+    
+    if (activeProject?.id === projectId) {
+        setActiveProject(ALL_BUSINESS_PROJECT);
+    }
   };
 
   const addClient = async (clientData: Omit<Client, 'id' | 'user_id' | 'project_id'>, project_id?: string): Promise<Client> => {

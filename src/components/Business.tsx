@@ -208,7 +208,7 @@ export default function Business() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this business and all associated clients, categories, transactions and debts.
+              This action cannot be undone. This will permanently delete this business and all associated clients, categories, transactions, debts, bank accounts, tasks and credentials.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
