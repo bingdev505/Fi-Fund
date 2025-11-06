@@ -31,13 +31,11 @@ const syncToGoogleSheetFlow = ai.defineFlow(
     ]);
 
     try {
-        await ai.run('update-sheet', async () =>
-            updateGoogleSheet({
-                sheetId: input.sheetId,
-                range: 'A1', // Start at the beginning of the sheet
-                values: [headers, ...rows]
-            })
-        );
+        await updateGoogleSheet({
+            sheetId: input.sheetId,
+            range: 'A1', // Start at the beginning of the sheet
+            values: [headers, ...rows]
+        });
         return { success: true, message: 'Successfully synced transactions to Google Sheet.' };
     } catch (e: any) {
         console.error("Error in syncToGoogleSheetFlow tool call:", e);

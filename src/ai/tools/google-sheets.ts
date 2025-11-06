@@ -48,12 +48,6 @@ export const updateGoogleSheet = ai.defineTool(
   async (input) => {
     // In a real implementation, you would use the Google Sheets API here.
     // This is a placeholder implementation.
-    try {
-        const result = await fakeGoogleSheetsUpdate(input.sheetId, input.range, input.values);
-        return result;
-    } catch (e: any) {
-        console.error(`Error updating Google Sheet: ${e.message}`);
-        throw e; // Re-throw the error so the flow can catch it
-    }
+    return await fakeGoogleSheetsUpdate(input.sheetId, input.range, input.values);
   }
 );
