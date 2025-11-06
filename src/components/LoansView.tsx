@@ -100,8 +100,8 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
-                  <SelectItem value="loanGiven">I Loaned Money (Loan Given)</SelectItem>
-                  <SelectItem value="loanTaken">I Borrowed Money (Loan Taken)</SelectItem>
+                  <SelectItem value="loanGiven">Loan Given</SelectItem>
+                  <SelectItem value="loanTaken">Loan Taken</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
