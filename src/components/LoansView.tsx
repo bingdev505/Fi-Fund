@@ -5,7 +5,7 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PlusCircle, Handshake, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, Handshake, Loader2, Pencil, Trash2, HandCoins } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -513,10 +513,12 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
                 </div>
             </div>
             <div className="flex items-center">
-                 {loan.status === 'active' && (
-                    <Button variant="outline" size="sm" onClick={() => onRepayClick(loan)}>Repay</Button>
-                )}
                 <div className='flex items-center'>
+                    {loan.status === 'active' && (
+                        <Button variant="ghost" size="icon" onClick={() => onRepayClick(loan)} title="Log Repayment">
+                            <HandCoins className="h-4 w-4" />
+                        </Button>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => onEditClick(loan)}><Pencil className="h-4 w-4" /></Button>
                     <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => onDeleteClick(loan)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

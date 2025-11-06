@@ -298,13 +298,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User not authenticated");
     
     // This is a simplified cascade delete. For production, you might want to use database-level cascade deletes.
-    const tablesToDeleteFrom = ['transactions', 'clients', 'categories', 'tasks', 'credentials', 'bank_accounts', 'loans'];
+    const tablesToDeleteFrom = ['transactions', 'clients', 'categories', 'tasks', 'credentials', 'loans'];
     for (const table of tablesToDeleteFrom) {
         const { error } = await supabase.from(table).delete().eq('project_id', projectId);
         if (error) {
             console.error(`Error deleting from ${table}:`, error);
             throw error;
         }
+    }
+
+    const { error: bankAccountsError } = await supabase.from('bank_accounts').update({ project_id: null }).eq('project_id', projectId);
+    if (bankAccountsError) {
+      console.error(`Error unlinking from bank_accounts:`, bankAccountsError);
+      throw bankAccountsError;
     }
     
     // Now delete the project itself
@@ -321,7 +327,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setAllCategories(prev => prev.filter(c => c.project_id !== projectId));
     setAllTasks(prev => prev.filter(t => t.project_id !== projectId));
     setAllCredentials(prev => prev.filter(c => c.project_id !== projectId));
-    setAllBankAccounts(prev => prev.filter(b => b.project_id !== projectId));
+    setAllBankAccounts(prev => prev.map(b => b.project_id === projectId ? { ...b, project_id: undefined } : b));
     setAllLoans(prev => prev.filter(l => l.project_id !== projectId));
     
     if (activeProject?.id === projectId) {
@@ -441,6 +447,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     else if (newTransaction.type === 'transfer' && newTransaction.from_account_id && newTransaction.to_account_id) {
         await updateAccountBalance(newTransaction.from_account_id, newTransaction.amount, 'subtract');
         await updateAccountBalance(newTransaction.to_account_id, newTransaction.amount, 'add');
+    } else if (newTransaction.type === 'repayment' && newTransaction.loan_id && newTransaction.account_id) {
+      const relatedLoan = allLoans.find(l => l.id === newTransaction.loan_id);
+      if (relatedLoan?.type === 'loanGiven') {
+        // Money is coming back in
+        await updateAccountBalance(newTransaction.account_id, newTransaction.amount, 'add');
+      } else { // loanTaken
+        // Money is going out
+        await updateAccountBalance(newTransaction.account_id, newTransaction.amount, 'subtract');
+      }
     }
     if (newTransaction.project_id) triggerSync(newTransaction.project_id);
     if (returnRef) { return { id: newTransaction.id }; }
@@ -514,8 +529,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     };
 
     await addTransaction(transactionData);
-
-    // No need to update balance here, addTransaction handles it for repayment type now.
     
     // Check if loan is fully paid
     const totalRepaid = allTransactions
@@ -553,9 +566,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteBankAccount = async (accountId: string) => {
+    await supabase.from('transactions').update({ account_id: null }).eq('account_id', accountId);
+    await supabase.from('transactions').update({ from_account_id: null }).eq('from_account_id', accountId);
+    await supabase.from('transactions').update({ to_account_id: null }).eq('to_account_id', accountId);
+    await supabase.from('loans').update({ account_id: null }).eq('account_id', accountId);
+
     const accountToDelete = allBankAccounts.find(b => b.id === accountId);
     const { error } = await supabase.from('bank_accounts').delete().eq('id', accountId);
     if (error) throw error;
+    
     setAllBankAccounts(prev => prev.filter(b => b.id !== accountId));
     if (accountToDelete?.project_id) triggerSync(accountToDelete.project_id);
   };

@@ -31,7 +31,7 @@ const repaymentSchema = z.object({
 });
 
 export default function RepaymentForm({ loan, outstandingAmount, onFinished }: RepaymentFormProps) {
-  const { addRepayment, currency, bankAccounts } = useFinancials();
+  const { addRepayment, currency, bankAccounts, contacts } = useFinancials();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof repaymentSchema>>({
@@ -51,10 +51,11 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
     }
 
     try {
+        const contactName = contacts.find(c => c.id === loan.contact_id)?.name || 'Unknown';
         await addRepayment(loan, values.amount, values.account_id);
         toast({
             title: 'Repayment Logged',
-            description: `A repayment of ${formatCurrency(values.amount)} has been logged for the loan to ${loan.description}.`
+            description: `A repayment of ${formatCurrency(values.amount)} has been logged for the loan to/from ${contactName}.`
         })
         onFinished();
     } catch (error: any) {
@@ -69,12 +70,14 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   };
+  
+  const contactName = contacts.find(c => c.id === loan.contact_id)?.name || 'Unknown Contact';
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="p-4 border rounded-md bg-muted/50">
-            <p className="text-sm text-muted-foreground">Loan to/from: <span className='font-medium text-foreground'>{loan.description}</span></p>
+            <p className="text-sm text-muted-foreground">Loan to/from: <span className='font-medium text-foreground'>{contactName}</span></p>
             <p className="text-sm text-muted-foreground">Outstanding Amount: <span className='font-medium text-foreground'>{formatCurrency(outstandingAmount)}</span></p>
         </div>
         <FormField
@@ -116,7 +119,7 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
                 </FormItem>
             )}
         />
-         {watchedAmount === outstandingAmount && (
+         {watchedAmount.toFixed(2) === outstandingAmount.toFixed(2) && outstandingAmount > 0 && (
             <div className="text-sm p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
                 This will mark the loan as fully paid.
             </div>
