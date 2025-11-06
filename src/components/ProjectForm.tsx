@@ -15,9 +15,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Save } from 'lucide-react';
+import { PlusCircle, Save, RefreshCw, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { Project } from '@/lib/types';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { useState } from 'react';
+import { syncToGoogleSheet } from '@/app/actions';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Business name must be at least 2 characters'),
@@ -31,8 +35,13 @@ type ProjectFormProps = {
 }
 
 export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
-  const { addProject, updateProject, projects } = useFinancials();
+  const { addProject, updateProject, projects, allTransactions } = useFinancials();
   const { toast } = useToast();
+  const [showSyncPopup, setShowSyncPopup] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{success: boolean; message: string} | null>(null);
+  const [newSheetId, setNewSheetId] = useState<string | null>(null);
+
 
   const form = useForm<z.infer<typeof projectSchema>>({
     resolver: zodResolver(projectSchema),
@@ -57,16 +66,50 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         parent_project_id: values.parent_project_id === 'none' ? undefined : values.parent_project_id
     };
 
+    let updatedProject: Project;
     if (project) {
         await updateProject(project.id, projectData);
+        updatedProject = { ...project, ...projectData };
         toast({ title: "Business Updated" });
     } else {
-        await addProject(projectData);
+        updatedProject = await addProject(projectData);
         toast({
           title: 'Business Added',
           description: `Business "${values.name}" has been created.`,
         });
     }
+
+    if (values.google_sheet_id) {
+        setNewSheetId(values.google_sheet_id);
+        setShowSyncPopup(true);
+    } else {
+        onFinished();
+    }
+  }
+
+  const handleSync = async () => {
+      if (!newSheetId) return;
+
+      setIsSyncing(true);
+      setSyncResult(null);
+
+      const projectTransactions = allTransactions.filter(t => t.project_id === project?.id);
+
+      try {
+          const result = await syncToGoogleSheet({
+              sheetId: newSheetId,
+              transactions: projectTransactions,
+          });
+          setSyncResult(result);
+      } catch (error: any) {
+          setSyncResult({ success: false, message: error.message || 'An unknown error occurred.' });
+      } finally {
+          setIsSyncing(false);
+      }
+  }
+
+  const closePopups = () => {
+    setShowSyncPopup(false);
     onFinished();
   }
 
@@ -133,6 +176,37 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         </Button>
       </form>
     </Form>
+
+    <Dialog open={showSyncPopup} onOpenChange={(isOpen) => !isOpen && closePopups()}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Connect Google Sheet</DialogTitle>
+                 <DialogDescription>
+                    To allow this application to edit your sheet, please share it with the following service account email address as an 'Editor':
+                </DialogDescription>
+            </DialogHeader>
+            <div className="bg-muted p-2 rounded-md text-center text-sm font-mono break-all">
+                fundflow@app-fund.iam.gserviceaccount.com
+            </div>
+
+            {syncResult && (
+                <Alert variant={syncResult.success ? 'default' : 'destructive'}>
+                    <AlertTitle>{syncResult.success ? 'Success!' : 'Error'}</AlertTitle>
+                    <AlertDescription>{syncResult.message}</AlertDescription>
+                </Alert>
+            )}
+
+            <DialogFooter>
+                {!syncResult?.success && (
+                    <Button variant="outline" onClick={handleSync} disabled={isSyncing}>
+                        {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Sync Now
+                    </Button>
+                )}
+                <Button onClick={closePopups}>Close</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }
