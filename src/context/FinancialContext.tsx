@@ -763,17 +763,17 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
-      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
-      filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
-      filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
-      filteredClients, allClients, addClient, updateClient, deleteClient,
-      filteredContacts, allContacts, addContact, updateContact, deleteContact,
-      filteredCategories, addCategory, updateCategory, deleteCategory,
-      filteredTasks, addTask, updateTask, deleteTask,
-      filteredCredentials, addCredential, updateCredential, deleteCredential,
-      filteredLoans, allLoans, addLoan, updateLoan, deleteLoan, getLoanById,
-      currency, setCurrency,
-      isLoading, isUserLoading,
+      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, filteredTasks, allTasks, filteredCredentials, allCredentials, filteredLoans, allLoans, currency, isLoading, isUserLoading,
+      setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
+      addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
+      addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
+      addClient, updateClient, deleteClient,
+      addContact, updateContact, deleteContact,
+      addCategory, updateCategory, deleteCategory,
+      addTask, updateTask, deleteTask,
+      addCredential, updateCredential, deleteCredential,
+      addLoan, updateLoan, deleteLoan, getLoanById,
+      setCurrency,
       triggerSync
     ]);
 
