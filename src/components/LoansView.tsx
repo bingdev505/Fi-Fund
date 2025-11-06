@@ -94,11 +94,18 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.control} name="type" render={({ field }) => (
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Loan Type</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
                   <SelectContent>
                     <SelectItem value="loanGiven">Loan Given</SelectItem>
                     <SelectItem value="loanTaken">Loan Taken</SelectItem>
@@ -106,7 +113,8 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
                 </Select>
                 <FormMessage />
               </FormItem>
-            )} />
+            )}
+          />
           <FormField
             control={form.control}
             name="contact_id"
@@ -127,78 +135,108 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField control={form.control} name="amount" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Amount</FormLabel>
-              <FormControl><Input type="number" placeholder="e.g., 5000" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
           <FormField
-              control={form.control}
-              name="account_id"
-              render={({ field }) => (
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
               <FormItem>
-                  <FormLabel>Account</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormLabel>Amount</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="e.g., 5000" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="account_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Account</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                      <SelectTrigger>
+                    <SelectTrigger>
                       <SelectValue placeholder="Select an account" />
-                      </SelectTrigger>
+                    </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                      {bankAccounts.map((acc) => (
+                    {bankAccounts.map(acc => (
                       <SelectItem key={acc.id} value={acc.id}>
-                          {acc.name} ({formatCurrency(acc.balance)})
+                        {acc.name} ({formatCurrency(acc.balance)})
                       </SelectItem>
-                      ))}
+                    ))}
                   </SelectContent>
-                  </Select>
-                  <FormMessage />
-              </FormItem>
-              )}
-          />
-        </div>
-        <FormField control={form.control} name="description" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Description</FormLabel>
-            <FormControl><Textarea placeholder="e.g., For project materials" {...field} value={field.value || ''}/></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField control={form.control} name="due_date" render={({ field }) => (
-          <FormItem className="flex flex-col">
-            <FormLabel>Due Date (Optional)</FormLabel>
-            <Popover>
-              <PopoverTrigger asChild>
-                <FormControl>
-                  <Button variant="outline" className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                  </Button>
-                </FormControl>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-              </PopoverContent>
-            </Popover>
-            <FormMessage />
-          </FormItem>
-        )} />
-         <FormField control={form.control} name="status" render={({ field }) => (
-            <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
                 </Select>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea placeholder="e.g., For project materials" {...field} value={field.value || ''} />
+              </FormControl>
+              <FormMessage />
             </FormItem>
-        )} />
-         <FormField
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="due_date"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Due Date (Optional)</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full pl-3 text-left font-normal',
+                        !field.value && 'text-muted-foreground'
+                      )}
+                    >
+                      {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
           control={form.control}
           name="project_id"
           render={({ field }) => (
@@ -211,8 +249,10 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  {projects.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -220,7 +260,9 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">{loan ? 'Save Changes' : 'Add Loan'}</Button>
+        <Button type="submit" className="w-full">
+          {loan ? 'Save Changes' : 'Add Loan'}
+        </Button>
       </form>
     </Form>
   );
@@ -387,7 +429,7 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
                     </div>
                 </div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+            <div className="flex items-center">
                 <Button variant="ghost" size="sm" onClick={() => onStatusChange(loan)}>Mark as {loan.status === 'active' ? 'Paid' : 'Active'}</Button>
                 <Button variant="ghost" size="icon" onClick={() => onEditClick(loan)}><Pencil className="h-4 w-4" /></Button>
                 <AlertDialogTrigger asChild>
