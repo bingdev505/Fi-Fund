@@ -26,9 +26,10 @@ import { parseISO } from 'date-fns';
 type EntryListProps = {
   limit?: number;
   showHeader?: boolean;
+  showControls?: boolean;
 }
 
-export default function EntryList({ limit, showHeader = true }: EntryListProps) {
+export default function EntryList({ limit, showHeader = true, showControls = true }: EntryListProps) {
   const { transactions, loans, currency, bankAccounts, clients, isLoading, deleteTransaction, deleteLoan, contacts } = useFinancials();
   const [editingEntry, setEditingEntry] = useState<Transaction | Loan | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Loan | null>(null);
@@ -191,18 +192,20 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
                 </div>
             </div>
             <div className='flex items-center gap-1 self-end sm:self-center'>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => setEditingEntry(entry)}>
-                            <Pencil className="h-4 w-4" />
-                        </Button>
-                    </DialogTrigger>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingEntry(entry)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                    </AlertDialogTrigger>
-                </div>
+                {showControls && (
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => setEditingEntry(entry)}>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        </DialogTrigger>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => setDeletingEntry(entry)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </AlertDialogTrigger>
+                    </div>
+                )}
                 <div className={`hidden sm:block font-semibold text-right shrink-0 w-[110px] ${color}`}>
                     {formatCurrency(entry.amount)}
                 </div>

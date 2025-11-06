@@ -1,3 +1,4 @@
+
 'use client';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -83,7 +84,7 @@ export default function Overview() {
                 <CardDescription>Your latest financial movements.</CardDescription>
               </CardHeader>
               <CardContent>
-                <EntryList limit={5} showHeader={false} />
+                <EntryList limit={5} showHeader={false} showControls={false} />
               </CardContent>
             </Card>
           </div>
