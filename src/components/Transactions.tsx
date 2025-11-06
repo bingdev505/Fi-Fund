@@ -15,7 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 export default function Transactions() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const { activeProject, transactions, loans, bankAccounts, clients } = useFinancials();
+  const { activeProject, transactions, loans, bankAccounts, clients, contacts } = useFinancials();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -34,7 +34,9 @@ export default function Transactions() {
                 loans: loans,
                 bankAccounts: bankAccounts,
                 clients: clients,
+                contacts: contacts,
                 userId: user!.id,
+                readFromSheet: true,
             });
 
             if (result.success) {

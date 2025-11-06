@@ -47,6 +47,7 @@ interface FinancialContextType {
   deleteClient: (clientId: string) => Promise<void>;
 
   contacts: Contact[];
+  allContacts: Contact[];
   addContact: (contactData: Omit<Contact, 'id' | 'user_id'>) => Promise<Contact>;
   updateContact: (contactId: string, contactData: Partial<Omit<Contact, 'id' | 'user_id'>>) => Promise<void>;
   deleteContact: (contactId: string) => Promise<void>;
@@ -753,7 +754,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, allClients, addClient, updateClient, deleteClient,
-    contacts: filteredContacts, addContact, updateContact, deleteContact,
+    contacts: filteredContacts, allContacts, addContact, updateContact, deleteContact,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
@@ -762,27 +763,17 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
-      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject,
-      filteredTransactions, allTransactions, getTransactionById, addRepayment,
-      filteredBankAccounts, allBankAccounts,
-      filteredClients, allClients,
-      filteredContacts, allContacts,
-      filteredCategories,
-      filteredTasks,
-      filteredCredentials,
-      filteredLoans, allLoans, getLoanById,
+      allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
+      filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
+      filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
+      filteredClients, allClients, addClient, updateClient, deleteClient,
+      filteredContacts, allContacts, addContact, updateContact, deleteContact,
+      filteredCategories, addCategory, updateCategory, deleteCategory,
+      filteredTasks, addTask, updateTask, deleteTask,
+      filteredCredentials, addCredential, updateCredential, deleteCredential,
+      filteredLoans, allLoans, addLoan, updateLoan, deleteLoan, getLoanById,
       currency, setCurrency,
       isLoading, isUserLoading,
-      updateAccountBalance,
-      addTransaction, updateTransaction, deleteTransaction,
-      addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
-      addClient, updateClient, deleteClient,
-      addContact, updateContact, deleteContact,
-      addCategory, updateCategory, deleteCategory,
-      addTask, updateTask, deleteTask,
-      addCredential, updateCredential, deleteCredential,
-      addLoan, updateLoan, deleteLoan,
-      addProject, updateProject, deleteProject,
       triggerSync
     ]);
 

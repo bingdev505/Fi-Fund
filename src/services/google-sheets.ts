@@ -1,7 +1,7 @@
 'use server';
 
 import { google } from 'googleapis';
-import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput, Transaction, Loan } from '@/lib/types';
+import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput, Transaction, Loan, Contact, Client } from '@/lib/types';
 import { structureFinancialDataForSheet } from '@/ai/flows/structure-financial-data-for-sheet';
 import { parseSheetData } from '@/ai/flows/parse-sheet-data-flow';
 import { supabase } from '@/lib/supabase_client';
@@ -98,6 +98,8 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
         const sheetName = 'Sheet1'; 
         let transactions = input.transactions;
         let loans = input.loans;
+        const allContacts: (Client | Contact)[] = [...(input.clients || []), ...(input.contacts || [])];
+
 
         // Two-way sync: Read from sheet first
         if (input.readFromSheet) {
@@ -108,7 +110,7 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
                     userTransactions: JSON.stringify(input.transactions),
                     userLoans: JSON.stringify(input.loans),
                     userBankAccounts: JSON.stringify(input.bankAccounts),
-                    userClients: JSON.stringify([...input.clients, ...input.contacts]),
+                    userClients: JSON.stringify(allContacts),
                 });
 
                 for (const entry of parsedResult.parsedEntries) {
@@ -134,7 +136,7 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
                          if (!error && data) transactions.push(data);
 
                     } else if (entry.type === 'loanGiven' || entry.type === 'loanTaken') {
-                        const contact = [...input.clients, ...input.contacts].find(c => c.name.toLowerCase() === entry.category?.toLowerCase());
+                        const contact = allContacts.find(c => c.name.toLowerCase() === entry.category?.toLowerCase());
                         const newLoan: Loan = {
                             ...dbEntry,
                             id: '',
@@ -154,7 +156,8 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
             transactions: JSON.stringify(transactions),
             loans: JSON.stringify(loans),
             bankAccounts: JSON.stringify(input.bankAccounts),
-            clients: JSON.stringify([...input.clients, ...input.contacts]),
+            clients: JSON.stringify(input.clients),
+            contacts: JSON.stringify(input.contacts),
         });
 
         const values = [

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Save, RefreshCw, Loader2, Sheet } from 'lucide-react';
+import { PlusCircle, Save, RefreshCw, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { Project } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
@@ -38,12 +37,12 @@ type ProjectFormProps = {
 }
 
 export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
-  const { addProject, updateProject, projects, allTransactions, allLoans, allBankAccounts, allClients, user } = useFinancials();
+  const { addProject, updateProject, projects, allTransactions, allLoans, allBankAccounts, allClients, allContacts, user } = useFinancials();
   const { toast } = useToast();
   const [showSyncPopup, setShowSyncPopup] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{success: boolean; message: string} | null>(null);
-  const [newSheetId, setNewSheetId] = useState<string | null>(null);
+  const [currentProject, setCurrentProject] = useState<Project | null>(project);
 
 
   const form = useForm<z.infer<typeof projectSchema>>({
@@ -82,8 +81,9 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         });
     }
 
+    setCurrentProject(updatedProject);
+
     if (values.google_sheet_id) {
-        setNewSheetId(values.google_sheet_id);
         setShowSyncPopup(true);
     } else {
         onFinished();
@@ -91,24 +91,26 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
   }
 
   const handleSync = async () => {
-      if (!project || !project.google_sheet_id) return;
+      if (!currentProject || !currentProject.google_sheet_id) return;
 
       setIsSyncing(true);
       setSyncResult(null);
 
-      const projectTransactions = (allTransactions || []).filter(t => t.project_id === project?.id);
-      const projectLoans = (allLoans || []).filter(l => l.project_id === project?.id);
-      const projectBankAccounts = (allBankAccounts || []).filter(b => b.project_id === project?.id);
-      const projectClients = (allClients || []).filter(c => c.project_id === project?.id);
+      const projectTransactions = (allTransactions || []).filter(t => t.project_id === currentProject?.id);
+      const projectLoans = (allLoans || []).filter(l => l.project_id === currentProject?.id);
+      const projectBankAccounts = (allBankAccounts || []).filter(b => b.project_id === currentProject?.id);
+      const projectClients = (allClients || []).filter(c => c.project_id === currentProject?.id);
+      const projectContacts = (allContacts || []);
 
 
       try {
           const result = await syncToGoogleSheet({
-              sheetId: project.google_sheet_id,
+              sheetId: currentProject.google_sheet_id,
               transactions: projectTransactions,
               loans: projectLoans,
               bankAccounts: projectBankAccounts,
               clients: projectClients,
+              contacts: projectContacts,
               userId: user?.id,
           });
           setSyncResult(result);

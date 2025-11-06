@@ -5,7 +5,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Transaction, Loan, BankAccount, Client, Contact } from '@/lib/types';
 
 const StructuredFinancialDataInputSchema = z.object({
   transactions: z.string().describe("A JSON string of the user's transactions."),
