@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, HandCoins, ListTodo } from 'lucide-react';
 type SummaryCardProps = {
   title: string;
   value: string;
-  icon: 'income' | 'expense' | 'debtor' | 'task';
+  icon: 'income' | 'expense' | 'debtor' | 'creditor' | 'task';
 };
 
 const iconMap = {
@@ -23,6 +23,11 @@ const iconMap = {
     component: HandCoins,
     color: 'text-blue-600 dark:text-blue-400',
     bgColor: 'bg-blue-100 dark:bg-blue-900/50',
+  },
+  creditor: {
+    component: HandCoins,
+    color: 'text-orange-600 dark:text-orange-400',
+    bgColor: 'bg-orange-100 dark:bg-orange-900/50',
   },
   task: {
     component: ListTodo,

@@ -26,6 +26,7 @@ export default function Overview() {
     totalExpenses,
     primaryAccount,
     totalLoansGiven,
+    totalLoansTaken,
   } = useMemo(() => {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
@@ -33,12 +34,14 @@ export default function Overview() {
     let primaryAcc = bankAccounts.find(acc => acc.is_primary) || bankAccounts[0];
 
     const loansGiven = loans.filter(d => d.type === 'loanGiven' && d.status === 'active').reduce((sum, d) => sum + d.amount, 0);
+    const loansTaken = loans.filter(d => d.type === 'loanTaken' && d.status === 'active').reduce((sum, d) => sum + d.amount, 0);
     
     return {
       totalIncome: income,
       totalExpenses: expenses,
       primaryAccount: primaryAcc,
       totalLoansGiven: loansGiven,
+      totalLoansTaken: loansTaken,
     };
   }, [transactions, bankAccounts, loans]);
   
@@ -68,6 +71,7 @@ export default function Overview() {
           <SummaryCard title="Total Income" value={formatCurrency(totalIncome)} icon="income" />
           <SummaryCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon="expense" />
           <SummaryCard title="Loans Given" value={formatCurrency(totalLoansGiven)} icon="debtor" />
+          <SummaryCard title="Loans Taken" value={formatCurrency(totalLoansTaken)} icon="creditor" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
