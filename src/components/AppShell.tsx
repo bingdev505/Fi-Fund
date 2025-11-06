@@ -53,12 +53,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/tasks', icon: ListTodo, label: 'Tasks' },
     { href: '/passwords', icon: KeyRound, label: 'Passwords' },
     { href: '/business', icon: Briefcase, label: 'Business' },
-  ];
-  
-  const financeNavItems = [
-    { href: '/transactions', icon: ArrowRightLeft, label: 'Transactions' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
   ];
+  
 
   const handleLogout = async () => {
     try {
@@ -97,20 +94,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {item.label}
         </Link>
       ))}
-       <div className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname.startsWith('/transactions') || pathname.startsWith('/reports') })}>
-          <div className="flex items-center gap-3">
-            <Wallet className="h-5 w-5" />
-            <span>Finance</span>
-          </div>
-        </div>
-        <div className="ml-7 mt-2 flex flex-col gap-1 border-l pl-4">
-          {financeNavItems.map(item => (
-            <Link key={item.label} href={item.href} className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-primary", { "bg-sidebar-accent text-primary font-medium": pathname === item.href })}>
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-            </Link>
-          ))}
-        </div>
     </nav>
   );
 
