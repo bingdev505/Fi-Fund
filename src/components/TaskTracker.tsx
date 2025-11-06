@@ -191,7 +191,7 @@ const TaskItem = ({ task, onEditClick, onDeleteClick }: { task: Task, onEditClic
             </div>
             <div className="flex items-center gap-2">
                 {getStatusBadge(task.status)}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                <div className="flex items-center">
                     {task.status === 'todo' && (
                         <Button variant="ghost" size="icon" onClick={() => handleStatusChange('in-progress')} title="Start Progress">
                             <PlayCircle className="h-4 w-4" />
