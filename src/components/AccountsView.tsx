@@ -1,28 +1,34 @@
 'use client';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Landmark, Loader2, Star, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, Landmark, Loader2, Star, Pencil, Trash2, Link } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { useState } from 'react';
-import type { BankAccount } from '@/lib/types';
+import { useState, useMemo } from 'react';
+import type { BankAccount, Project } from '@/lib/types';
 import BankAccountForm from './BankAccountForm';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 export default function AccountsView() {
-  const { currency, bankAccounts, setPrimaryBankAccount, isLoading, deleteBankAccount } = useFinancials();
+  const { currency, bankAccounts, setPrimaryBankAccount, isLoading, deleteBankAccount, linkBankAccount, activeProject, allBankAccounts, projects } = useFinancials();
   const { toast } = useToast();
+  const [formOpen, setFormOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [deletingAccount, setDeletingAccount] = useState<BankAccount | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [linkAccountOpen, setLinkAccountOpen] = useState(false);
+  const [selectedLinkAccount, setSelectedLinkAccount] = useState<string | undefined>();
+  
+  const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
+
+  const personalAccounts = useMemo(() => {
+    if (!personalProject) return [];
+    return allBankAccounts.filter(acc => acc.project_id === personalProject.id);
+  }, [allBankAccounts, personalProject]);
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -53,23 +59,47 @@ export default function AccountsView() {
     setFormOpen(true);
   }
 
+  const handleLinkAccount = () => {
+    if (selectedLinkAccount && activeProject) {
+        linkBankAccount(selectedLinkAccount, activeProject.id);
+        toast({ title: 'Account Linked', description: 'The personal account has been linked to this business.' });
+        setLinkAccountOpen(false);
+        setSelectedLinkAccount(undefined);
+    } else {
+        toast({ variant: 'destructive', title: 'Please select an account to link.' });
+    }
+  }
+
+  const isPersonalBusiness = activeProject?.id === personalProject?.id;
+
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
       setFormOpen(open);
       if (!open) setEditingAccount(null);
     }}>
       <AlertDialog>
+        <Dialog open={linkAccountOpen} onOpenChange={setLinkAccountOpen}>
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>Bank Accounts</CardTitle>
-                <CardDescription>Add and manage your bank accounts.</CardDescription>
+                <CardDescription>Add and manage your bank accounts for this business.</CardDescription>
               </div>
-              <Button onClick={handleAddClick}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Account
-              </Button>
+               <div className="flex items-center gap-2">
+                 {!isPersonalBusiness && (
+                     <DialogTrigger asChild>
+                         <Button variant="outline">
+                             <Link className="mr-2 h-4 w-4" />
+                             Link Existing Account
+                         </Button>
+                     </DialogTrigger>
+                 )}
+                <Button onClick={handleAddClick}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Account
+                </Button>
+               </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -118,13 +148,12 @@ export default function AccountsView() {
                 </div>
               ) : (
                 <div className="text-center py-10 border-dashed border-2 rounded-md">
-                  <p className="text-muted-foreground text-sm">You haven't added any bank accounts yet.</p>
+                  <p className="text-muted-foreground text-sm">You haven't added any bank accounts for this business yet.</p>
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
-
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -138,6 +167,31 @@ export default function AccountsView() {
             <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
+         <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Link a Personal Account</DialogTitle>
+                <CardDescription>Select one of your personal accounts to link to this business.</CardDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <Select value={selectedLinkAccount} onValueChange={setSelectedLinkAccount}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a personal account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {personalAccounts.map(acc => (
+                            <SelectItem key={acc.id} value={acc.id}>
+                                {acc.name} ({formatCurrency(acc.balance)})
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Button onClick={handleLinkAccount} className="w-full">
+                    <Link className="mr-2 h-4 w-4" />
+                    Link Account
+                </Button>
+            </div>
+        </DialogContent>
+        </Dialog>
       </AlertDialog>
       <DialogContent>
         <DialogHeader>

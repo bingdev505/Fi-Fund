@@ -36,6 +36,7 @@ export type Debt = {
 export type BankAccount = {
   id: string;
   user_id: string;
+  project_id?: string;
   name: string;
   balance: number;
   is_primary: boolean;

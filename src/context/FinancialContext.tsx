@@ -32,10 +32,12 @@ interface FinancialContextType {
   getDebtById: (id: string) => Debt | undefined;
 
   bankAccounts: BankAccount[];
-  addBankAccount: (account: Omit<BankAccount, 'id' | 'user_id'>) => Promise<void>;
+  allBankAccounts: BankAccount[];
+  addBankAccount: (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string) => Promise<void>;
   updateBankAccount: (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'user_id'>>) => Promise<void>;
   deleteBankAccount: (accountId: string) => Promise<void>;
   setPrimaryBankAccount: (accountId: string) => Promise<void>;
+  linkBankAccount: (accountId: string, projectId: string) => Promise<void>;
   
   clients: Client[];
   addClient: (clientData: Omit<Client, 'id' | 'user_id' | 'project_id'>, project_id?: string) => Promise<Client>;
@@ -151,7 +153,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllCredentials(credentialsRes.data || []);
 
       if (!bankAccountsRes.data || bankAccountsRes.data.length === 0) {
-        const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true }).select().single();
+        const personalProject = projects.find(p => p.name === PERSONAL_PROJECT_NAME);
+        const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true, project_id: personalProject?.id }).select().single();
         if (newAccount) setAllBankAccounts([newAccount]);
       }
       
@@ -405,15 +408,23 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     await addTransaction({ type: 'repayment', amount, category: 'Debt Repayment', description: `Payment for debt: ${debt.name}`, debt_id: debt.id, account_id: account_id, project_id: debt.project_id });
   };
 
-  const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id'>) => {
+  const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string) => {
     if (!user) return;
-    const { data: newAccount, error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, is_primary: allBankAccounts.length === 0 }).select().single();
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    const finalProjectId = project_id || personalProject?.id;
+    const { data: newAccount, error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, project_id: finalProjectId, is_primary: allBankAccounts.length === 0 }).select().single();
     if (error) throw error;
     setAllBankAccounts(prev => [...prev, newAccount]);
   };
 
   const updateBankAccount = async (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'user_id'>>) => {
     const { data: updatedAccount, error } = await supabase.from('bank_accounts').update(accountData).eq('id', accountId).select().single();
+    if (error) throw error;
+    setAllBankAccounts(prev => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
+  };
+  
+  const linkBankAccount = async (accountId: string, projectId: string) => {
+    const { data: updatedAccount, error } = await supabase.from('bank_accounts').update({ project_id: projectId }).eq('id', accountId).select().single();
     if (error) throw error;
     setAllBankAccounts(prev => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
   };
@@ -549,12 +560,20 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       : allCredentials.filter(c => c.project_id === personalProject?.id || !c.project_id);
   }, [allCredentials, activeProject, allProjects]);
 
+  const filteredBankAccounts = useMemo(() => {
+      const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+      if (activeProject && activeProject.id !== 'all') {
+          return allBankAccounts.filter(acc => acc.project_id === activeProject.id);
+      }
+      return allBankAccounts.filter(acc => acc.project_id === personalProject?.id || !acc.project_id);
+  }, [allBankAccounts, activeProject, allProjects]);
+
 
   const contextValue: FinancialContextType = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
     transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById,
     debts: filteredDebts, allDebts, addDebt, updateDebt, deleteDebt, addRepayment, getDebtById,
-    bankAccounts: allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
+    bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, addClient, updateClient, deleteClient,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
@@ -565,7 +584,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject,
       filteredTransactions, allTransactions, getTransactionById,
       filteredDebts, allDebts, getDebtById,
-      allBankAccounts,
+      filteredBankAccounts, allBankAccounts,
       filteredClients,
       filteredCategories,
       filteredTasks,
@@ -575,7 +594,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       updateAccountBalance,
       addTransaction, updateTransaction, deleteTransaction,
       addDebt, updateDebt, deleteDebt, addRepayment,
-      addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount,
+      addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
       addClient, updateClient, deleteClient,
       addCategory, updateCategory, deleteCategory,
       addTask, updateTask, deleteTask,

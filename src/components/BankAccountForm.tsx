@@ -29,7 +29,7 @@ type BankAccountFormProps = {
 };
 
 export default function BankAccountForm({ account, onFinished }: BankAccountFormProps) {
-  const { addBankAccount, updateBankAccount, currency } = useFinancials();
+  const { addBankAccount, updateBankAccount, currency, activeProject } = useFinancials();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof bankAccountSchema>>({
@@ -55,7 +55,7 @@ export default function BankAccountForm({ account, onFinished }: BankAccountForm
         description: `${values.name} has been updated.`,
       });
     } else {
-      addBankAccount(values);
+      addBankAccount(values, activeProject?.id);
       toast({
         title: 'Bank Account Added',
         description: `${values.name} with a balance of ${formatCurrency(values.balance)} has been added.`,
