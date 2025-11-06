@@ -79,9 +79,9 @@ function parseSheetData(
     sheetData: any[][],
     userTransactions: Transaction[],
     userLoans: Loan[],
-): { newTransactions: Omit<Transaction, 'id' | 'user_id'>[], newLoans: Omit<Loan, 'id' | 'user_id'>[] } {
+): { newTransactions: Omit<Transaction, 'id' | 'user_id'>[], newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[] } {
     const newTransactions: Omit<Transaction, 'id' | 'user_id'>[] = [];
-    const newLoans: Omit<Loan, 'id' | 'user_id'>[] = [];
+    const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[] = [];
 
     const existingIds = new Set([...userTransactions.map(t => t.id), ...userLoans.map(l => l.id)]);
     
@@ -99,6 +99,8 @@ function parseSheetData(
         const categoryOrContact = row[4] || '';
         const amount = parseFloat(row[5] || '0');
 
+        if (!type || isNaN(amount)) continue; // Skip empty or invalid rows
+
         if (type.includes('income') || type.includes('expense')) {
             newTransactions.push({
                 date,
@@ -106,6 +108,8 @@ function parseSheetData(
                 amount: Math.abs(amount),
                 category: categoryOrContact,
                 description: 'From Google Sheet',
+                // These need to be resolved or defaulted in the calling function
+                account_id: '', 
             });
         } else if (type.includes('loan')) {
              newLoans.push({
@@ -114,9 +118,9 @@ function parseSheetData(
                 amount: Math.abs(amount),
                 status: 'active',
                 description: 'From Google Sheet',
-                created_at: date,
+                date: date, // Using date from sheet as created_at
                 account_id: '' // This needs to be resolved or defaulted
-            });
+            } as Omit<Loan, 'id' | 'user_id' | 'created_at'>);
         }
     }
 
@@ -216,6 +220,7 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
         let transactions = input.transactions;
         let loans = input.loans;
         const allContacts: (Client | Contact)[] = [...(input.clients || []), ...(input.contacts || [])];
+        const primaryAccount = input.bankAccounts.find(b => b.is_primary) || input.bankAccounts[0];
 
 
         // Two-way sync: Read from sheet first
@@ -225,11 +230,11 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
                 const { newTransactions, newLoans } = parseSheetData(sheetData, transactions, loans);
 
                 for (const entry of newTransactions) {
-                     const { data, error } = await supabase.from('transactions').insert({...entry, user_id: input.userId!}).select().single();
+                     const { data, error } = await supabase.from('transactions').insert({...entry, account_id: primaryAccount.id, user_id: input.userId!}).select().single();
                      if (!error && data) transactions.push(data);
                 }
                  for (const entry of newLoans) {
-                     const { data, error } = await supabase.from('loans').insert({...entry, user_id: input.userId!}).select().single();
+                     const { data, error } = await supabase.from('loans').insert({...entry, account_id: primaryAccount.id, created_at: entry.date, user_id: input.userId!}).select().single();
                      if (!error && data) loans.push(data);
                 }
             }
