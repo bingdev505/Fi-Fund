@@ -170,7 +170,7 @@ export default function Business() {
                           <div className="font-semibold text-right">
                               {formatCurrency(projectBalances.get(project.id) || 0)}
                           </div>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-background rounded-full border ml-2">
+                          <div className="flex items-center bg-background rounded-full border ml-2">
                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/clients')}>
                               <Users className="h-4 w-4" />
                             </Button>
