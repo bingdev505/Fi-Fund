@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark, Handshake, Contact, ArrowRightLeft, Sheet } from 'lucide-react';
+import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark, Handshake, Contact, ArrowRightLeft, Link } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
 import { useState, useMemo } from 'react';
@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { Separator } from './ui/separator';
+import GoogleSheetConnect from './GoogleSheetConnect';
 
 export default function Business() {
   const { isLoading, projects, deleteProject, currency, allTransactions, allLoans, setActiveProject } = useFinancials();
@@ -20,6 +21,7 @@ export default function Business() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [connectSheetProject, setConnectSheetProject] = useState<Project | null>(null);
 
   const handleAddClick = () => {
     setEditingProject(null);
@@ -119,6 +121,7 @@ export default function Business() {
       if (!open) setEditingProject(null);
     }}>
       <AlertDialog>
+        <Dialog open={!!connectSheetProject} onOpenChange={(open) => { if (!open) setConnectSheetProject(null)}}>
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -173,8 +176,8 @@ export default function Business() {
                              <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/loans')}>
                               <Handshake className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
-                              <Sheet className="h-4 w-4" />
+                             <Button variant="ghost" size="icon" onClick={() => setConnectSheetProject(project)} title="Connect Google Sheet">
+                                <Link className="h-4 w-4" />
                             </Button>
                             <Separator orientation="vertical" className="h-6 mx-1" />
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
@@ -212,6 +215,18 @@ export default function Business() {
             <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
+        {connectSheetProject && (
+          <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Connect Google Sheet to '{connectSheetProject.name}'</DialogTitle>
+                <DialogDescription>
+                    Connect a Google Sheet to automatically sync your financial data.
+                </DialogDescription>
+            </DialogHeader>
+            <GoogleSheetConnect project={connectSheetProject} onFinished={() => setConnectSheetProject(null)} />
+          </DialogContent>
+        )}
+        </Dialog>
       </AlertDialog>
       
       <DialogContent>
