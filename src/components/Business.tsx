@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { Separator } from './ui/separator';
 
 export default function Business() {
-  const { isLoading, projects, deleteProject, currency, allTransactions, allDebts, setActiveProject } = useFinancials();
+  const { isLoading, projects, deleteProject, currency, allTransactions, allDebts, allLoans, setActiveProject } = useFinancials();
   const { toast } = useToast();
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -48,7 +48,7 @@ export default function Business() {
   };
 
   const { projectTree, projectBalances } = useMemo(() => {
-    if (!projects || !allTransactions || !allDebts) {
+    if (!projects || !allTransactions || !allDebts || !allLoans) {
         return { projectTree: [], projectBalances: new Map() };
     }
 
@@ -67,32 +67,17 @@ export default function Business() {
       }
     });
 
-    allDebts.forEach(d => {
-        if (d.project_id && balances.has(d.project_id)) {
-            let currentBalance = balances.get(d.project_id) || 0;
-            if (d.type === 'creditor') { // Money came in
-                currentBalance += d.amount;
-            } else if (d.type === 'debtor') { // Money went out
-                currentBalance -= d.amount;
-            }
-            balances.set(d.project_id, currentBalance);
+    allLoans.forEach(l => {
+      if (l.project_id && balances.has(l.project_id)) {
+        let currentBalance = balances.get(l.project_id) || 0;
+        if (l.type === 'loanTaken') { // Money came in
+          currentBalance += l.amount;
+        } else if (l.type === 'loanGiven') { // Money went out
+          currentBalance -= l.amount;
         }
+        balances.set(l.project_id, currentBalance);
+      }
     });
-    
-    // Adjust for repayments
-    allTransactions.filter(t => t.type === 'repayment' && t.debt_id).forEach(repayment => {
-        const relatedDebt = allDebts.find(d => d.id === repayment.debt_id);
-        if (relatedDebt && relatedDebt.project_id && balances.has(relatedDebt.project_id)) {
-            let currentBalance = balances.get(relatedDebt.project_id) || 0;
-            if (relatedDebt.type === 'creditor') { // We are paying back, so money goes out
-                currentBalance -= repayment.amount;
-            } else if (relatedDebt.type === 'debtor') { // We are getting paid back, so money comes in
-                currentBalance += repayment.amount;
-            }
-            balances.set(relatedDebt.project_id, currentBalance);
-        }
-    });
-
 
     const tree: (Project & { children: Project[], level: number })[] = [];
     const projectMap = new Map(projects.map(p => [p.id, { ...p, children: [], level: 0 }]));
@@ -126,7 +111,7 @@ export default function Business() {
     
     return { projectTree: flattenedTree, projectBalances: balances };
 
-  }, [projects, allTransactions, allDebts, currency]);
+  }, [projects, allTransactions, allDebts, allLoans, currency]);
 
 
   return (

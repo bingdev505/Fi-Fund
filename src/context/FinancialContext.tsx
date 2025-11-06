@@ -32,6 +32,7 @@ interface FinancialContextType {
   getDebtById: (id: string) => Debt | undefined;
 
   loans: Loan[];
+  allLoans: Loan[];
   addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string) => Promise<void>;
@@ -251,11 +252,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const deleteProject = async (projectId: string) => {
     if (!user) throw new Error("User not authenticated");
     
-    if (projectId === allProjects.find(p => p.name === 'Personal')?.id) {
-        toast({ variant: 'destructive', title: "Cannot delete personal project" });
-        return;
-    }
-
     // This is a simplified cascade delete. For production, you might want to use database-level cascade deletes.
     const tablesToDeleteFrom = ['transactions', 'debts', 'clients', 'categories', 'tasks', 'credentials', 'bank_accounts', 'loans'];
     for (const table of tablesToDeleteFrom) {
@@ -689,7 +685,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
-    loans: filteredLoans, addLoan, updateLoan, deleteLoan,
+    loans: filteredLoans, allLoans, addLoan, updateLoan, deleteLoan,
     currency, setCurrency,
     isLoading: isLoading || isUserLoading,
   }), [
@@ -701,7 +697,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       filteredCategories,
       filteredTasks,
       filteredCredentials,
-      filteredLoans,
+      filteredLoans, allLoans,
       currency, setCurrency,
       isLoading, isUserLoading,
       updateAccountBalance,
