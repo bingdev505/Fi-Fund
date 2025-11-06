@@ -23,6 +23,7 @@ import { CalendarIcon } from 'lucide-react';
 import { Combobox } from './ui/combobox';
 import type { Loan } from '@/lib/types';
 import RepaymentForm from './RepaymentForm';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 
 const loanSchema = z.object({
@@ -305,15 +306,26 @@ export default function LoansView() {
     return contacts.find(c => c.id === contactId)?.name || 'Unknown Contact';
   }
 
-  const { loansGiven, loansTaken, loanRepayments } = useMemo(() => {
+  const {
+    activeLoansGiven,
+    paidLoansGiven,
+    activeLoansTaken,
+    paidLoansTaken,
+    loanRepayments,
+  } = useMemo(() => {
     const repayments = new Map<string, number>();
     transactions.filter(t => t.type === 'repayment' && t.loan_id).forEach(t => {
-        repayments.set(t.loan_id!, (repayments.get(t.loan_id!) || 0) + t.amount);
+      repayments.set(t.loan_id!, (repayments.get(t.loan_id!) || 0) + t.amount);
     });
-
+  
+    const allGiven = loans.filter(l => l.type === 'loanGiven');
+    const allTaken = loans.filter(l => l.type === 'loanTaken');
+  
     return {
-      loansGiven: loans.filter(l => l.type === 'loanGiven'),
-      loansTaken: loans.filter(l => l.type === 'loanTaken'),
+      activeLoansGiven: allGiven.filter(l => l.status === 'active'),
+      paidLoansGiven: allGiven.filter(l => l.status === 'paid'),
+      activeLoansTaken: allTaken.filter(l => l.status === 'active'),
+      paidLoansTaken: allTaken.filter(l => l.status === 'paid'),
       loanRepayments: repayments
     }
   }, [loans, transactions]);
@@ -351,10 +363,10 @@ export default function LoansView() {
                 <>
                 <div>
                   <h3 className="text-lg font-medium mb-2">Loans Given (You are the Lender)</h3>
-                  {loansGiven.length > 0 ? (
+                  {activeLoansGiven.length > 0 ? (
                     <div className="border rounded-md">
                       <ul className="divide-y divide-border">
-                        {loansGiven.map(loan => (
+                        {activeLoansGiven.map(loan => (
                           <LoanItem
                             key={loan.id}
                             loan={loan}
@@ -368,14 +380,30 @@ export default function LoansView() {
                         ))}
                       </ul>
                     </div>
-                  ) : <p className="text-sm text-muted-foreground text-center py-4">No loans given.</p>}
+                  ) : <p className="text-sm text-muted-foreground text-center py-4">No active loans given.</p>}
+                  {paidLoansGiven.length > 0 && (
+                      <Accordion type="single" collapsible className="w-full mt-4">
+                          <AccordionItem value="paid-given">
+                              <AccordionTrigger>Paid Loans Given ({paidLoansGiven.length})</AccordionTrigger>
+                              <AccordionContent>
+                                <div className="border rounded-md">
+                                    <ul className="divide-y divide-border">
+                                        {paidLoansGiven.map(loan => (
+                                            <LoanItem key={loan.id} loan={loan} contactName={getContactName(loan.contact_id)} formatCurrency={formatCurrency} repaidAmount={loanRepayments.get(loan.id) || 0} onEditClick={handleEditClick} onDeleteClick={setDeletingLoan} onRepayClick={setRepayingLoan} />
+                                        ))}
+                                    </ul>
+                                </div>
+                              </AccordionContent>
+                          </AccordionItem>
+                      </Accordion>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-lg font-medium mb-2">Loans Taken (You are the Borrower)</h3>
-                  {loansTaken.length > 0 ? (
+                  {activeLoansTaken.length > 0 ? (
                      <div className="border rounded-md">
                       <ul className="divide-y divide-border">
-                        {loansTaken.map(loan => (
+                        {activeLoansTaken.map(loan => (
                            <LoanItem
                             key={loan.id}
                             loan={loan}
@@ -389,7 +417,23 @@ export default function LoansView() {
                         ))}
                       </ul>
                     </div>
-                  ) : <p className="text-sm text-muted-foreground text-center py-4">No loans taken.</p>}
+                  ) : <p className="text-sm text-muted-foreground text-center py-4">No active loans taken.</p>}
+                   {paidLoansTaken.length > 0 && (
+                      <Accordion type="single" collapsible className="w-full mt-4">
+                          <AccordionItem value="paid-taken">
+                              <AccordionTrigger>Paid Loans Taken ({paidLoansTaken.length})</AccordionTrigger>
+                              <AccordionContent>
+                                <div className="border rounded-md">
+                                    <ul className="divide-y divide-border">
+                                        {paidLoansTaken.map(loan => (
+                                            <LoanItem key={loan.id} loan={loan} contactName={getContactName(loan.contact_id)} formatCurrency={formatCurrency} repaidAmount={loanRepayments.get(loan.id) || 0} onEditClick={handleEditClick} onDeleteClick={setDeletingLoan} onRepayClick={setRepayingLoan} />
+                                        ))}
+                                    </ul>
+                                </div>
+                              </AccordionContent>
+                          </AccordionItem>
+                      </Accordion>
+                  )}
                 </div>
                 </>
               )}
@@ -466,10 +510,12 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
                  {loan.status === 'active' && (
                     <Button variant="outline" size="sm" onClick={() => onRepayClick(loan)}>Repay</Button>
                 )}
-                <Button variant="ghost" size="icon" onClick={() => onEditClick(loan)}><Pencil className="h-4 w-4" /></Button>
-                <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={() => onDeleteClick(loan)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </AlertDialogTrigger>
+                <div className='flex items-center'>
+                    <Button variant="ghost" size="icon" onClick={() => onEditClick(loan)}><Pencil className="h-4 w-4" /></Button>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => onDeleteClick(loan)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </AlertDialogTrigger>
+                </div>
             </div>
         </div>
     </li>
