@@ -168,6 +168,9 @@ export default function Business() {
                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/transactions')}>
                               <ArrowRightLeft className="h-4 w-4" />
                             </Button>
+                             <Button variant="ghost" size="icon" onClick={() => router.push('/contacts')}>
+                              <Contact className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/clients')}>
                               <Users className="h-4 w-4" />
                             </Button>
