@@ -4,18 +4,25 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Loader2, Tag, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Category } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import CategoryForm from './CategoryForm';
+import { DateRangePicker } from './ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { subDays } from 'date-fns';
 
 export default function CategoriesView() {
-  const { isLoading, categories, deleteCategory } = useFinancials();
+  const { isLoading, categories, deleteCategory, currency, allTransactions } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+  });
   
   const handleAddClick = () => {
     setEditingCategory(null);
@@ -33,6 +40,34 @@ export default function CategoriesView() {
     toast({ title: "Category Deleted" });
     setDeletingCategory(null);
   };
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  };
+
+  const categoryFinancials = useMemo(() => {
+    const financials = new Map<string, number>();
+    categories.forEach(c => financials.set(c.id, 0));
+
+    allTransactions.forEach(t => {
+      const transactionDate = new Date(t.date);
+       if (
+        t.category && 
+        dateRange?.from && 
+        dateRange?.to && 
+        transactionDate >= dateRange.from && 
+        transactionDate <= dateRange.to
+      ) {
+        const cat = categories.find(c => c.name === t.category && c.type === t.type);
+        if (cat) {
+          const currentTotal = financials.get(cat.id) || 0;
+          financials.set(cat.id, currentTotal + t.amount);
+        }
+      }
+    });
+
+    return financials;
+  }, [categories, allTransactions, dateRange, currency]);
 
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
@@ -42,14 +77,17 @@ export default function CategoriesView() {
       <AlertDialog>
         <Card>
           <CardHeader>
-             <div className="flex justify-between items-center">
+             <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
               <div>
                 <CardTitle>Manage Categories</CardTitle>
                 <CardDescription>Add or manage your custom categories for the active business.</CardDescription>
               </div>
-              <Button onClick={handleAddClick}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Category
-              </Button>
+              <div className='flex items-center gap-2 w-full md:w-auto'>
+                <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full md:w-auto" />
+                <Button onClick={handleAddClick} className="w-full md:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Category
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -70,9 +108,9 @@ export default function CategoriesView() {
                             <span className="font-medium">{cat.name}</span>
                           </div>
                         </div>
-                        <div className='flex items-center gap-2'>
-                          <div className={`text-sm font-medium px-2 py-1 rounded-md ${cat.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {cat.type.charAt(0).toUpperCase() + cat.type.slice(1)}
+                        <div className='flex items-center gap-4'>
+                          <div className={`text-sm font-semibold px-2 py-1 rounded-md ${cat.type === 'income' ? 'text-green-800' : 'text-red-800'}`}>
+                            {formatCurrency(categoryFinancials.get(cat.id) || 0)}
                           </div>
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(cat)}>

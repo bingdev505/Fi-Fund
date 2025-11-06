@@ -4,18 +4,25 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Loader2, User, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Client } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import ClientForm from './ClientForm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { DateRangePicker } from './ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { subDays } from 'date-fns';
 
 export default function ClientsView() {
-  const { isLoading, clients, deleteClient } = useFinancials();
+  const { isLoading, clients, deleteClient, allTransactions, currency } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+  });
 
   const handleAddClick = () => {
     setEditingClient(null);
@@ -34,6 +41,30 @@ export default function ClientsView() {
     setDeletingClient(null);
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  };
+  
+  const clientFinancials = useMemo(() => {
+    const financials = new Map<string, { income: number; expense: number }>();
+    clients.forEach(c => financials.set(c.id, { income: 0, expense: 0 }));
+
+    allTransactions.forEach(t => {
+      const transactionDate = new Date(t.date);
+      if (t.client_id && financials.has(t.client_id) && dateRange?.from && dateRange?.to && transactionDate >= dateRange.from && transactionDate <= dateRange.to) {
+        const current = financials.get(t.client_id)!;
+        if (t.type === 'income') {
+          current.income += t.amount;
+        } else if (t.type === 'expense') {
+          current.expense += t.amount;
+        }
+        financials.set(t.client_id, current);
+      }
+    });
+
+    return financials;
+  }, [clients, allTransactions, dateRange, currency]);
+
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
       setFormOpen(open);
@@ -42,14 +73,17 @@ export default function ClientsView() {
       <AlertDialog>
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
               <div>
                 <CardTitle>Manage Clients</CardTitle>
                 <CardDescription>Add or manage your clients for the active business.</CardDescription>
               </div>
-              <Button onClick={handleAddClick}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Client
-              </Button>
+              <div className='flex items-center gap-2 w-full md:w-auto'>
+                <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full md:w-auto" />
+                <Button onClick={handleAddClick} className="w-full md:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Client
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -70,15 +104,21 @@ export default function ClientsView() {
                             <span className="font-medium">{client.name}</span>
                           </div>
                         </div>
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(client)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                        <div className='flex items-center gap-4'>
+                          <div className='text-right'>
+                            <p className='text-sm font-semibold text-green-600'>{formatCurrency(clientFinancials.get(client.id)?.income || 0)}</p>
+                            <p className='text-xs text-red-600'>{formatCurrency(clientFinancials.get(client.id)?.expense || 0)}</p>
+                          </div>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(client)}>
+                              <Pencil className="h-4 w-4" />
                             </Button>
-                          </AlertDialogTrigger>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </div>
                         </div>
                       </li>
                     ))}
