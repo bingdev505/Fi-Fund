@@ -3,21 +3,19 @@
 import { google } from 'googleapis';
 import type { SyncToGoogleSheetInput, SyncToGoogleSheetOutput } from '@/lib/types';
 
-// In a real production app, these would come from secure environment variables.
-// For this environment, we embed them here. The build system will replace the key placeholder.
 const SERVICE_ACCOUNT_EMAIL = "finance-flow-service-account@studio-9503278955-c489b.iam.gserviceaccount.com";
-const SERVICE_ACCOUNT_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
 async function getGoogleSheetsClient() {
-    if (!SERVICE_ACCOUNT_EMAIL || !SERVICE_ACCOUNT_PRIVATE_KEY) {
-        // This check remains as a safeguard, but should now pass.
-        throw new Error("Google service account credentials are not available.");
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+    if (!privateKey) {
+        throw new Error("Google service account credentials are not set in environment variables.");
     }
 
     const auth = new google.auth.GoogleAuth({
         credentials: {
             client_email: SERVICE_ACCOUNT_EMAIL,
-            private_key: SERVICE_ACCOUNT_PRIVATE_KEY,
+            private_key: privateKey,
         },
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
@@ -29,7 +27,7 @@ async function getGoogleSheetsClient() {
 export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Promise<SyncToGoogleSheetOutput> {
     try {
         const sheets = await getGoogleSheetsClient();
-        const sheetName = 'Transactions';
+        const sheetName = 'Transactions'; // Default sheet name
         const range = `${sheetName}!A1`;
         
         const headers = [
@@ -54,14 +52,15 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
                 range: sheetName, 
             });
         } catch (error: any) {
+            // This error can happen if the sheet doesn't exist yet, which is fine.
+            // We'll proceed to try and write to it, which will create it if needed.
             if (!error.message.includes('Unable to parse range')) {
-                 console.error('[Google Sheets] Error clearing sheet:', error.message);
-                 // We don't re-throw here because the sheet might just be empty, which is a valid state.
+                 console.error('[Google Sheets] Could not clear sheet, may not exist yet:', error.message);
             }
         }
         
         // 2. Write the new data (headers + rows)
-        const result = await sheets.spreadsheets.values.update({
+        await sheets.spreadsheets.values.update({
             spreadsheetId: input.sheetId,
             range: range,
             valueInputOption: 'USER_ENTERED',
