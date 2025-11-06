@@ -76,7 +76,7 @@ type EditEntryFormProps = {
 }
 
 export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps) {
-  const { updateTransaction, updateLoan, currency, bankAccounts, categories: customCategories, clients, projects } = useFinancials();
+  const { updateTransaction, updateLoan, currency, bankAccounts, categories: customCategories, contacts, projects } = useFinancials();
   const { toast } = useToast();
   
   const isTransaction = 'category' in entry;
@@ -254,9 +254,9 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                {clients.map((cli) => (
-                                <SelectItem key={cli.id} value={cli.id}>
-                                    {cli.name}
+                                {contacts.map((contact) => (
+                                <SelectItem key={contact.id} value={contact.id}>
+                                    {contact.name}
                                 </SelectItem>
                                 ))}
                             </SelectContent>

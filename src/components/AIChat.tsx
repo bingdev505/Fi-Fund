@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import type { ChatMessage, Loan, Transaction } from '@/lib/types';
+import type { ChatMessage, Loan, Transaction, Contact } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -97,7 +97,8 @@ export default function AIChat() {
     transactions, 
     loans, 
     bankAccounts,
-    clients,
+    contacts,
+    addContact,
     getTransactionById,
     getLoanById,
     deleteTransaction,
@@ -187,7 +188,7 @@ export default function AIChat() {
         } else {
             const loan = updatedEntry as Loan;
             const accountName = bankAccounts.find(ba => ba.id === loan.account_id)?.name || 'an account';
-            newContent = `${loan.type.charAt(0).toUpperCase() + loan.type.slice(1)} of ${formatCurrency(loan.amount)} for ${clients.find(c => c.id === loan.contact_id)?.name} logged against ${accountName}.`
+            newContent = `${loan.type.charAt(0).toUpperCase() + loan.type.slice(1)} of ${formatCurrency(loan.amount)} for ${contacts.find(c => c.id === loan.contact_id)?.name} logged against ${accountName}.`
         }
 
         updateMessage({ ...messageToUpdate, content: newContent });
@@ -293,10 +294,15 @@ export default function AIChat() {
                     description: toastDescription,
                 });
             } else { // loanGiven or loanTaken
+                let contact: Contact | undefined = contacts.find(c => c.name.toLowerCase() === logResult.contact_id.toLowerCase());
+                if (!contact) {
+                    contact = await addContact({ name: logResult.contact_id });
+                }
+
                 const newLoan = {
                     type: logResult.transaction_type,
                     amount: logResult.amount,
-                    contact_id: logResult.category, // Name is in category field for loans from AI
+                    contact_id: contact.id, 
                     description: logResult.description || 'AI Logged Loan',
                     account_id: accountIdToUse,
                     status: 'active'
@@ -304,7 +310,7 @@ export default function AIChat() {
                 await addLoan(newLoan);
                 // We don't get the ID back from addLoan easily, so can't set newEntryId here.
                 
-                const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} for ${logResult.category} logged against ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} for ${contact.name} logged against ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
                 toast({
                     title: 'Logged via AI Chat',
