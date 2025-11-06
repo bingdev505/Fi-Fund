@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -95,10 +96,10 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
       setIsSyncing(true);
       setSyncResult(null);
 
-      const projectTransactions = allTransactions.filter(t => t.project_id === project?.id);
-      const projectLoans = allLoans.filter(l => l.project_id === project?.id);
-      const projectBankAccounts = allBankAccounts.filter(b => b.project_id === project?.id);
-      const projectClients = allClients.filter(c => c.project_id === project?.id);
+      const projectTransactions = (allTransactions || []).filter(t => t.project_id === project?.id);
+      const projectLoans = (allLoans || []).filter(l => l.project_id === project?.id);
+      const projectBankAccounts = (allBankAccounts || []).filter(b => b.project_id === project?.id);
+      const projectClients = (allClients || []).filter(c => c.project_id === project?.id);
 
 
       try {
