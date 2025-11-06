@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFinancials } from '@/hooks/useFinancials';
@@ -167,22 +168,29 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
     const dueDate = (entry as Loan).due_date ? parseISO((entry as Loan).due_date) : undefined;
 
     return (
-        <div className="flex items-start justify-between py-3 group">
-            <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between py-3 group gap-2">
+            <div className="flex items-center gap-4 flex-1">
                 {renderIcon(entry)}
-                <div>
-                    <p className="text-sm font-medium leading-none">
-                        {title}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        {subtext} • {entryDate instanceof Date ? entryDate.toLocaleDateString() : String(entryDate)}
-                    </p>
+                <div className="flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-medium leading-none">
+                            {title}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            {subtext} • {entryDate instanceof Date ? entryDate.toLocaleDateString() : String(entryDate)}
+                        </p>
+                      </div>
+                      <div className={`sm:hidden font-semibold text-left mt-1 ${color}`}>
+                          {formatCurrency(entry.amount)}
+                      </div>
+                    </div>
                     {!isTransaction && dueDate && (
-                        <p className="text-xs text-muted-foreground">Due: {dueDate instanceof Date ? dueDate.toLocaleDateString() : String(dueDate)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Due: {dueDate instanceof Date ? dueDate.toLocaleDateString() : String(dueDate)}</p>
                     )}
                 </div>
             </div>
-            <div className='flex items-center gap-1'>
+            <div className='flex items-center gap-1 self-end sm:self-center'>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
                     <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setEditingEntry(entry)}>
@@ -195,7 +203,7 @@ export default function EntryList({ limit, showHeader = true }: EntryListProps) 
                         </Button>
                     </AlertDialogTrigger>
                 </div>
-                <div className={`font-semibold text-right shrink-0 w-[90px] ${color}`}>
+                <div className={`hidden sm:block font-semibold text-right shrink-0 w-[110px] ${color}`}>
                     {formatCurrency(entry.amount)}
                 </div>
             </div>
