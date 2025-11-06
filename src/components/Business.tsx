@@ -15,7 +15,7 @@ import { Separator } from './ui/separator';
 import GoogleSheetConnect from './GoogleSheetConnect';
 
 export default function Business() {
-  const { isLoading, projects, deleteProject, currency, allTransactions, allLoans, setActiveProject } = useFinancials();
+  const { isLoading, projects, deleteProject, currency, allTransactions, allLoans, setActiveProject, user } = useFinancials();
   const { toast } = useToast();
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -64,6 +64,13 @@ export default function Business() {
           currentBalance += t.amount;
         } else if (t.type === 'expense') {
           currentBalance -= t.amount;
+        } else if (t.type === 'repayment') {
+            const relatedLoan = allLoans.find(l => l.id === t.loan_id);
+            if (relatedLoan?.type === 'loanGiven') {
+                currentBalance += t.amount; // Money coming back in
+            } else if (relatedLoan?.type === 'loanTaken') {
+                currentBalance -= t.amount; // Money going out
+            }
         }
         balances.set(t.project_id, currentBalance);
       }
@@ -161,9 +168,6 @@ export default function Business() {
                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/transactions')}>
                               <ArrowRightLeft className="h-4 w-4" />
                             </Button>
-                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/contacts')}>
-                              <Contact className="h-4 w-4" />
-                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/clients')}>
                               <Users className="h-4 w-4" />
                             </Button>
@@ -207,7 +211,7 @@ export default function Business() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this business and all associated clients, categories, transactions, debts, bank accounts, tasks and credentials.
+              This action cannot be undone. This will permanently delete this business and all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
