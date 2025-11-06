@@ -94,19 +94,19 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField control={form.control} name="type" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Loan Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                <SelectContent>
-                  <SelectItem value="loanGiven">Loan Given</SelectItem>
-                  <SelectItem value="loanTaken">Loan Taken</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
+            <FormField control={form.control} name="type" render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Loan Type</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="loanGiven">Loan Given</SelectItem>
+                    <SelectItem value="loanTaken">Loan Taken</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
           <FormField
             control={form.control}
             name="contact_id"
