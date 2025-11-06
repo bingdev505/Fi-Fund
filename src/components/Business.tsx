@@ -164,7 +164,7 @@ export default function Business() {
                           <div className="font-semibold text-left md:text-right">
                               {formatCurrency(projectBalances.get(project.id) || 0)}
                           </div>
-                          <div className="flex flex-wrap items-center bg-background rounded-full border md:ml-2">
+                          <div className="grid grid-cols-5 md:flex md:flex-wrap items-center bg-background rounded-md border p-1 md:p-0 md:border-0 md:bg-transparent md:ml-2">
                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/transactions')}>
                               <ArrowRightLeft className="h-4 w-4" />
                             </Button>
@@ -186,7 +186,9 @@ export default function Business() {
                              <Button variant="ghost" size="icon" onClick={() => setConnectSheetProject(project)} title="Connect Google Sheet">
                                 <Link className="h-4 w-4" />
                             </Button>
-                            <Separator orientation="vertical" className="h-6 mx-1" />
+                            <div className='hidden md:block'>
+                                <Separator orientation="vertical" className="h-6 mx-1" />
+                            </div>
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
