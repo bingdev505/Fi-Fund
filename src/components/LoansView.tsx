@@ -93,68 +93,72 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="type" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Loan Type</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-              <SelectContent>
-                <SelectItem value="loanGiven">I Loaned Money (Loan Given)</SelectItem>
-                <SelectItem value="loanTaken">I Borrowed Money (Loan Taken)</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormField
-          control={form.control}
-          name="contact_id"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Contact</FormLabel>
-              <Combobox
-                options={contactOptions}
-                value={field.value}
-                onChange={field.onChange}
-                placeholder="Select or create contact..."
-                searchPlaceholder="Search contacts..."
-                noResultsText="No contacts found."
-              />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField control={form.control} name="type" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Loan Type</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="loanGiven">I Loaned Money (Loan Given)</SelectItem>
+                  <SelectItem value="loanTaken">I Borrowed Money (Loan Taken)</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
-          )}
-        />
-        <FormField control={form.control} name="amount" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Amount</FormLabel>
-            <FormControl><Input type="number" placeholder="e.g., 5000" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-         <FormField
+          )} />
+          <FormField
             control={form.control}
-            name="account_id"
+            name="contact_id"
             render={({ field }) => (
-            <FormItem>
-                <FormLabel>Account</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                    <SelectTrigger>
-                    <SelectValue placeholder="Select an account" />
-                    </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                    {bankAccounts.map((acc) => (
-                    <SelectItem key={acc.id} value={acc.id}>
-                        {acc.name} ({formatCurrency(acc.balance)})
-                    </SelectItem>
-                    ))}
-                </SelectContent>
-                </Select>
+              <FormItem className="flex flex-col">
+                <FormLabel>Contact</FormLabel>
+                <Combobox
+                  options={contactOptions}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Select or create contact..."
+                  searchPlaceholder="Search contacts..."
+                  noResultsText="No contacts found."
+                />
                 <FormMessage />
-            </FormItem>
+              </FormItem>
             )}
-        />
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField control={form.control} name="amount" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Amount</FormLabel>
+              <FormControl><Input type="number" placeholder="e.g., 5000" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField
+              control={form.control}
+              name="account_id"
+              render={({ field }) => (
+              <FormItem>
+                  <FormLabel>Account</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                      <SelectTrigger>
+                      <SelectValue placeholder="Select an account" />
+                      </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                      {bankAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                          {acc.name} ({formatCurrency(acc.balance)})
+                      </SelectItem>
+                      ))}
+                  </SelectContent>
+                  </Select>
+                  <FormMessage />
+              </FormItem>
+              )}
+          />
+        </div>
         <FormField control={form.control} name="description" render={({ field }) => (
           <FormItem>
             <FormLabel>Description</FormLabel>
