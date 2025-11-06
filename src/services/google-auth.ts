@@ -1,5 +1,3 @@
-'use server';
-
 import { google } from 'googleapis';
 
 export function getOAuth2Client() {
