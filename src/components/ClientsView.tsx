@@ -14,7 +14,7 @@ import { DateRange } from 'react-day-picker';
 import { subDays } from 'date-fns';
 
 export default function ClientsView() {
-  const { isLoading, clients, deleteClient, allTransactions, currency } = useFinancials();
+  const { isLoading, clients, deleteClient, transactions, currency } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -49,7 +49,7 @@ export default function ClientsView() {
     const financials = new Map<string, { income: number; expense: number }>();
     clients.forEach(c => financials.set(c.id, { income: 0, expense: 0 }));
 
-    allTransactions.forEach(t => {
+    transactions.forEach(t => {
       const transactionDate = new Date(t.date);
       if (t.client_id && financials.has(t.client_id) && dateRange?.from && dateRange?.to && transactionDate >= dateRange.from && transactionDate <= dateRange.to) {
         const current = financials.get(t.client_id)!;
@@ -63,7 +63,7 @@ export default function ClientsView() {
     });
 
     return financials;
-  }, [clients, allTransactions, dateRange, currency]);
+  }, [clients, transactions, dateRange, currency]);
 
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {

@@ -14,7 +14,7 @@ import { DateRange } from 'react-day-picker';
 import { subDays } from 'date-fns';
 
 export default function CategoriesView() {
-  const { isLoading, categories, deleteCategory, currency, allTransactions } = useFinancials();
+  const { isLoading, categories, deleteCategory, currency, transactions } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -49,7 +49,7 @@ export default function CategoriesView() {
     const financials = new Map<string, number>();
     categories.forEach(c => financials.set(c.id, 0));
 
-    allTransactions.forEach(t => {
+    transactions.forEach(t => {
       const transactionDate = new Date(t.date);
        if (
         t.category && 
@@ -67,7 +67,7 @@ export default function CategoriesView() {
     });
 
     return financials;
-  }, [categories, allTransactions, dateRange, currency]);
+  }, [categories, transactions, dateRange, currency]);
 
   return (
     <Dialog open={formOpen} onOpenChange={(open) => {
