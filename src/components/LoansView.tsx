@@ -1,0 +1,365 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { useFinancials } from '@/hooks/useFinancials';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { PlusCircle, Handshake, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Textarea } from './ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { cn } from '@/lib/utils';
+import { format, parseISO } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
+import { Combobox } from './ui/combobox';
+import type { Loan } from '@/lib/types';
+
+
+const loanSchema = z.object({
+  type: z.enum(['loanTaken', 'loanGiven']),
+  contact_id: z.string().min(1, "Please select or create a contact."),
+  amount: z.coerce.number().positive("Amount must be positive."),
+  description: z.string().optional(),
+  due_date: z.date().optional(),
+  project_id: z.string().optional(),
+  status: z.enum(['active', 'paid']),
+});
+
+
+function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => void; }) {
+  const { addLoan, updateLoan, projects, activeProject, clients, addClient } = useFinancials();
+  const { toast } = useToast();
+  const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
+
+  const form = useForm<z.infer<typeof loanSchema>>({
+    resolver: zodResolver(loanSchema),
+    defaultValues: loan ? {
+      ...loan,
+      due_date: loan.due_date ? parseISO(loan.due_date) : undefined,
+    } : {
+      type: 'loanGiven',
+      amount: '' as any,
+      contact_id: '',
+      description: '',
+      status: 'active',
+      project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
+    }
+  });
+
+  const clientOptions = useMemo(() => clients.map(c => ({ value: c.id, label: c.name })), [clients]);
+
+  async function onSubmit(values: z.infer<typeof loanSchema>) {
+    let contactId = values.contact_id;
+    // Check if the contact is new (i.e., not a UUID)
+    const isNewContact = !clients.some(c => c.id === contactId);
+
+    if (isNewContact) {
+        const newClient = await addClient({ name: contactId }, values.project_id);
+        contactId = newClient.id;
+    }
+    
+    const finalValues = {
+        ...values,
+        contact_id: contactId,
+        due_date: values.due_date?.toISOString(),
+    };
+
+    if (loan) {
+      await updateLoan(loan.id, finalValues);
+      toast({ title: 'Loan Updated' });
+    } else {
+      await addLoan(finalValues);
+      toast({ title: 'Loan Added' });
+    }
+    onFinished();
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField control={form.control} name="type" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Loan Type</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+              <SelectContent>
+                <SelectItem value="loanGiven">I Loaned Money (Loan Given)</SelectItem>
+                <SelectItem value="loanTaken">I Borrowed Money (Loan Taken)</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
+        <FormField
+          control={form.control}
+          name="contact_id"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Contact</FormLabel>
+              <Combobox
+                options={clientOptions}
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="Select or create contact..."
+                searchPlaceholder="Search contacts..."
+                noResultsText="No contacts found."
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField control={form.control} name="amount" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Amount</FormLabel>
+            <FormControl><Input type="number" placeholder="e.g., 5000" {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+        <FormField control={form.control} name="description" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl><Textarea placeholder="e.g., For project materials" {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+        <FormField control={form.control} name="due_date" render={({ field }) => (
+          <FormItem className="flex flex-col">
+            <FormLabel>Due Date (Optional)</FormLabel>
+            <Popover>
+              <PopoverTrigger asChild>
+                <FormControl>
+                  <Button variant="outline" className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
+                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </FormControl>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+              </PopoverContent>
+            </Popover>
+            <FormMessage />
+          </FormItem>
+        )} />
+         <FormField control={form.control} name="status" render={({ field }) => (
+            <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+                </Select>
+                <FormMessage />
+            </FormItem>
+        )} />
+         <FormField
+          control={form.control}
+          name="project_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Business (Optional)</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a Business" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" className="w-full">{loan ? 'Save Changes' : 'Add Loan'}</Button>
+      </form>
+    </Form>
+  );
+}
+
+
+export default function LoansView() {
+  const { loans, deleteLoan, isLoading, clients, currency, updateLoan } = useFinancials();
+  const { toast } = useToast();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
+  const [deletingLoan, setDeletingLoan] = useState<Loan | null>(null);
+
+  const handleEditClick = (loan: Loan) => {
+    setEditingLoan(loan);
+    setFormOpen(true);
+  };
+  
+  const handleAddClick = () => {
+    setEditingLoan(null);
+    setFormOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!deletingLoan) return;
+    deleteLoan(deletingLoan.id);
+    toast({ title: "Loan Deleted" });
+    setDeletingLoan(null);
+  };
+  
+  const handleStatusChange = async (loan: Loan) => {
+    const newStatus = loan.status === 'active' ? 'paid' : 'active';
+    await updateLoan(loan.id, { status: newStatus });
+    toast({ title: `Loan marked as ${newStatus}` });
+  };
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
+  };
+  
+  const getContactName = (contactId: string) => {
+    return clients.find(c => c.id === contactId)?.name || 'Unknown Contact';
+  }
+
+  const { loansGiven, loansTaken } = useMemo(() => {
+    return {
+      loansGiven: loans.filter(l => l.type === 'loanGiven'),
+      loansTaken: loans.filter(l => l.type === 'loanTaken'),
+    }
+  }, [loans]);
+
+  return (
+    <Dialog open={formOpen} onOpenChange={(open) => {
+      setFormOpen(open);
+      if (!open) setEditingLoan(null);
+    }}>
+      <AlertDialog>
+        <Card>
+          <CardHeader>
+             <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Loan Manager</CardTitle>
+                <CardDescription>Track money you've borrowed or lent.</CardDescription>
+              </div>
+              <Button onClick={handleAddClick}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Loan
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-8">
+             {isLoading ? (
+                <div className="flex justify-center items-center h-40">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Loans Given (You are the Lender)</h3>
+                  {loansGiven.length > 0 ? (
+                    <div className="border rounded-md">
+                      <ul className="divide-y divide-border">
+                        {loansGiven.map(loan => (
+                          <LoanItem
+                            key={loan.id}
+                            loan={loan}
+                            contactName={getContactName(loan.contact_id)}
+                            formatCurrency={formatCurrency}
+                            onEditClick={handleEditClick}
+                            onDeleteClick={setDeletingLoan}
+                            onStatusChange={handleStatusChange}
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground text-center py-4">No loans given.</p>}
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Loans Taken (You are the Borrower)</h3>
+                  {loansTaken.length > 0 ? (
+                     <div className="border rounded-md">
+                      <ul className="divide-y divide-border">
+                        {loansTaken.map(loan => (
+                          <LoanItem
+                            key={loan.id}
+                            loan={loan}
+                            contactName={getContactName(loan.contact_id)}
+                            formatCurrency={formatCurrency}
+                            onEditClick={handleEditClick}
+                            onDeleteClick={setDeletingLoan}
+                            onStatusChange={handleStatusChange}
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground text-center py-4">No loans taken.</p>}
+                </div>
+                </>
+              )}
+          </CardContent>
+        </Card>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>This action cannot be undone. This will permanently delete this loan record.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeletingLoan(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{editingLoan ? 'Edit Loan' : 'Add a New Loan'}</DialogTitle>
+            </DialogHeader>
+            <LoanForm loan={editingLoan} onFinished={() => {
+                setFormOpen(false);
+                setEditingLoan(null);
+            }} />
+        </DialogContent>
+    </Dialog>
+  );
+}
+
+const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClick, onStatusChange }: {
+  loan: Loan;
+  contactName: string;
+  formatCurrency: (amount: number) => string;
+  onEditClick: (loan: Loan) => void;
+  onDeleteClick: (loan: Loan) => void;
+  onStatusChange: (loan: Loan) => void;
+}) => {
+  return (
+    <li className="p-4 group hover:bg-muted/50">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <Handshake className="h-5 w-5 text-muted-foreground" />
+                <div>
+                    <p className="font-medium">{contactName} - <span className={cn("font-normal", loan.type === 'loanGiven' ? 'text-green-600' : 'text-red-600')}>{formatCurrency(loan.amount)}</span></p>
+                    <p className="text-sm text-muted-foreground">{loan.description}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {loan.due_date && <span>Due: {format(parseISO(loan.due_date), 'PPP')}</span>}
+                        <span className={cn('font-semibold', loan.status === 'active' ? 'text-yellow-600' : 'text-green-600')}>{loan.status}</span>
+                    </div>
+                </div>
+            </div>
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                <Button variant="ghost" size="sm" onClick={() => onStatusChange(loan)}>Mark as {loan.status === 'active' ? 'Paid' : 'Active'}</Button>
+                <Button variant="ghost" size="icon" onClick={() => onEditClick(loan)}><Pencil className="h-4 w-4" /></Button>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => onDeleteClick(loan)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                </AlertDialogTrigger>
+            </div>
+        </div>
+    </li>
+  )
+}

@@ -33,6 +33,20 @@ export type Debt = {
   account_id: string;
 };
 
+export type Loan = {
+  id: string;
+  user_id: string;
+  project_id?: string;
+  type: 'loanTaken' | 'loanGiven';
+  contact_id: string;
+  amount: number;
+  description: string;
+  due_date?: LocalTimestamp;
+  status: 'active' | 'paid';
+  created_at: LocalTimestamp;
+};
+
+
 export type BankAccount = {
   id: string;
   user_id: string;

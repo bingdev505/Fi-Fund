@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark } from 'lucide-react';
+import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark, Handshake } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
 import { useState, useMemo } from 'react';
@@ -179,6 +179,9 @@ export default function Business() {
                             </Button>
                              <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/accounts')}>
                               <Landmark className="h-4 w-4" />
+                            </Button>
+                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/loans')}>
+                              <Handshake className="h-4 w-4" />
                             </Button>
                             <Separator orientation="vertical" className="h-6 mx-1" />
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
