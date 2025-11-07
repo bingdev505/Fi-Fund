@@ -21,29 +21,10 @@ import { format } from 'date-fns';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
-// Hook to manage chat history in local storage
+// Hook to manage chat history in state for the current session
 const useChatHistory = () => {
-    const { user } = useAuth();
-    const storageKey = user ? `financeflow_chat_${user.id}` : null;
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        if (storageKey) {
-            setIsLoading(true);
-            try {
-                const storedMessages = JSON.parse(localStorage.getItem(storageKey) || '[]');
-                setMessages(storedMessages);
-            } catch (e) {
-                setMessages([]);
-            } finally {
-                setIsLoading(false);
-            }
-        } else {
-            setMessages([]);
-            setIsLoading(false);
-        }
-    }, [storageKey]);
+    const [isLoading, setIsLoading] = useState(false); // No longer loading from storage, but keeping for API consistency
 
     const addMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
         const newMessage: ChatMessage = {
@@ -52,34 +33,18 @@ const useChatHistory = () => {
             timestamp: new Date().toISOString(),
         };
 
-        setMessages(prevMessages => {
-            const updatedMessages = [...prevMessages, newMessage];
-            if (storageKey) {
-                localStorage.setItem(storageKey, JSON.stringify(updatedMessages));
-            }
-            return updatedMessages;
-        });
+        setMessages(prevMessages => [...prevMessages, newMessage]);
         return newMessage;
     };
 
     const updateMessage = (updatedMessage: ChatMessage) => {
-        setMessages(prevMessages => {
-            const updatedMessages = prevMessages.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg);
-            if (storageKey) {
-                localStorage.setItem(storageKey, JSON.stringify(updatedMessages));
-            }
-            return updatedMessages;
-        });
+        setMessages(prevMessages => 
+            prevMessages.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg)
+        );
     };
 
     const deleteMessage = (messageId: string) => {
-        setMessages(prevMessages => {
-            const updatedMessages = prevMessages.filter(msg => msg.id !== messageId);
-            if (storageKey) {
-                localStorage.setItem(storageKey, JSON.stringify(updatedMessages));
-            }
-            return updatedMessages;
-        });
+        setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
     };
     
     return { messages, addMessage, updateMessage, deleteMessage, isLoading };
