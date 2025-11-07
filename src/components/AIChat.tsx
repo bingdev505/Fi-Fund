@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Bot, Loader2, Send, User, Paperclip, PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { Bot, Loader2, Send, User, PlusCircle, Pencil, Trash2, HandCoins } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,6 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import type { ChatMessage, Loan, Transaction, Contact } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -19,6 +18,8 @@ import EditEntryForm from './EditEntryForm';
 import EntryForm from './EntryForm';
 import { useAuth } from '@/context/AuthContext';
 import ProjectSwitcher from './ProjectSwitcher';
+import RepaymentForm from './RepaymentForm';
+import { format } from 'date-fns';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
@@ -116,6 +117,17 @@ export default function AIChat() {
 
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
+  const [isRepayLoanOpen, setIsRepayLoanOpen] = useState(false);
+  const [selectedLoanToRepay, setSelectedLoanToRepay] = useState<Loan | null>(null);
+
+  const activeLoans = useMemo(() => loans.filter(l => l.status === 'active'), [loans]);
+  const loanRepayments = useMemo(() => {
+    const repayments = new Map<string, number>();
+    transactions.filter(t => t.type === 'repayment' && t.loan_id).forEach(t => {
+      repayments.set(t.loan_id!, (repayments.get(t.loan_id!) || 0) + t.amount);
+    });
+    return repayments;
+  }, [transactions]);
 
 
   const formatCurrency = (amount: number) => {
@@ -245,7 +257,7 @@ export default function AIChat() {
 
       let assistantResponse = '';
       let newEntryId: string | undefined;
-      let newEntryType: 'income' | 'expense' | 'loanGiven' | 'loanTaken' | undefined;
+      let newEntryType: ChatMessage['entry_type'];
 
       if (result.intent === 'logData') {
         const logResult = result.result;
@@ -314,8 +326,9 @@ export default function AIChat() {
                     account_id: accountIdToUse,
                     status: 'active'
                 };
-                await addLoan(newLoan);
-                // We don't get the ID back from addLoan easily, so can't set newEntryId here.
+                const newDocRef = await addLoan(newLoan, true);
+                newEntryId = (newDocRef as {id: string})?.id;
+                newEntryType = newLoan.type;
                 
                 const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} for ${contact.name} logged against ${accountNameToUse}.`;
                 assistantResponse = toastDescription;
@@ -364,6 +377,7 @@ export default function AIChat() {
 
   return (
     <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
+    <Dialog open={isRepayLoanOpen} onOpenChange={setIsRepayLoanOpen}>
     <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
     <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
       <div className="flex flex-col bg-muted/40 h-full relative">
@@ -464,12 +478,20 @@ export default function AIChat() {
                 <span className="sr-only">Send</span>
               </Button>
             ) : (
+                <>
                 <DialogTrigger asChild>
                     <Button type="button" size="icon" className="rounded-full flex-shrink-0">
                         <PlusCircle className="h-4 w-4" />
                         <span className="sr-only">Add Transaction</span>
                     </Button>
-              </DialogTrigger>
+                </DialogTrigger>
+                <DialogTrigger asChild>
+                  <Button type="button" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsRepayLoanOpen(true)}>
+                      <HandCoins className="h-4 w-4" />
+                      <span className="sr-only">Repay Loan</span>
+                  </Button>
+                </DialogTrigger>
+                </>
             )}
           </form>
         </div>
@@ -502,8 +524,56 @@ export default function AIChat() {
             </DialogHeader>
             <EntryForm onFinished={() => setIsTransactionFormOpen(false)} />
         </DialogContent>
+        <DialogContent onOpenChange={(open) => !open && setSelectedLoanToRepay(null)}>
+            <DialogHeader>
+                <DialogTitle>Repay Loan</DialogTitle>
+            </DialogHeader>
+             {selectedLoanToRepay ? (
+                <RepaymentForm 
+                    loan={selectedLoanToRepay} 
+                    outstandingAmount={selectedLoanToRepay.amount - (loanRepayments.get(selectedLoanToRepay.id) || 0)}
+                    onFinished={() => {
+                        setSelectedLoanToRepay(null);
+                        setIsRepayLoanOpen(false);
+                    }}
+                />
+            ) : (
+                <div className="py-4">
+                {activeLoans.length > 0 ? (
+                  <ul className="space-y-2 max-h-64 overflow-y-auto">
+                    {activeLoans.map(loan => (
+                      <li key={loan.id}>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between h-auto py-2"
+                          onClick={() => setSelectedLoanToRepay(loan)}
+                        >
+                          <div className="text-left">
+                            <p className="font-semibold">{contacts.find(c => c.id === loan.contact_id)?.name}</p>
+                            <p className="text-sm text-muted-foreground">{formatCurrency(loan.amount)} on {format(new Date(loan.date), "PPP")}</p>
+                             <p className="text-sm text-yellow-600 font-semibold">Outstanding: {formatCurrency(loan.amount - (loanRepayments.get(loan.id) || 0))}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-center text-muted-foreground">You have no active loans to repay.</p>
+                )}
+                </div>
+            )}
+        </DialogContent>
     </Dialog>
     </AlertDialog>
     </Dialog>
+    </Dialog>
   );
 }
+
+// Dummy ChevronRight for button
+const ChevronRight = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m9 18 6-6-6-6"/></svg>
+)
+
+    
