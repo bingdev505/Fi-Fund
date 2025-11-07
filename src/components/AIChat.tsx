@@ -89,7 +89,8 @@ const useChatHistory = () => {
 export default function AIChat() {
   const { user } = useAuth();
   const [input, setInput] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [lastProcessedMessage, setLastProcessedMessage] = useState('');
   const { 
     addTransactions,
     addLoans,
@@ -143,7 +144,7 @@ export default function AIChat() {
         }, 100);
       }
     }
-  }, [messages, isAiLoading]);
+  }, [messages, isProcessing]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,7 +216,15 @@ export default function AIChat() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isAiLoading) return;
+    if (!input.trim() || isProcessing) return;
+     if (input.trim() === lastProcessedMessage) {
+      toast({
+        variant: 'destructive',
+        title: 'Duplicate message',
+        description: 'You just sent that message.',
+      });
+      return;
+    }
 
     const userMessageContent = input;
     setInput('');
@@ -225,7 +234,7 @@ export default function AIChat() {
       content: userMessageContent,
     });
 
-    setIsAiLoading(true);
+    setIsProcessing(true);
 
     try {
       const financialData = JSON.stringify({
@@ -313,7 +322,7 @@ export default function AIChat() {
                 newTransactions.push({
                     type: logResult.transaction_type,
                     amount: logResult.amount,
-                    category: logResult.category,
+                    category: logResult.category!,
                     description: logResult.description || 'AI Logged Transaction',
                     account_id: accountIdToUse,
                     project_id: projectId
@@ -367,7 +376,7 @@ export default function AIChat() {
                     status: 'active' as 'active' | 'paid',
                     project_id: projectId
                 });
-                const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} logged under '${businessName}' against account ${accountNameToUse}.`;
+                 const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} logged under '${businessName}' against account ${accountNameToUse}.`;
                 responseParts.push(toastDescription);
             }
         }
@@ -387,8 +396,10 @@ export default function AIChat() {
                 description: assistantResponse,
             });
         }
+         setLastProcessedMessage(userMessageContent);
       } else if (result.intent === 'question') {
         assistantResponse = result.result.answer;
+         setLastProcessedMessage(userMessageContent);
       } else { // intent is 'command'
         assistantResponse = result.result.response;
       }
@@ -407,7 +418,7 @@ export default function AIChat() {
         content: "Sorry, I couldn't understand that. Please try rephrasing, for example: 'Lunch for 250 rupees' or 'What is my total income?'.",
       });
     } finally {
-      setIsAiLoading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -450,7 +461,7 @@ export default function AIChat() {
               )}
             </div>
           ))}
-          {isAiLoading && (
+          {isProcessing && (
             <div className="flex items-start gap-3">
               <Avatar className="h-8 w-8 border bg-white">
                 <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
@@ -470,12 +481,12 @@ export default function AIChat() {
               value={input}
               onChange={handleInputChange}
               placeholder="Type your message..."
-              disabled={isAiLoading || isMessagesLoading}
+              disabled={isProcessing || isMessagesLoading}
               autoComplete='off'
               className="flex-1 rounded-full bg-muted"
           />
           {input.trim() ? (
-            <Button type="submit" size="icon" disabled={isAiLoading || isMessagesLoading} className="rounded-full flex-shrink-0">
+            <Button type="submit" size="icon" disabled={isProcessing || isMessagesLoading} className="rounded-full flex-shrink-0">
               <Send className="h-4 w-4" />
               <span className="sr-only">Send</span>
             </Button>
@@ -581,3 +592,5 @@ export default function AIChat() {
     </div>
   );
 }
+
+    
