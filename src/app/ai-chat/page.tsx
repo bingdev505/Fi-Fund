@@ -7,9 +7,7 @@ export default function AIChatPage() {
   return (
     <FinancialProvider>
       <AppShell>
-        <main className="h-full">
-          <AIChat />
-        </main>
+        <AIChat />
       </AppShell>
     </FinancialProvider>
   );

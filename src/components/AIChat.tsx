@@ -366,7 +366,7 @@ export default function AIChat() {
     <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
     <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
     <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
-      <div className="absolute inset-0 flex flex-col bg-muted/40">
+      <div className="flex flex-col bg-muted/40 h-full relative">
         <div className="p-4 border-b bg-background">
           <ProjectSwitcher />
         </div>

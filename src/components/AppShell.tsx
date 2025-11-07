@@ -98,6 +98,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </nav>
   );
 
+  const isChatPage = pathname === '/ai-chat';
+
   return (
     <Dialog open={addProjectOpen} onOpenChange={setAddProjectOpen}>
     <div className="grid h-screen w-full md:grid-cols-[180px_1fr] lg:grid-cols-[240px_1fr]">
@@ -116,8 +118,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </div>
-      <div className="flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
+      <div className="flex flex-col overflow-hidden">
+        <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 shrink-0">
           <Sheet>
             <SheetTrigger asChild>
               <Button
@@ -187,9 +189,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <div className="flex-1 relative bg-muted/40 p-4 md:p-6">
+        <main className={cn(
+            "flex-1 overflow-auto bg-muted/40",
+            !isChatPage && "p-4 md:p-6"
+        )}>
             {children}
-        </div>
+        </main>
       </div>
       <DialogContent>
         <DialogHeader>
