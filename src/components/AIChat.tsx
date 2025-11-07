@@ -421,7 +421,7 @@ export default function AIChat() {
             )}
           </div>
         </ScrollArea>
-        <div className="p-4 border-t bg-card">
+        <div className="p-4 border-t">
           <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
             <ProjectSwitcher />
             <Input
@@ -441,13 +441,13 @@ export default function AIChat() {
             ) : (
                 <>
                 <DialogTrigger asChild>
-                    <Button type="button" variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsTransactionFormOpen(true)}>
+                    <Button type="button" variant="default" size="icon" className="rounded-full flex-shrink-0 bg-transparent hover:bg-muted/50 text-foreground" onClick={() => setIsTransactionFormOpen(true)}>
                         <PlusCircle className="h-4 w-4" />
                         <span className="sr-only">Add Transaction</span>
                     </Button>
                 </DialogTrigger>
                 <DialogTrigger asChild>
-                     <Button type="button" variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsRepayLoanOpen(true)}>
+                     <Button type="button" variant="default" size="icon" className="rounded-full flex-shrink-0 bg-transparent hover:bg-muted/50 text-foreground" onClick={() => setIsRepayLoanOpen(true)}>
                         <HandCoins className="h-4 w-4" />
                         <span className="sr-only">Repay Loan</span>
                     </Button>
@@ -544,3 +544,5 @@ export default function AIChat() {
     </>
   );
 }
+
+    
