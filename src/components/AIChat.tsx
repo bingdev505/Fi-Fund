@@ -420,7 +420,7 @@ export default function AIChat() {
         </div>
       </ScrollArea>
       
-      <div className="px-4 pt-4 pb-14 md:pb-4 border-t">
+      <div className="px-4 pt-4 pb-5 md:pb-4 border-t">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
           <Input
               id="chat-input"
