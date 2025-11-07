@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Project": {
@@ -33,7 +34,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Transaction",
       "type": "object",
-      "description": "Represents an income, expense, or transfer transaction for a user.",
+      "description": "Represents an income, expense, transfer, or repayment transaction for a user.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -46,30 +47,10 @@
         "accountId": { "type": "string" },
         "fromAccountId": { "type": "string" },
         "toAccountId": { "type": "string" },
-        "debtId": { "type": "string" },
-        "clientId": { "type": "string" }
+        "clientId": { "type": "string" },
+        "loanId": { "type": "string" }
       },
       "required": ["id", "userId", "type", "category", "amount", "description", "date"]
-    },
-    "Debt": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Debt",
-      "type": "object",
-      "description": "Represents a debt owed to or by the user.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "projectId": { "type": "string" },
-        "type": { "type": "string", "enum": ["creditor", "debtor"] },
-        "name": { "type": "string" },
-        "clientId": { "type": "string" },
-        "amount": { "type": "number" },
-        "description": { "type": "string" },
-        "dueDate": { "type": "string", "format": "date-time" },
-        "date": { "type": "string", "format": "date-time" },
-        "accountId": { "type": "string" }
-      },
-      "required": ["id", "userId", "type", "name", "clientId", "amount", "description", "date", "accountId"]
     },
      "Loan": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -84,12 +65,13 @@
         "contactId": { "type": "string" },
         "amount": { "type": "number" },
         "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
         "dueDate": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["active", "paid"] },
         "accountId": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "userId", "type", "contactId", "amount", "status", "created_at", "accountId"]
+      "required": ["id", "userId", "type", "contactId", "amount", "status", "created_at", "accountId", "date"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -102,6 +84,18 @@
         "currency": { "type": "string", "description": "The user's preferred currency." }
       },
       "required": ["id", "email"]
+    },
+    "UserSettings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User Settings",
+      "description": "Stores user-specific application settings.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string", "description": "Foreign key to the users table." },
+        "currency": { "type": "string", "description": "The user's preferred currency." },
+        "default_project_id": { "type": "string", "description": "Foreign key to the projects table for the default project." }
+      },
+      "required": ["user_id"]
     },
     "BankAccount": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -127,6 +121,18 @@
         "id": { "type": "string" },
         "userId": { "type": "string" },
         "projectId": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "userId", "name"]
+    },
+    "Contact": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Contact",
+      "type": "object",
+      "description": "Represents a personal contact for loans.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
         "name": { "type": "string" }
       },
       "required": ["id", "userId", "name"]
