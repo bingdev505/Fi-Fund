@@ -338,25 +338,27 @@ export default function AIChat() {
                     }
                 }
             } else { // loanGiven or loanTaken
-                let contact: Contact | undefined = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
-                if (!contact && logResult.contact_id) {
-                    contact = await addContact({ name: logResult.contact_id });
+                if (!logResult.contact_id) {
+                    responseParts.push(`Could not log loan: contact name is missing.`);
+                    continue;
                 }
 
+                let contact = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
                 if (!contact) {
-                     responseParts.push(`Could not find or create a contact for a loan.`);
-                } else {
-                    newLoans.push({
-                        type: logResult.transaction_type,
-                        amount: logResult.amount,
-                        contact_id: contact.id, 
-                        description: logResult.description || 'AI Logged Loan',
-                        account_id: accountIdToUse,
-                        status: 'active' as 'active' | 'paid',
-                    });
-                    const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} for ${contact.name} logged against ${accountNameToUse}.`;
-                    responseParts.push(toastDescription);
+                    contact = await addContact({ name: logResult.contact_id! });
+                    responseParts.push(`Created new contact '${contact.name}'.`);
                 }
+
+                newLoans.push({
+                    type: logResult.transaction_type,
+                    amount: logResult.amount,
+                    contact_id: contact.id, 
+                    description: logResult.description || 'AI Logged Loan',
+                    account_id: accountIdToUse,
+                    status: 'active' as 'active' | 'paid',
+                });
+                const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} from account ${accountNameToUse}.`;
+                responseParts.push(toastDescription);
             }
         }
         
