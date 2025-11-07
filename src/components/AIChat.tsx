@@ -524,46 +524,50 @@ export default function AIChat() {
             </DialogHeader>
             <EntryForm onFinished={() => setIsTransactionFormOpen(false)} />
         </DialogContent>
-        <DialogContent onOpenChange={(open) => !open && setSelectedLoanToRepay(null)}>
-            <DialogHeader>
-                <DialogTitle>Repay Loan</DialogTitle>
-            </DialogHeader>
-             {selectedLoanToRepay ? (
-                <RepaymentForm 
-                    loan={selectedLoanToRepay} 
-                    outstandingAmount={selectedLoanToRepay.amount - (loanRepayments.get(selectedLoanToRepay.id) || 0)}
-                    onFinished={() => {
-                        setSelectedLoanToRepay(null);
-                        setIsRepayLoanOpen(false);
-                    }}
-                />
-            ) : (
-                <div className="py-4">
-                {activeLoans.length > 0 ? (
-                  <ul className="space-y-2 max-h-64 overflow-y-auto">
-                    {activeLoans.map(loan => (
-                      <li key={loan.id}>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-between h-auto py-2"
-                          onClick={() => setSelectedLoanToRepay(loan)}
-                        >
-                          <div className="text-left">
-                            <p className="font-semibold">{contacts.find(c => c.id === loan.contact_id)?.name}</p>
-                            <p className="text-sm text-muted-foreground">{formatCurrency(loan.amount)} on {format(new Date(loan.date), "PPP")}</p>
-                             <p className="text-sm text-yellow-600 font-semibold">Outstanding: {formatCurrency(loan.amount - (loanRepayments.get(loan.id) || 0))}</p>
-                          </div>
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
+        <Dialog onOpenChange={(open) => {
+            if (!open) setSelectedLoanToRepay(null);
+        }}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Repay Loan</DialogTitle>
+                </DialogHeader>
+                {selectedLoanToRepay ? (
+                    <RepaymentForm 
+                        loan={selectedLoanToRepay} 
+                        outstandingAmount={selectedLoanToRepay.amount - (loanRepayments.get(selectedLoanToRepay.id) || 0)}
+                        onFinished={() => {
+                            setSelectedLoanToRepay(null);
+                            setIsRepayLoanOpen(false);
+                        }}
+                    />
                 ) : (
-                  <p className="text-center text-muted-foreground">You have no active loans to repay.</p>
+                    <div className="py-4">
+                    {activeLoans.length > 0 ? (
+                    <ul className="space-y-2 max-h-64 overflow-y-auto">
+                        {activeLoans.map(loan => (
+                        <li key={loan.id}>
+                            <Button
+                            variant="outline"
+                            className="w-full justify-between h-auto py-2"
+                            onClick={() => setSelectedLoanToRepay(loan)}
+                            >
+                            <div className="text-left">
+                                <p className="font-semibold">{contacts.find(c => c.id === loan.contact_id)?.name}</p>
+                                <p className="text-sm text-muted-foreground">{formatCurrency(loan.amount)} on {format(new Date(loan.date), "PPP")}</p>
+                                <p className="text-sm text-yellow-600 font-semibold">Outstanding: {formatCurrency(loan.amount - (loanRepayments.get(loan.id) || 0))}</p>
+                            </div>
+                            <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </li>
+                        ))}
+                    </ul>
+                    ) : (
+                    <p className="text-center text-muted-foreground">You have no active loans to repay.</p>
+                    )}
+                    </div>
                 )}
-                </div>
-            )}
-        </DialogContent>
+            </DialogContent>
+        </Dialog>
     </Dialog>
     </AlertDialog>
     </Dialog>
@@ -575,6 +579,8 @@ export default function AIChat() {
 const ChevronRight = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m9 18 6-6-6-6"/></svg>
 )
+
+    
 
     
 
