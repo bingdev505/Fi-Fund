@@ -76,12 +76,16 @@
 @layer base {
   html {
     font-size: 14.4px;
+    height: 100%;
   }
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground h-full;
+  }
+  body, #__next {
+      height: 100%;
   }
 }
 
