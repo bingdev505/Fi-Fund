@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Bot, Loader2, Send, User, PlusCircle, Pencil, Trash2, HandCoins } from 'lucide-react';
+import { Bot, Loader2, Send, User, PlusCircle, Pencil, Trash2, HandCoins, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +10,9 @@ import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import type { ChatMessage, Loan, Transaction, Contact } from '@/lib/types';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { cn } from '@/lib/utils';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import EditEntryForm from './EditEntryForm';
 import EntryForm from './EntryForm';
 import { useAuth } from '@/context/AuthContext';
@@ -117,7 +116,6 @@ export default function AIChat() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
   const [isRepayLoanOpen, setIsRepayLoanOpen] = useState(false);
   const [selectedLoanToRepay, setSelectedLoanToRepay] = useState<Loan | null>(null);
@@ -151,16 +149,6 @@ export default function AIChat() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInput(value);
-  };
-  
-  const handleQuickAction = (action: string, type: 'bank' | 'prefix') => {
-    if (type === 'bank') {
-        setInput(prev => `${prev} in ${action}`);
-    } else {
-        setInput(prev => `${action} ${prev}`);
-    }
-    setQuickActionsOpen(false);
-    document.getElementById('chat-input')?.focus();
   };
 
   const handleEditClick = (message: ChatMessage) => {
@@ -381,17 +369,9 @@ export default function AIChat() {
     }
   };
 
-  const quickActions = [
-    ...bankAccounts.filter(acc => !acc.is_primary).map(acc => ({ label: acc.name, action: acc.name, type: 'bank' as const })),
-    { label: 'Loan Given', action: 'loan given', type: 'prefix' as const },
-    { label: 'Loan Taken', action: 'loan taken', type: 'prefix' as const },
-    { label: 'Income', action: 'income', type: 'prefix' as const },
-    { label: 'Expense', action: 'expense', type: 'prefix' as const },
-  ];
-
   return (
     <>
-      <div className="flex flex-col bg-muted/40 h-full relative">
+      <div className="flex flex-col bg-muted/40 relative h-full">
         <div className="p-4 border-b bg-background">
           <ProjectSwitcher />
         </div>
@@ -446,30 +426,7 @@ export default function AIChat() {
         </ScrollArea>
         <div className="p-4 border-t bg-card">
           <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
-             <Popover open={quickActionsOpen} onOpenChange={setQuickActionsOpen}>
-                <PopoverTrigger asChild>
-                    <Button type="button" variant="ghost" size="icon" className="flex-shrink-0 rounded-full">
-                        <PlusCircle className="h-5 w-5 text-muted-foreground" />
-                        <span className="sr-only">Quick Actions</span>
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent side="top" align="start" className="w-auto p-2">
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                        {quickActions.map(({ label, action, type }) => (
-                        <Button
-                            key={action}
-                            variant="outline"
-                            size="sm"
-                            className="rounded-full text-xs h-7 px-3 flex-shrink-0"
-                            onClick={() => handleQuickAction(action, type)}
-                        >
-                            {label}
-                        </Button>
-                        ))}
-                    </div>
-                </PopoverContent>
-            </Popover>
-
+            <ProjectSwitcher />
             <Input
                 id="chat-input"
                 value={input}
@@ -562,7 +519,7 @@ export default function AIChat() {
                 <DialogHeader>
                     <DialogTitle>Edit Entry</DialogTitle>
                 </DialogHeader>
-                <EditEntryForm entry={editingEntry} onFinished={handleEditFinished} />
+                <EditEntryForm entry={editingEntry} onFinished={() => handleEditFinished(editingEntry, editingEntry)} />
             </DialogContent>
           )}
        </Dialog>
@@ -584,14 +541,3 @@ export default function AIChat() {
     </>
   );
 }
-
-// Dummy ChevronRight for button
-const ChevronRight = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m9 18 6-6-6-6"/></svg>
-)
-
-    
-
-    
-
-    
