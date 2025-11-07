@@ -371,8 +371,8 @@ export default function AIChat() {
 
   return (
     <>
-      <div className="flex flex-col h-full relative">
-        <ScrollArea className="flex-1 p-4 no-scrollbar" ref={scrollAreaRef}>
+      <div className="flex flex-col h-full">
+        <ScrollArea className="flex-grow p-4" ref={scrollAreaRef}>
           <div className="space-y-4 pr-4">
             {(isMessagesLoading || !messages) && messages?.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
