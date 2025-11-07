@@ -249,14 +249,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   }, [user, isUserLoading, fetchData]);
   
 
-  useEffect(() => { 
-      if (currencyKey) {
-          localStorage.setItem(currencyKey, currency);
+  const setCurrency = useCallback((newCurrency: string) => {
+    setCurrencyState(newCurrency);
+     if (currencyKey) {
+          localStorage.setItem(currencyKey, newCurrency);
           if (user) {
-              supabase.from('user_settings').upsert({ user_id: user.id, currency }).then();
+              supabase.from('user_settings').upsert({ user_id: user.id, currency: newCurrency, default_project_id: defaultProject?.id === 'all' ? null : defaultProject?.id }).then();
           }
       }
-  }, [currency, currencyKey, user]);
+  }, [currencyKey, user, defaultProject]);
 
   const setActiveProject = useCallback((project: Project | null) => {
     const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
@@ -274,14 +275,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     try {
         const { error } = await supabase.from('user_settings').upsert({ 
             user_id: user.id, 
-            default_project_id: projectToSet.id === 'all' ? null : projectToSet.id 
+            default_project_id: projectToSet.id === 'all' ? null : projectToSet.id,
+            currency: currency, // Ensure currency is always included
         });
         if (error) throw error;
     } catch (dbError) {
         console.error("Failed to save default project to DB:", dbError);
         toast({ variant: 'destructive', title: 'Error saving setting' });
     }
-  }, [user, toast]);
+  }, [user, toast, currency]);
 
   const addProject = async (projectData: Omit<Project, 'id' | 'user_id' | 'created_at'>): Promise<Project> => {
     if (!user) throw new Error("User not authenticated");
@@ -641,8 +643,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (accountToDelete?.project_id) triggerSync(accountToDelete.project_id);
   };
 
-  const setCurrency = useCallback((newCurrency: string) => { setCurrencyState(newCurrency); }, []);
-
   const setPrimaryBankAccount = async (accountId: string) => {
     if (!user) return;
     
@@ -880,3 +880,5 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     </FinancialContext.Provider>
   );
 }
+
+    
