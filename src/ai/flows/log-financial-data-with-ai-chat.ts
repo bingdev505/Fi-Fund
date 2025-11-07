@@ -62,10 +62,10 @@ const logFinancialDataPrompt = ai.definePrompt({
     - For 'income' or 'expense', use the 'category' field.
 4.  **Bank Account**: If the user mentions an account (e.g., 'from savings', 'at Federal bank'), extract only the name like 'savings' or 'federal' into the 'accountName' field. If no account is mentioned, check the chat history. Do not include the account name in the description or category.
 5.  **Loan Direction**:
-    - "I gave [Name] a loan" -> 'loanGiven', contact is '[Name]'.
-    - "[Name] gave me a loan" -> 'loanTaken', contact is '[Name]'.
+    - "I gave [Name] a loan", "loan given for [Name]" -> 'loanGiven', contact_id is '[Name]'.
+    - "[Name] gave me a loan", "loan taken from [Name]" -> 'loanTaken', contact_id is '[Name]'.
 6.  **Repayment**:
-    - "repaid [Name]" or "[Name] repaid me" -> 'repayment', contact is '[Name]'.
+    - "repaid [Name]" or "[Name] repaid me" -> 'repayment', contact_id is '[Name]'.
 7.  **Amount**: Ensure the amount is always a positive number.
 8.  **Description**: If not provided, create a short, relevant summary.
 
