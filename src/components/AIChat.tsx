@@ -265,6 +265,7 @@ export default function AIChat() {
         let responseParts: string[] = [];
         const newTransactions: Omit<Transaction, 'id' | 'user_id' | 'date'>[] = [];
         const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[] = [];
+        const projectId = activeProject?.id === 'all' ? undefined : activeProject?.id;
 
         for (const logResult of logResults) {
             let accountIdToUse: string | undefined;
@@ -314,6 +315,7 @@ export default function AIChat() {
                     category: logResult.category,
                     description: logResult.description || 'AI Logged Transaction',
                     account_id: accountIdToUse,
+                    project_id: projectId
                 });
                 const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
                 responseParts.push(toastDescription);
@@ -362,6 +364,7 @@ export default function AIChat() {
                     description: logResult.description || 'AI Logged Loan',
                     account_id: accountIdToUse,
                     status: 'active' as 'active' | 'paid',
+                    project_id: projectId
                 });
                 const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} from account ${accountNameToUse}.`;
                 responseParts.push(toastDescription);

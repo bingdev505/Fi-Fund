@@ -254,7 +254,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
      if (currencyKey) {
           localStorage.setItem(currencyKey, newCurrency);
           if (user) {
-              supabase.from('user_settings').upsert({ user_id: user.id, currency: newCurrency, default_project_id: defaultProject?.id === 'all' ? null : defaultProject?.id }).then();
+              supabase.from('user_settings').upsert({ user_id: user.id, currency: newCurrency, default_project_id: defaultProject?.id === 'all' ? undefined : defaultProject?.id }).then();
           }
       }
   }, [currencyKey, user, defaultProject]);
@@ -516,7 +516,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'date' | 'user_id'>, returnRef = false): Promise<{ id: string } | void> => {
-    await addTransactions([transactionData]);
+    if (!user) throw new Error("User not authenticated");
+    const dbTransaction = {
+      ...transactionData,
+      user_id: user.id,
+      date: new Date().toISOString(),
+    };
+    await addTransactions([dbTransaction]);
     // Note: To return an ID, we'd need to adjust addTransactions or find the new entry.
     // For simplicity with the batch update, we'll no longer return the ref here.
     if (returnRef) {
@@ -722,7 +728,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
   
   const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef = false): Promise<{ id: string } | void> => {
-     await addLoans([loanData]);
+    const now = new Date().toISOString();
+    const dbLoan = {
+      ...loanData,
+      date: now,
+      created_at: now,
+    };
+     await addLoans([dbLoan]);
      if (returnRef) {
         console.warn("addLoan with returnRef is not optimized for batching. ID will not be returned.");
     }
@@ -880,5 +892,3 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     </FinancialContext.Provider>
   );
 }
-
-    
