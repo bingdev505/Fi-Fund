@@ -345,13 +345,13 @@ export default function AIChat() {
 
                 let contact = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
                 if (!contact) {
-                    // Contact doesn't exist, create it.
                     try {
                       contact = await addContact({ name: logResult.contact_id });
                       responseParts.push(`Created new contact '${contact.name}'.`);
                     } catch (e) {
+                      console.error("Failed to create new contact:", e);
                       responseParts.push(`Could not create new contact '${logResult.contact_id}'.`);
-                      continue; // Skip this loan if contact creation fails
+                      continue; 
                     }
                 }
 
@@ -459,7 +459,7 @@ export default function AIChat() {
         </div>
       </ScrollArea>
       
-      <div className="shrink-0 p-4">
+      <div className="shrink-0 p-4 pt-0">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
           <Input
               id="chat-input"
@@ -577,5 +577,3 @@ export default function AIChat() {
     </div>
   );
 }
-
-    

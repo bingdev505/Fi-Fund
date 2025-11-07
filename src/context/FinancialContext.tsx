@@ -374,7 +374,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User not authenticated");
 
     const { data: newContact, error } = await supabase.from('contacts').insert({ ...contactData, user_id: user.id }).select().single();
-    if (error) throw error;
+    if (error) {
+        console.error("Supabase addContact error:", error);
+        throw error;
+    };
     setAllContacts(prev => [...prev, newContact]);
     return newContact;
   };
