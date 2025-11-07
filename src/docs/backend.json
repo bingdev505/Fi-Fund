@@ -84,6 +84,18 @@
       },
       "required": ["id", "email"]
     },
+    "UserSettings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User Settings",
+      "description": "Stores user-specific application settings.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string", "description": "Foreign key to the users table." },
+        "currency": { "type": "string", "description": "The user's preferred currency." },
+        "default_project_id": { "type": "string", "description": "Foreign key to the projects table for the default project." }
+      },
+      "required": ["user_id"]
+    },
     "BankAccount": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Bank Account",

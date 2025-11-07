@@ -27,7 +27,7 @@ interface FinancialContextType {
   
   loans: Loan[];
   allLoans: Loan[];
-  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string) => Promise<void>;
   getLoanById: (id: string) => Loan | undefined;
@@ -88,7 +88,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   const activeProjectKey = useLocalStorageKey('activeProject');
-  const defaultProjectKey = useLocalStorageKey('defaultProject');
   const currencyKey = useLocalStorageKey('currency');
 
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -194,29 +193,27 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setCurrencyState(currencyToSet);
       if (currencyKey) localStorage.setItem(currencyKey, currencyToSet);
 
-      const storedDefaultProject = defaultProjectKey ? JSON.parse(localStorage.getItem(defaultProjectKey) || 'null') : null;
-      let activeProjectToSet: Project | null = storedDefaultProject;
+      const dbDefaultProjectId = userSettingsRes.data?.default_project_id;
+      const defaultProj = projects.find(p => p.id === dbDefaultProjectId);
+      _setDefaultProject(defaultProj || ALL_BUSINESS_PROJECT);
+
       const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
+      let activeProjectToSet: Project | null = defaultProj || ALL_BUSINESS_PROJECT;
       if (storedActiveProject) activeProjectToSet = storedActiveProject;
       
       if (activeProjectToSet && (activeProjectToSet.id === 'all' || projects.some(p => p.id === activeProjectToSet!.id))) {
         _setActiveProject(activeProjectToSet);
       } else {
-        _setActiveProject(ALL_BUSINESS_PROJECT);
+        _setActiveProject(defaultProj || ALL_BUSINESS_PROJECT);
       }
-       if (storedDefaultProject && (storedDefaultProject.id === 'all' || projects.some(p => p.id === storedDefaultProject.id))) {
-        _setDefaultProject(storedDefaultProject);
-      } else {
-        _setDefaultProject(ALL_BUSINESS_PROJECT);
-      }
-
+      
     } catch (error) {
       console.error("Error fetching data from Supabase:", error);
       toast({ variant: 'destructive', title: 'Error fetching data', description: 'Could not load your financial data.' });
     } finally {
       setIsLoading(false);
     }
-  }, [toast, currencyKey, defaultProjectKey, activeProjectKey]);
+  }, [toast, currencyKey, activeProjectKey]);
   
   const triggerSync = useCallback(async (projectId: string) => {
     // Wait for the next render cycle to ensure state is updated
@@ -267,13 +264,22 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [activeProjectKey]);
   
-  const setDefaultProject = useCallback((project: Project | null) => {
+  const setDefaultProject = useCallback(async (project: Project | null) => {
+    if (!user) return;
     const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
     _setDefaultProject(projectToSet);
-    if (defaultProjectKey) {
-      localStorage.setItem(defaultProjectKey, JSON.stringify(projectToSet));
+    
+    try {
+        const { error } = await supabase.from('user_settings').upsert({ 
+            user_id: user.id, 
+            default_project_id: projectToSet.id === 'all' ? null : projectToSet.id 
+        });
+        if (error) throw error;
+    } catch (dbError) {
+        console.error("Failed to save default project to DB:", dbError);
+        toast({ variant: 'destructive', title: 'Error saving setting' });
     }
-  }, [defaultProjectKey]);
+  }, [user, toast]);
 
   const addProject = async (projectData: Omit<Project, 'id' | 'user_id' | 'created_at'>): Promise<Project> => {
     if (!user) throw new Error("User not authenticated");
@@ -661,11 +667,20 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setAllCredentials(prev => prev.filter(c => c.id !== credentialId));
   };
   
-  const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef = false): Promise<{ id: string } | void> => {
+  const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     const finalProjectId = loanData.project_id || personalProject?.id;
-    const { data: newLoan, error } = await supabase.from('loans').insert({ ...loanData, project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
+    
+    const dbLoan = {
+      ...loanData,
+      date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      project_id: finalProjectId, 
+      user_id: user.id,
+    };
+    
+    const { data: newLoan, error } = await supabase.from('loans').insert(dbLoan).select().single();
     if (error) throw error;
 
     if (newLoan.type === 'loanTaken') {
