@@ -369,7 +369,7 @@ export default function AIChat() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-background">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4 pr-4">
           {(isMessagesLoading || !messages) && messages?.length === 0 && (
@@ -429,7 +429,7 @@ export default function AIChat() {
               placeholder="Type your message..."
               disabled={isAiLoading || isMessagesLoading}
               autoComplete='off'
-              className="flex-1 rounded-full bg-background"
+              className="flex-1 rounded-full bg-muted"
           />
           {input.trim() ? (
             <Button type="submit" size="icon" disabled={isAiLoading || isMessagesLoading} className="rounded-full flex-shrink-0">

@@ -192,8 +192,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </DropdownMenu>
         </header>
         <main className={cn(
-            "flex-1 overflow-auto bg-muted/40",
-            isChatPage ? "p-0" : "p-4 md:p-6"
+            "flex-1 bg-muted/40",
+            isChatPage ? "overflow-hidden" : "overflow-auto p-4 md:p-6"
         )}>
             {children}
         </main>
