@@ -23,11 +23,11 @@ interface FinancialContextType {
   updateTransaction: (transactionId: string, updatedData: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (transaction: Transaction) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
-  addRepayment: (loan: Loan, amount: number, accountId: string) => Promise<void>;
+  addRepayment: (loan: Loan, amount: number, accountId: string, returnRef?: boolean) => Promise<{ id: string } | void>;
   
   loans: Loan[];
   allLoans: Loan[];
-  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>) => Promise<void>;
+  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string) => Promise<void>;
   getLoanById: (id: string) => Loan | undefined;
@@ -516,7 +516,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (transactionToDelete.project_id) triggerSync(transactionToDelete.project_id);
   };
     
-  const addRepayment = async (loan: Loan, amount: number, accountId: string) => {
+  const addRepayment = async (loan: Loan, amount: number, accountId: string, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
 
     const transactionData = {
@@ -529,7 +529,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         project_id: loan.project_id
     };
 
-    await addTransaction(transactionData);
+    const newDocRef = await addTransaction(transactionData, true);
     
     // Check if loan is fully paid
     const totalRepaid = allTransactions
@@ -539,6 +539,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (totalRepaid >= loan.amount) {
         await updateLoan(loan.id, { status: 'paid' });
     }
+    if (returnRef) return newDocRef;
   };
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string) => {
@@ -660,11 +661,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     setAllCredentials(prev => prev.filter(c => c.id !== credentialId));
   };
   
-  const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>) => {
-    if (!user) return;
+  const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef = false): Promise<{ id: string } | void> => {
+    if (!user) throw new Error("User not authenticated");
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     const finalProjectId = loanData.project_id || personalProject?.id;
-    const { data: newLoan, error } = await supabase.from('loans').insert({ ...loanData, date: new Date().toISOString(), project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
+    const { data: newLoan, error } = await supabase.from('loans').insert({ ...loanData, project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
     if (error) throw error;
 
     if (newLoan.type === 'loanTaken') {
@@ -675,6 +676,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
     setAllLoans(prev => [...prev, newLoan]);
     if (finalProjectId) triggerSync(finalProjectId);
+    if (returnRef) return { id: newLoan.id };
   };
 
   const updateLoan = async (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => {

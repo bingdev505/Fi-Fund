@@ -25,10 +25,10 @@ export type LogFinancialDataInput = z.infer<typeof LogFinancialDataInputSchema>;
 
 const LogFinancialDataOutputSchema = z.object({
   transaction_type: z
-    .enum(['income', 'expense', 'loanGiven', 'loanTaken'])
+    .enum(['income', 'expense', 'loanGiven', 'loanTaken', 'repayment'])
     .describe('The type of financial transaction.'),
   category: z.string().optional().describe('The category of the transaction for income/expense.'),
-  contact_id: z.string().optional().describe('The name of the person/entity for loans.'),
+  contact_id: z.string().optional().describe('The name of the person/entity for loans or repayments.'),
   amount: z.number().describe('The amount of the transaction.'),
   description: z.string().optional().describe('A description of the transaction.'),
   account_name: z.string().optional().describe("The specific name of the bank account if the user mentions one (e.g., 'savings', 'checking', 'federal')."),
@@ -43,13 +43,14 @@ const logFinancialDataPrompt = ai.definePrompt({
   name: 'logFinancialDataPrompt',
   input: {schema: LogFinancialDataInputSchema},
   output: {schema: LogFinancialDataOutputSchema},
-  prompt: `You are a financial assistant. Extract the transaction type (income, expense, loanGiven, loanTaken), category or contact, amount, description, and bank account name from the following user input.
-- If the user explicitly starts their message with 'income', 'expense', 'loanGiven', or 'loanTaken', use that as the transaction type.
-- For 'loanGiven' or 'loanTaken' types, the 'contact_id' field should contain the name of the person or entity. For 'income' or 'expense' types, use the 'category' field.
+  prompt: `You are a financial assistant. Extract the transaction type (income, expense, loanGiven, loanTaken, repayment), category or contact, amount, description, and bank account name from the following user input.
+- If the user explicitly starts their message with 'income', 'expense', 'loanGiven', or 'loanTaken', or 'repayment' use that as the transaction type.
+- For 'loanGiven', 'loanTaken', or 'repayment' types, the 'contact_id' field should contain the name of the person or entity. For 'income' or 'expense' types, use the 'category' field.
 - If the user mentions a specific bank or account name (e.g., 'in savings', 'from my checking account', 'at Federal bank', 'to gramin', 'Federal salary'), extract it as 'accountName'. 
 - Only extract the name of the account, like 'savings', 'checking', 'federal', or 'gramin'. Do not include the account name in the category or description.
 - If the user does *not* specify a bank account in their latest message, look at the chat history to see if a bank account was mentioned recently. If so, use that account name.
 - For loans, if the user says "I gave [Name] a loan", it means the user is owed money by [Name], so the transactionType is 'loanGiven'. If the user says "[Name] give me loan", it means the user owes money to [Name], so the transactionType is 'loanTaken'.
+- For repayments, if the user says "repaid [Name]" or "[Name] repaid me", the type is 'repayment' and the contact is '[Name]'.
 
 User Input: {{{chat_input}}}
 

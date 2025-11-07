@@ -66,7 +66,7 @@ export type ChatMessage = {
     content: string;
     timestamp: LocalTimestamp;
     transaction_id?: string;
-    entry_type?: 'income' | 'expense' | 'loanGiven' | 'loanTaken';
+    entry_type?: 'income' | 'expense' | 'loanGiven' | 'loanTaken' | 'repayment';
 };
 
 export type Client = {

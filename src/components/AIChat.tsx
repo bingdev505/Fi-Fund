@@ -93,6 +93,7 @@ export default function AIChat() {
   const { 
     addTransaction, 
     addLoan,
+    addRepayment,
     currency, 
     transactions, 
     loans, 
@@ -313,30 +314,61 @@ export default function AIChat() {
                     title: 'Logged via AI Chat',
                     description: toastDescription,
                 });
+            } else if (logResult.transaction_type === 'repayment') {
+                if (!logResult.contact_id) {
+                    assistantResponse = "I need to know who is making the repayment. For example: 'John repaid me 500'.";
+                } else {
+                    const contact = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
+                    if (!contact) {
+                         assistantResponse = `I couldn't find a contact named '${logResult.contact_id}'.`;
+                    } else {
+                        const activeLoansForContact = loans.filter(l => l.contact_id === contact.id && l.status === 'active');
+                        if (activeLoansForContact.length === 0) {
+                            assistantResponse = `There are no active loans with ${contact.name} to repay.`;
+                        } else if (activeLoansForContact.length > 1) {
+                            assistantResponse = `There are multiple active loans with ${contact.name}. Please log this repayment manually for now.`;
+                        } else {
+                            const loanToRepay = activeLoansForContact[0];
+                            const newDocRef = await addRepayment(loanToRepay, logResult.amount, accountIdToUse, true);
+                            newEntryId = (newDocRef as {id: string})?.id;
+                            newEntryType = 'repayment';
+                            assistantResponse = `Logged a repayment of ${formatCurrency(logResult.amount)} for the loan with ${contact.name}.`;
+                             toast({
+                                title: 'Repayment Logged',
+                                description: assistantResponse,
+                            });
+                        }
+                    }
+                }
             } else { // loanGiven or loanTaken
-                let contact: Contact | undefined = contacts.find(c => c.name.toLowerCase() === logResult.contact_id.toLowerCase());
-                if (!contact) {
+                let contact: Contact | undefined = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
+                if (!contact && logResult.contact_id) {
                     contact = await addContact({ name: logResult.contact_id });
                 }
 
-                const newLoan = {
-                    type: logResult.transaction_type,
-                    amount: logResult.amount,
-                    contact_id: contact.id, 
-                    description: logResult.description || 'AI Logged Loan',
-                    account_id: accountIdToUse,
-                    status: 'active'
-                };
-                const newDocRef = await addLoan(newLoan, true);
-                newEntryId = (newDocRef as {id: string})?.id;
-                newEntryType = newLoan.type;
-                
-                const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} for ${contact.name} logged against ${accountNameToUse}.`;
-                assistantResponse = toastDescription;
-                toast({
-                    title: 'Logged via AI Chat',
-                    description: toastDescription,
-                });
+                if (!contact) {
+                     assistantResponse = `I couldn't find or create a contact for this loan.`;
+                } else {
+                    const newLoan = {
+                        type: logResult.transaction_type,
+                        amount: logResult.amount,
+                        contact_id: contact.id, 
+                        description: logResult.description || 'AI Logged Loan',
+                        account_id: accountIdToUse,
+                        status: 'active' as 'active' | 'paid',
+                        date: new Date().toISOString()
+                    };
+                    const newDocRef = await addLoan(newLoan, true);
+                    newEntryId = (newDocRef as {id: string})?.id;
+                    newEntryType = newLoan.type;
+                    
+                    const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} for ${contact.name} logged against ${accountNameToUse}.`;
+                    assistantResponse = toastDescription;
+                    toast({
+                        title: 'Logged via AI Chat',
+                        description: toastDescription,
+                    });
+                }
             }
         }
       } else if (result.intent === 'question') {
