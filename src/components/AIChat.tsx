@@ -371,7 +371,7 @@ export default function AIChat() {
 
   return (
     <>
-      <div className="flex flex-col bg-muted/40 h-full relative">
+      <div className="flex flex-col h-full relative">
         <ScrollArea className="flex-1 p-4 no-scrollbar" ref={scrollAreaRef}>
           <div className="space-y-4 pr-4">
             {(isMessagesLoading || !messages) && messages?.length === 0 && (
@@ -440,14 +440,18 @@ export default function AIChat() {
               </Button>
             ) : (
                 <>
-                <Button type="button" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsTransactionFormOpen(true)}>
-                    <PlusCircle className="h-4 w-4" />
-                    <span className="sr-only">Add Transaction</span>
-                </Button>
-                <Button type="button" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsRepayLoanOpen(true)}>
-                    <HandCoins className="h-4 w-4" />
-                    <span className="sr-only">Repay Loan</span>
-                </Button>
+                <DialogTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsTransactionFormOpen(true)}>
+                        <PlusCircle className="h-4 w-4" />
+                        <span className="sr-only">Add Transaction</span>
+                    </Button>
+                </DialogTrigger>
+                <DialogTrigger asChild>
+                     <Button type="button" variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsRepayLoanOpen(true)}>
+                        <HandCoins className="h-4 w-4" />
+                        <span className="sr-only">Repay Loan</span>
+                    </Button>
+                </DialogTrigger>
                 </>
             )}
           </form>
@@ -465,8 +469,8 @@ export default function AIChat() {
       </Dialog>
       
       <Dialog open={isRepayLoanOpen} onOpenChange={(open) => {
-            setIsRepayLoanOpen(open);
             if (!open) setSelectedLoanToRepay(null);
+            setIsRepayLoanOpen(open);
         }}>
             <DialogContent>
                 <DialogHeader>
@@ -510,16 +514,18 @@ export default function AIChat() {
             </DialogContent>
       </Dialog>
       
-       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
           {editingEntry && (
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Edit Entry</DialogTitle>
-                </DialogHeader>
-                <EditEntryForm entry={editingEntry} onFinished={() => handleEditFinished(editingEntry, editingEntry)} />
-            </DialogContent>
+            <>
+              <DialogHeader>
+                  <DialogTitle>Edit Entry</DialogTitle>
+              </DialogHeader>
+              <EditEntryForm entry={editingEntry} onFinished={() => handleEditFinished(editingEntry, editingEntry)} />
+            </>
           )}
-       </Dialog>
+        </DialogContent>
+      </Dialog>
       
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
