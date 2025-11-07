@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useFinancials } from '@/hooks/useFinancials';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { Save, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -105,9 +104,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
   const watchedType = form.watch('type');
 
   const categories = useMemo(() => {
-    const baseCategories = watchedType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-    const projectCategories = customCategories.filter(c => c.type === watchedType).map(c => c.name);
-    return [...baseCategories, ...projectCategories];
+    return customCategories.filter(c => c.type === watchedType).map(c => c.name);
   }, [watchedType, customCategories]);
 
 

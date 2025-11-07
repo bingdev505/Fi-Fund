@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useFinancials } from '@/hooks/useFinancials';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -149,7 +148,6 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
 
   const filteredCategories = useMemo(() => {
     const projectId = selectedProjectId;
-    const baseCategories = entryType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
     
     let projectCategories: string[] = [];
     if (projectId) {
@@ -162,7 +160,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         .map(c => c.name);
     }
 
-    return [...new Set([...baseCategories, ...projectCategories])];
+    return [...new Set([...projectCategories])];
   }, [entryType, customCategories, selectedProjectId, personalProject]);
   
    useEffect(() => {
