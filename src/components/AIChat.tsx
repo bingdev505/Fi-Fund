@@ -262,41 +262,52 @@ export default function AIChat() {
       let newEntryType: ChatMessage['entry_type'];
 
       if (result.intent === 'logData') {
-        const logResult = result.result;
+        const logResults = result.result;
         
-        let accountIdToUse: string | undefined;
-        let accountNameToUse: string | undefined;
-        let wasAccountFound = false;
+        let responseParts: string[] = [];
 
-        if (logResult.account_name) {
-            const searchName = logResult.account_name.toLowerCase();
-            const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(searchName));
-            
-            if (foundAccount) {
-                accountIdToUse = foundAccount.id;
-                accountNameToUse = foundAccount.name;
-                wasAccountFound = true;
+        for (const logResult of logResults) {
+            let accountIdToUse: string | undefined;
+            let accountNameToUse: string | undefined;
+            let wasAccountFound = false;
+
+            if (logResult.account_name) {
+                const searchName = logResult.account_name.toLowerCase();
+                const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(searchName));
+                
+                if (foundAccount) {
+                    accountIdToUse = foundAccount.id;
+                    accountNameToUse = foundAccount.name;
+                    wasAccountFound = true;
+                } else {
+                    responseParts.push(`Could not find account '${logResult.account_name}'.`);
+                    continue;
+                }
             } else {
-                assistantResponse = `I couldn't find an account named '${logResult.account_name}'. Please check your account settings or try again.`;
+                const primaryAccount = bankAccounts.find(acc => acc.is_primary);
+                if (primaryAccount) {
+                    accountIdToUse = primaryAccount.id;
+                    accountNameToUse = primaryAccount.name;
+                    wasAccountFound = true;
+                }
             }
-        } else {
-            const primaryAccount = bankAccounts.find(acc => acc.is_primary);
-            if (primaryAccount) {
-                accountIdToUse = primaryAccount.id;
-                accountNameToUse = primaryAccount.name;
-                wasAccountFound = true;
-            }
-        }
 
-        if (wasAccountFound) {
-             if (!accountIdToUse) {
+            if (!wasAccountFound) {
+                responseParts.push("Could not log an entry as no primary account is set.");
+                continue;
+            }
+
+            if (!accountIdToUse) {
+                responseParts.push("Could not log an entry as no primary account is set.");
                 toast({
                   variant: 'destructive',
                   title: 'No Account Available',
                   description: 'Please set a primary bank account in settings, or specify an account in your message.',
                 });
-                assistantResponse = "I couldn't log that because there's no primary account set. Please go to settings to select one, or tell me which account to use.";
-            } else if (logResult.transaction_type === 'income' || logResult.transaction_type === 'expense') {
+                continue;
+            }
+
+            if (logResult.transaction_type === 'income' || logResult.transaction_type === 'expense') {
                 const newTransaction = {
                     type: logResult.transaction_type,
                     amount: logResult.amount,
@@ -305,38 +316,25 @@ export default function AIChat() {
                     account_id: accountIdToUse,
                 };
                 const newDocRef = await addTransaction(newTransaction, true);
-                newEntryId = (newDocRef as {id: string})?.id;
-                newEntryType = newTransaction.type;
-                
-                const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
-                assistantResponse = toastDescription;
-                toast({
-                    title: 'Logged via AI Chat',
-                    description: toastDescription,
-                });
+                const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
+                responseParts.push(toastDescription);
             } else if (logResult.transaction_type === 'repayment') {
-                if (!logResult.contact_id) {
-                    assistantResponse = "I need to know who is making the repayment. For example: 'John repaid me 500'.";
+                 if (!logResult.contact_id) {
+                    responseParts.push("Could not log repayment: contact name is missing.");
                 } else {
                     const contact = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
                     if (!contact) {
-                         assistantResponse = `I couldn't find a contact named '${logResult.contact_id}'.`;
+                         responseParts.push(`Could not find contact '${logResult.contact_id}'.`);
                     } else {
                         const activeLoansForContact = loans.filter(l => l.contact_id === contact.id && l.status === 'active');
                         if (activeLoansForContact.length === 0) {
-                            assistantResponse = `There are no active loans with ${contact.name} to repay.`;
+                            responseParts.push(`No active loans with ${contact.name} to repay.`);
                         } else if (activeLoansForContact.length > 1) {
-                            assistantResponse = `There are multiple active loans with ${contact.name}. Please log this repayment manually for now.`;
+                            responseParts.push(`Multiple active loans with ${contact.name}. Please log repayment manually.`);
                         } else {
                             const loanToRepay = activeLoansForContact[0];
-                            const newDocRef = await addRepayment(loanToRepay, logResult.amount, accountIdToUse, true);
-                            newEntryId = (newDocRef as {id: string})?.id;
-                            newEntryType = 'repayment';
-                            assistantResponse = `Logged a repayment of ${formatCurrency(logResult.amount)} for the loan with ${contact.name}.`;
-                             toast({
-                                title: 'Repayment Logged',
-                                description: assistantResponse,
-                            });
+                            await addRepayment(loanToRepay, logResult.amount, accountIdToUse, true);
+                            responseParts.push(`Logged repayment of ${formatCurrency(logResult.amount)} for loan with ${contact.name}.`);
                         }
                     }
                 }
@@ -347,7 +345,7 @@ export default function AIChat() {
                 }
 
                 if (!contact) {
-                     assistantResponse = `I couldn't find or create a contact for this loan.`;
+                     responseParts.push(`Could not find or create a contact for a loan.`);
                 } else {
                     const newLoan = {
                         type: logResult.transaction_type,
@@ -358,18 +356,23 @@ export default function AIChat() {
                         status: 'active' as 'active' | 'paid',
                         date: new Date().toISOString()
                     };
-                    const newDocRef = await addLoan(newLoan, true);
-                    newEntryId = (newDocRef as {id: string})?.id;
-                    newEntryType = newLoan.type;
-                    
-                    const toastDescription = `${logResult.transaction_type.charAt(0).toUpperCase() + logResult.transaction_type.slice(1)} of ${formatCurrency(logResult.amount)} for ${contact.name} logged against ${accountNameToUse}.`;
-                    assistantResponse = toastDescription;
-                    toast({
-                        title: 'Logged via AI Chat',
-                        description: toastDescription,
-                    });
+                    await addLoan(newLoan, true);
+                    const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} for ${contact.name} logged against ${accountNameToUse}.`;
+                    responseParts.push(toastDescription);
                 }
             }
+        }
+        assistantResponse = responseParts.join(' ');
+        if (logResults.length > 1) {
+            toast({
+                title: 'Logged Multiple Entries',
+                description: `The AI logged ${logResults.length} separate financial entries.`,
+            });
+        } else if (logResults.length === 1) {
+             toast({
+                title: 'Logged via AI Chat',
+                description: assistantResponse,
+            });
         }
       } else if (result.intent === 'question') {
         assistantResponse = result.result.answer;
@@ -381,11 +384,6 @@ export default function AIChat() {
         role: 'assistant',
         content: assistantResponse,
       };
-
-      if (newEntryId && newEntryType) {
-        assistantMessage.transaction_id = newEntryId;
-        assistantMessage.entry_type = newEntryType;
-      }
 
       addMessage(assistantMessage as Omit<ChatMessage, 'id' | 'timestamp'>);
 
@@ -452,8 +450,8 @@ export default function AIChat() {
         </div>
       </ScrollArea>
       
-      <div className="px-4 pt-4 border-t">
-        <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2 mb-5 md:mb-4">
+      <div className="p-4 border-t">
+        <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2 mb-2">
           <Input
               id="chat-input"
               value={input}

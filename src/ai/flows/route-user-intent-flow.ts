@@ -5,7 +5,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import { logFinancialData, type LogFinancialDataOutput } from './log-financial-data-with-ai-chat';
 import { answerFinancialQuestion, type AnswerFinancialQuestionOutput } from './answer-financial-question';
 
@@ -17,14 +17,14 @@ const RouteUserIntentInputSchema = z.object({
 export type RouteUserIntentInput = z.infer<typeof RouteUserIntentInputSchema>;
 
 // Re-define the schemas here since we can't import them from 'use server' files.
-const LogFinancialDataResultSchema = z.object({
+const LogFinancialDataResultSchema = z.array(z.object({
   transaction_type: z.enum(['income', 'expense', 'loanGiven', 'loanTaken', 'repayment']),
   category: z.string().optional(),
   contact_id: z.string().optional(),
   amount: z.number(),
   description: z.string().optional(),
   account_name: z.string().optional(),
-});
+}));
 
 const AnswerFinancialQuestionResultSchema = z.object({
   answer: z.string(),
