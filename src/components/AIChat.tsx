@@ -91,8 +91,8 @@ export default function AIChat() {
   const [input, setInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const { 
-    addTransaction, 
-    addLoan,
+    addTransactions,
+    addLoans,
     addRepayment,
     currency, 
     transactions, 
@@ -258,13 +258,13 @@ export default function AIChat() {
       });
 
       let assistantResponse = '';
-      let newEntryId: string | undefined;
-      let newEntryType: ChatMessage['entry_type'];
 
       if (result.intent === 'logData') {
         const logResults = result.result;
         
         let responseParts: string[] = [];
+        const newTransactions: Omit<Transaction, 'id' | 'user_id' | 'date'>[] = [];
+        const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[] = [];
 
         for (const logResult of logResults) {
             let accountIdToUse: string | undefined;
@@ -308,14 +308,13 @@ export default function AIChat() {
             }
 
             if (logResult.transaction_type === 'income' || logResult.transaction_type === 'expense') {
-                const newTransaction = {
+                newTransactions.push({
                     type: logResult.transaction_type,
                     amount: logResult.amount,
                     category: logResult.category,
                     description: logResult.description || 'AI Logged Transaction',
                     account_id: accountIdToUse,
-                };
-                const newDocRef = await addTransaction(newTransaction, true);
+                });
                 const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
                 responseParts.push(toastDescription);
             } else if (logResult.transaction_type === 'repayment') {
@@ -347,21 +346,23 @@ export default function AIChat() {
                 if (!contact) {
                      responseParts.push(`Could not find or create a contact for a loan.`);
                 } else {
-                    const newLoan = {
+                    newLoans.push({
                         type: logResult.transaction_type,
                         amount: logResult.amount,
                         contact_id: contact.id, 
                         description: logResult.description || 'AI Logged Loan',
                         account_id: accountIdToUse,
                         status: 'active' as 'active' | 'paid',
-                        date: new Date().toISOString()
-                    };
-                    await addLoan(newLoan, true);
+                    });
                     const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} for ${contact.name} logged against ${accountNameToUse}.`;
                     responseParts.push(toastDescription);
                 }
             }
         }
+        
+        if(newTransactions.length > 0) await addTransactions(newTransactions);
+        if(newLoans.length > 0) await addLoans(newLoans);
+
         assistantResponse = responseParts.join(' ');
         if (logResults.length > 1) {
             toast({
@@ -399,7 +400,7 @@ export default function AIChat() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex h-full flex-col bg-background">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4 pr-4">
           {(isMessagesLoading || !messages) && messages?.length === 0 && (
@@ -450,8 +451,8 @@ export default function AIChat() {
         </div>
       </ScrollArea>
       
-      <div className="p-4 border-t">
-        <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2 mb-2">
+      <div className="shrink-0 border-t p-4">
+        <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
           <Input
               id="chat-input"
               value={input}

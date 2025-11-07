@@ -20,6 +20,7 @@ interface FinancialContextType {
   transactions: Transaction[];
   allTransactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'user_id'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addTransactions: (transactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[]) => Promise<void>;
   updateTransaction: (transactionId: string, updatedData: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (transaction: Transaction) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
@@ -28,6 +29,7 @@ interface FinancialContextType {
   loans: Loan[];
   allLoans: Loan[];
   addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addLoans: (loans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[]) => Promise<void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string) => Promise<void>;
   getLoanById: (id: string) => Loan | undefined;
@@ -435,37 +437,85 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         return prevAccounts.map(acc => acc.id === account_id ? { ...acc, balance: newBalance } : acc);
       });
   }, []);
+  
+  const handleBatchBalanceUpdates = useCallback(async (entries: (Transaction | Loan)[]) => {
+    const balanceChanges = new Map<string, number>();
 
-  const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'date' | 'user_id'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user) throw new Error("User not authenticated");
-    const dbTransaction: Omit<Transaction, 'id'> & { user_id: string; date: string; } = {
-        ...transactionData,
-        user_id: user.id,
-        date: new Date().toISOString(),
-    };
-    
-    const { data: newTransaction, error } = await supabase.from('transactions').insert(dbTransaction).select().single();
+    entries.forEach(entry => {
+        if ('category' in entry) { // Transaction
+            const tx = entry as Transaction;
+            if (tx.type === 'income' && tx.account_id) {
+                balanceChanges.set(tx.account_id, (balanceChanges.get(tx.account_id) || 0) + tx.amount);
+            } else if (tx.type === 'expense' && tx.account_id) {
+                balanceChanges.set(tx.account_id, (balanceChanges.get(tx.account_id) || 0) - tx.amount);
+            } else if (tx.type === 'transfer' && tx.from_account_id && tx.to_account_id) {
+                balanceChanges.set(tx.from_account_id, (balanceChanges.get(tx.from_account_id) || 0) - tx.amount);
+                balanceChanges.set(tx.to_account_id, (balanceChanges.get(tx.to_account_id) || 0) + tx.amount);
+            }
+        } else { // Loan
+            const loan = entry as Loan;
+            if (loan.type === 'loanTaken') {
+                balanceChanges.set(loan.account_id, (balanceChanges.get(loan.account_id) || 0) + loan.amount);
+            } else { // loanGiven
+                balanceChanges.set(loan.account_id, (balanceChanges.get(loan.account_id) || 0) - loan.amount);
+            }
+        }
+    });
+
+    for (const [accountId, change] of balanceChanges.entries()) {
+        const operation = change >= 0 ? 'add' : 'subtract';
+        await updateAccountBalance(accountId, Math.abs(change), operation);
+    }
+  }, [updateAccountBalance]);
+
+  const addTransactions = async (transactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[]) => {
+    if (!user || transactions.length === 0) return;
+    const dbTransactions = transactions.map(t => ({
+      ...t,
+      user_id: user.id,
+      date: new Date().toISOString(),
+    }));
+
+    const { data: newTransactions, error } = await supabase.from('transactions').insert(dbTransactions).select();
     if (error) throw error;
     
-    setAllTransactions(prev => [...prev, newTransaction]);
-
-    if (newTransaction.type === 'income' && newTransaction.account_id) { await updateAccountBalance(newTransaction.account_id, newTransaction.amount, 'add'); } 
-    else if (newTransaction.type === 'expense' && newTransaction.account_id) { await updateAccountBalance(newTransaction.account_id, newTransaction.amount, 'subtract'); } 
-    else if (newTransaction.type === 'transfer' && newTransaction.from_account_id && newTransaction.to_account_id) {
-        await updateAccountBalance(newTransaction.from_account_id, newTransaction.amount, 'subtract');
-        await updateAccountBalance(newTransaction.to_account_id, newTransaction.amount, 'add');
-    } else if (newTransaction.type === 'repayment' && newTransaction.loan_id && newTransaction.account_id) {
-      const relatedLoan = allLoans.find(l => l.id === newTransaction.loan_id);
-      if (relatedLoan?.type === 'loanGiven') {
-        // Money is coming back in
-        await updateAccountBalance(newTransaction.account_id, newTransaction.amount, 'add');
-      } else { // loanTaken
-        // Money is going out
-        await updateAccountBalance(newTransaction.account_id, newTransaction.amount, 'subtract');
-      }
+    setAllTransactions(prev => [...prev, ...newTransactions]);
+    await handleBatchBalanceUpdates(newTransactions);
+    
+    const projectIds = [...new Set(newTransactions.map(t => t.project_id).filter(Boolean))];
+    for (const projectId of projectIds) {
+      triggerSync(projectId!);
     }
-    if (newTransaction.project_id) triggerSync(newTransaction.project_id);
-    if (returnRef) { return { id: newTransaction.id }; }
+  };
+
+  const addLoans = async (loans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[]) => {
+    if (!user || loans.length === 0) return;
+    const dbLoans = loans.map(l => ({
+      ...l,
+      date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      user_id: user.id,
+    }));
+
+    const { data: newLoans, error } = await supabase.from('loans').insert(dbLoans).select();
+    if (error) throw error;
+
+    setAllLoans(prev => [...prev, ...newLoans]);
+    await handleBatchBalanceUpdates(newLoans);
+
+    const projectIds = [...new Set(newLoans.map(l => l.project_id).filter(Boolean))];
+    for (const projectId of projectIds) {
+      triggerSync(projectId!);
+    }
+  };
+
+  const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'date' | 'user_id'>, returnRef = false): Promise<{ id: string } | void> => {
+    await addTransactions([transactionData]);
+    // Note: To return an ID, we'd need to adjust addTransactions or find the new entry.
+    // For simplicity with the batch update, we'll no longer return the ref here.
+    if (returnRef) {
+        console.warn("addTransaction with returnRef is not optimized for batching. ID will not be returned.");
+    }
   };
 
   const updateTransaction = async (transactionId: string, updatedData: Partial<Transaction>) => {
@@ -545,7 +595,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (totalRepaid >= loan.amount) {
         await updateLoan(loan.id, { status: 'paid' });
     }
-    if (returnRef) return newDocRef;
+    if (returnRef) return newDocRef as { id: string };
   };
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string) => {
@@ -668,30 +718,10 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
   
   const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef = false): Promise<{ id: string } | void> => {
-    if (!user) throw new Error("User not authenticated");
-    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
-    const finalProjectId = loanData.project_id || personalProject?.id;
-    
-    const dbLoan = {
-      ...loanData,
-      date: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      project_id: finalProjectId, 
-      user_id: user.id,
-    };
-    
-    const { data: newLoan, error } = await supabase.from('loans').insert(dbLoan).select().single();
-    if (error) throw error;
-
-    if (newLoan.type === 'loanTaken') {
-        await updateAccountBalance(newLoan.account_id, newLoan.amount, 'add');
-    } else { // loanGiven
-        await updateAccountBalance(newLoan.account_id, newLoan.amount, 'subtract');
+     await addLoans([loanData]);
+     if (returnRef) {
+        console.warn("addLoan with returnRef is not optimized for batching. ID will not be returned.");
     }
-
-    setAllLoans(prev => [...prev, newLoan]);
-    if (finalProjectId) triggerSync(finalProjectId);
-    if (returnRef) return { id: newLoan.id };
   };
 
   const updateLoan = async (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => {
@@ -814,28 +844,28 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const contextValue: FinancialContextType = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
-    transactions: filteredTransactions, allTransactions, addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
+    transactions: filteredTransactions, allTransactions, addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, allClients, addClient, updateClient, deleteClient,
     contacts: filteredContacts, allContacts, addContact, updateContact, deleteContact,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
-    loans: filteredLoans, allLoans, addLoan, updateLoan, deleteLoan, getLoanById,
+    loans: filteredLoans, allLoans, addLoan, addLoans, updateLoan, deleteLoan, getLoanById,
     currency, setCurrency,
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
       allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, allTasks, filteredCredentials, allCredentials, filteredLoans, allLoans, currency, isLoading, isUserLoading,
       setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
-      addTransaction, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
+      addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
       addClient, updateClient, deleteClient,
       addContact, updateContact, deleteContact,
       addCategory, updateCategory, deleteCategory,
       addTask, updateTask, deleteTask,
       addCredential, updateCredential, deleteCredential,
-      addLoan, updateLoan, deleteLoan, getLoanById,
+      addLoan, addLoans, updateLoan, deleteLoan, getLoanById,
       setCurrency,
       triggerSync
     ]);
