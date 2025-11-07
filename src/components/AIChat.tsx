@@ -370,149 +370,145 @@ export default function AIChat() {
   };
 
   return (
-    <>
-      <div className="flex flex-col h-full">
-        <ScrollArea className="flex-grow p-4" ref={scrollAreaRef}>
-          <div className="space-y-4 pr-4">
-            {(isMessagesLoading || !messages) && messages?.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                  <Bot className="h-12 w-12 mb-4" />
-                  <h2 className="text-xl font-semibold mb-2">Welcome to FinanceFlow AI</h2>
-                  <p>You can start by logging a transaction like 'Spent 500 on groceries in savings'</p>
-                  <p>or ask a question like 'What's my total income this month?'</p>
-              </div>
-            )}
-            {messages && messages.map(message => (
-              <div key={message.id} className={cn('flex items-start gap-3 group/message', message.role === 'user' ? 'justify-end' : '')}>
-                {message.role === 'assistant' && (
-                  <Avatar className="h-8 w-8 border bg-white">
-                    <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
-                  </Avatar>
-                )}
-                <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
-                   {message.transaction_id && (
-                    <div className="absolute top-1/2 -translate-y-1/2 -left-20 opacity-0 group-hover/message:opacity-100 transition-opacity flex items-center bg-white rounded-full border shadow-sm">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
-                            <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleDeleteClick(message)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                    </div>
-                  )}
-                  <p>{message.content}</p>
-                </div>
-                {message.role === 'user' && (
-                  <Avatar className="h-8 w-8 border">
-                    <AvatarFallback><User /></AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            ))}
-            {isAiLoading && (
-              <div className="flex items-start gap-3">
+    <div className="flex flex-col h-full">
+      <ScrollArea className="flex-grow p-4" ref={scrollAreaRef}>
+        <div className="space-y-4 pr-4">
+          {(isMessagesLoading || !messages) && messages?.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                <Bot className="h-12 w-12 mb-4" />
+                <h2 className="text-xl font-semibold mb-2">Welcome to FinanceFlow AI</h2>
+                <p>You can start by logging a transaction like 'Spent 500 on groceries in savings'</p>
+                <p>or ask a question like 'What's my total income this month?'</p>
+            </div>
+          )}
+          {messages && messages.map(message => (
+            <div key={message.id} className={cn('flex items-start gap-3 group/message', message.role === 'user' ? 'justify-end' : '')}>
+              {message.role === 'assistant' && (
                 <Avatar className="h-8 w-8 border bg-white">
                   <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
                 </Avatar>
-                <div className="rounded-lg px-4 py-2 bg-white flex items-center shadow-sm">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-        <div className="p-4 border-t">
-          <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
-            <ProjectSwitcher />
-            <Input
-                id="chat-input"
-                value={input}
-                onChange={handleInputChange}
-                placeholder="Type your message..."
-                disabled={isAiLoading || isMessagesLoading}
-                autoComplete='off'
-                className="flex-1 rounded-full bg-background"
-            />
-            {input.trim() ? (
-              <Button type="submit" size="icon" disabled={isAiLoading || isMessagesLoading} className="rounded-full flex-shrink-0">
-                <Send className="h-4 w-4" />
-                <span className="sr-only">Send</span>
-              </Button>
-            ) : (
-                <>
-                <DialogTrigger asChild>
-                    <Button type="button" size="icon" className="rounded-full flex-shrink-0 bg-primary text-primary-foreground" onClick={() => setIsTransactionFormOpen(true)}>
-                        <PlusCircle className="h-4 w-4" />
-                        <span className="sr-only">Add Transaction</span>
-                    </Button>
-                </DialogTrigger>
-                <DialogTrigger asChild>
-                     <Button type="button" size="icon" className="rounded-full flex-shrink-0 bg-primary text-primary-foreground" onClick={() => setIsRepayLoanOpen(true)}>
-                        <HandCoins className="h-4 w-4" />
-                        <span className="sr-only">Repay Loan</span>
-                    </Button>
-                </DialogTrigger>
-                </>
-            )}
-          </form>
-        </div>
-      </div>
-      
-      <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Add a New Transaction</DialogTitle>
-            </DialogHeader>
-            <EntryForm onFinished={() => setIsTransactionFormOpen(false)} />
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isRepayLoanOpen} onOpenChange={(open) => {
-            if (!open) setSelectedLoanToRepay(null);
-            setIsRepayLoanOpen(open);
-        }}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Repay Loan</DialogTitle>
-                </DialogHeader>
-                {selectedLoanToRepay ? (
-                    <RepaymentForm 
-                        loan={selectedLoanToRepay} 
-                        outstandingAmount={selectedLoanToRepay.amount - (loanRepayments.get(selectedLoanToRepay.id) || 0)}
-                        onFinished={() => {
-                            setSelectedLoanToRepay(null);
-                            setIsRepayLoanOpen(false);
-                        }}
-                    />
-                ) : (
-                    <div className="py-4">
-                    {activeLoans.length > 0 ? (
-                    <ul className="space-y-2 max-h-64 overflow-y-auto">
-                        {activeLoans.map(loan => (
-                        <li key={loan.id}>
-                            <Button
-                            variant="outline"
-                            className="w-full justify-between h-auto py-2"
-                            onClick={() => setSelectedLoanToRepay(loan)}
-                            >
-                            <div className="text-left">
-                                <p className="font-semibold">{contacts.find(c => c.id === loan.contact_id)?.name}</p>
-                                <p className="text-sm text-muted-foreground">{formatCurrency(loan.amount)} on {format(new Date(loan.date), "PPP")}</p>
-                                <p className="text-sm text-yellow-600 font-semibold">Outstanding: {formatCurrency(loan.amount - (loanRepayments.get(loan.id) || 0))}</p>
-                            </div>
-                            <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </li>
-                        ))}
-                    </ul>
-                    ) : (
-                    <p className="text-center text-muted-foreground">You have no active loans to repay.</p>
-                    )}
-                    </div>
+              )}
+              <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
+                 {message.transaction_id && (
+                  <div className="absolute top-1/2 -translate-y-1/2 -left-20 opacity-0 group-hover/message:opacity-100 transition-opacity flex items-center bg-white rounded-full border shadow-sm">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
+                          <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleDeleteClick(message)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                  </div>
                 )}
-            </DialogContent>
-      </Dialog>
-      
+                <p>{message.content}</p>
+              </div>
+              {message.role === 'user' && (
+                <Avatar className="h-8 w-8 border">
+                  <AvatarFallback><User /></AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          ))}
+          {isAiLoading && (
+            <div className="flex items-start gap-3">
+              <Avatar className="h-8 w-8 border bg-white">
+                <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
+              </Avatar>
+              <div className="rounded-lg px-4 py-2 bg-white flex items-center shadow-sm">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+      <div className="px-4 pt-4 pb-8 md:pb-4 border-t">
+        <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
+          <ProjectSwitcher />
+          <Input
+              id="chat-input"
+              value={input}
+              onChange={handleInputChange}
+              placeholder="Type your message..."
+              disabled={isAiLoading || isMessagesLoading}
+              autoComplete='off'
+              className="flex-1 rounded-full bg-background"
+          />
+          {input.trim() ? (
+            <Button type="submit" size="icon" disabled={isAiLoading || isMessagesLoading} className="rounded-full flex-shrink-0">
+              <Send className="h-4 w-4" />
+              <span className="sr-only">Send</span>
+            </Button>
+          ) : (
+              <>
+              <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
+                  <DialogTrigger asChild>
+                      <Button type="button" size="icon" className="rounded-full flex-shrink-0 bg-primary text-primary-foreground">
+                          <PlusCircle className="h-4 w-4" />
+                          <span className="sr-only">Add Transaction</span>
+                      </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                      <DialogHeader>
+                          <DialogTitle>Add a New Transaction</DialogTitle>
+                      </DialogHeader>
+                      <EntryForm onFinished={() => setIsTransactionFormOpen(false)} />
+                  </DialogContent>
+              </Dialog>
+              <Dialog open={isRepayLoanOpen} onOpenChange={(open) => {
+                  if (!open) setSelectedLoanToRepay(null);
+                  setIsRepayLoanOpen(open);
+              }}>
+                  <DialogTrigger asChild>
+                       <Button type="button" size="icon" className="rounded-full flex-shrink-0 bg-primary text-primary-foreground">
+                          <HandCoins className="h-4 w-4" />
+                          <span className="sr-only">Repay Loan</span>
+                      </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                      <DialogHeader>
+                          <DialogTitle>Repay Loan</DialogTitle>
+                      </DialogHeader>
+                      {selectedLoanToRepay ? (
+                          <RepaymentForm 
+                              loan={selectedLoanToRepay} 
+                              outstandingAmount={selectedLoanToRepay.amount - (loanRepayments.get(selectedLoanToRepay.id) || 0)}
+                              onFinished={() => {
+                                  setSelectedLoanToRepay(null);
+                                  setIsRepayLoanOpen(false);
+                              }}
+                          />
+                      ) : (
+                          <div className="py-4">
+                          {activeLoans.length > 0 ? (
+                          <ul className="space-y-2 max-h-64 overflow-y-auto">
+                              {activeLoans.map(loan => (
+                              <li key={loan.id}>
+                                  <Button
+                                  variant="outline"
+                                  className="w-full justify-between h-auto py-2"
+                                  onClick={() => setSelectedLoanToRepay(loan)}
+                                  >
+                                  <div className="text-left">
+                                      <p className="font-semibold">{contacts.find(c => c.id === loan.contact_id)?.name}</p>
+                                      <p className="text-sm text-muted-foreground">{formatCurrency(loan.amount)} on {format(new Date(loan.date), "PPP")}</p>
+                                      <p className="text-sm text-yellow-600 font-semibold">Outstanding: {formatCurrency(loan.amount - (loanRepayments.get(loan.id) || 0))}</p>
+                                  </div>
+                                  <ChevronRight className="h-4 w-4" />
+                                  </Button>
+                              </li>
+                              ))}
+                          </ul>
+                          ) : (
+                          <p className="text-center text-muted-foreground">You have no active loans to repay.</p>
+                          )}
+                          </div>
+                      )}
+                  </DialogContent>
+              </Dialog>
+              </>
+          )}
+        </form>
+      </div>
+
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           {editingEntry && (
@@ -540,6 +536,6 @@ export default function AIChat() {
               </AlertDialogFooter>
           </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
