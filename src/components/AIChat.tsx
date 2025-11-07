@@ -114,6 +114,8 @@ export default function AIChat() {
 
   const [editingEntry, setEditingEntry] = useState<Transaction | Loan | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Loan | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
@@ -168,10 +170,20 @@ export default function AIChat() {
 
     if (entry) {
         setEditingEntry(entry);
+        setEditDialogOpen(true);
     }
   };
 
-  const handleDelete = () => {
+  const handleDeleteClick = (message: ChatMessage) => {
+    if (!message.transaction_id) return;
+    const entry = getLoanById(message.transaction_id) || getTransactionById(message.transaction_id);
+    if(entry) {
+        setDeletingEntry(entry);
+        setDeleteDialogOpen(true);
+    }
+  }
+
+  const handleDeleteConfirm = () => {
     if (!deletingEntry) return;
 
     const messageToDelete = messages.find(m => m.transaction_id === deletingEntry?.id);
@@ -189,6 +201,7 @@ export default function AIChat() {
     }
 
     setDeletingEntry(null);
+    setDeleteDialogOpen(false);
   };
 
   const handleEditFinished = (originalEntry: Transaction | Loan, updatedEntry: Transaction | Loan) => {
@@ -208,6 +221,7 @@ export default function AIChat() {
         updateMessage({ ...messageToUpdate, content: newContent });
     }
     setEditingEntry(null);
+    setEditDialogOpen(false);
   };
 
 
@@ -376,10 +390,7 @@ export default function AIChat() {
   ];
 
   return (
-    <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
-    <Dialog open={isRepayLoanOpen} onOpenChange={setIsRepayLoanOpen}>
-    <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
-    <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
+    <>
       <div className="flex flex-col bg-muted/40 h-full relative">
         <div className="p-4 border-b bg-background">
           <ProjectSwitcher />
@@ -404,16 +415,12 @@ export default function AIChat() {
                 <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
                    {message.transaction_id && (
                     <div className="absolute top-1/2 -translate-y-1/2 -left-20 opacity-0 group-hover/message:opacity-100 transition-opacity flex items-center bg-white rounded-full border shadow-sm">
-                      <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
                             <Pencil className="h-4 w-4" />
                         </Button>
-                      </DialogTrigger>
-                      <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setDeletingEntry(getLoanById(message.transaction_id!) || getTransactionById(message.transaction_id!))}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                      </AlertDialogTrigger>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleDeleteClick(message)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                     </div>
                   )}
                   <p>{message.content}</p>
@@ -479,52 +486,32 @@ export default function AIChat() {
               </Button>
             ) : (
                 <>
-                <DialogTrigger asChild>
-                    <Button type="button" size="icon" className="rounded-full flex-shrink-0">
-                        <PlusCircle className="h-4 w-4" />
-                        <span className="sr-only">Add Transaction</span>
-                    </Button>
-                </DialogTrigger>
-                <DialogTrigger asChild>
-                  <Button type="button" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsRepayLoanOpen(true)}>
-                      <HandCoins className="h-4 w-4" />
-                      <span className="sr-only">Repay Loan</span>
-                  </Button>
-                </DialogTrigger>
+                <Button type="button" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsTransactionFormOpen(true)}>
+                    <PlusCircle className="h-4 w-4" />
+                    <span className="sr-only">Add Transaction</span>
+                </Button>
+                <Button type="button" size="icon" className="rounded-full flex-shrink-0" onClick={() => setIsRepayLoanOpen(true)}>
+                    <HandCoins className="h-4 w-4" />
+                    <span className="sr-only">Repay Loan</span>
+                </Button>
                 </>
             )}
           </form>
         </div>
       </div>
-       {editingEntry && (
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>Edit Entry</DialogTitle>
-              </DialogHeader>
-              <EditEntryForm entry={editingEntry} onFinished={(updatedEntry) => handleEditFinished(editingEntry, updatedEntry)} />
-          </DialogContent>
-      )}
-      {deletingEntry && (
-          <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete this entry and update your account balances.
-                  </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-      )}
+      
+      {/* DIALOGS */}
+      <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Add a New Transaction</DialogTitle>
             </DialogHeader>
             <EntryForm onFinished={() => setIsTransactionFormOpen(false)} />
         </DialogContent>
-        <Dialog onOpenChange={(open) => {
+      </Dialog>
+      
+      <Dialog open={isRepayLoanOpen} onOpenChange={(open) => {
+            setIsRepayLoanOpen(open);
             if (!open) setSelectedLoanToRepay(null);
         }}>
             <DialogContent>
@@ -567,11 +554,34 @@ export default function AIChat() {
                     </div>
                 )}
             </DialogContent>
-        </Dialog>
-    </Dialog>
-    </AlertDialog>
-    </Dialog>
-    </Dialog>
+      </Dialog>
+      
+       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          {editingEntry && (
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Entry</DialogTitle>
+                </DialogHeader>
+                <EditEntryForm entry={editingEntry} onFinished={handleEditFinished} />
+            </DialogContent>
+          )}
+       </Dialog>
+      
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete this entry and update your account balances.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
