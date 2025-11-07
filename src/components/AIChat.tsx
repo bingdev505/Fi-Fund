@@ -10,7 +10,7 @@ import { routeUserIntent } from '@/app/actions';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import type { ChatMessage, Loan, Transaction, Contact } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import EditEntryForm from './EditEntryForm';
