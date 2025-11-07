@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EditEntryForm from './EditEntryForm';
 import EntryForm from './EntryForm';
 import { useAuth } from '@/context/AuthContext';
+import ProjectSwitcher from './ProjectSwitcher';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
@@ -366,6 +367,9 @@ export default function AIChat() {
     <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
     <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
       <div className="absolute inset-0 flex flex-col bg-muted/40">
+        <div className="p-4 border-b bg-background">
+          <ProjectSwitcher />
+        </div>
         <ScrollArea className="flex-1 p-4 no-scrollbar" ref={scrollAreaRef}>
           <div className="space-y-4 pr-4">
             {(isMessagesLoading || !messages) && messages?.length === 0 && (

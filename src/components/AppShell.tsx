@@ -163,9 +163,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
           
-          <div className="w-full flex-1">
-            {pathname === '/ai-chat' && <ProjectSwitcher />}
-          </div>
+          <div className="w-full flex-1" />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
