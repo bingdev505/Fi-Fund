@@ -30,6 +30,7 @@ interface FinancialContextType {
   allLoans: Loan[];
   addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   addLoans: (loans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[]) => Promise<void>;
+  addOrUpdateLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>) => Promise<void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string) => Promise<void>;
   getLoanById: (id: string) => Loan | undefined;
@@ -477,6 +478,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (!user || transactions.length === 0) return;
     const dbTransactions = transactions.map(t => ({
       ...t,
+      project_id: t.project_id || (allProjects.find(p => p.name === PERSONAL_PROJECT_NAME))?.id,
       user_id: user.id,
       date: new Date().toISOString(),
     }));
@@ -498,6 +500,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const now = new Date().toISOString();
     const dbLoans = loans.map(l => ({
       ...l,
+      project_id: l.project_id || (allProjects.find(p => p.name === PERSONAL_PROJECT_NAME))?.id,
       date: now,
       created_at: now,
       user_id: user.id,
@@ -740,6 +743,16 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addOrUpdateLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>) => {
+    const existingLoan = allLoans.find(l => l.contact_id === loanData.contact_id && l.status === 'active' && l.type === loanData.type);
+    if (existingLoan) {
+      const newAmount = existingLoan.amount + loanData.amount;
+      await updateLoan(existingLoan.id, { amount: newAmount });
+    } else {
+      await addLoan({ ...loanData, status: 'active' });
+    }
+  };
+
   const updateLoan = async (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => {
     const originalLoan = allLoans.find(l => l.id === loanId);
     if (!originalLoan) return;
@@ -753,29 +766,18 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-
-    // Revert old balance change
-    if (originalLoan.type === 'loanTaken') {
-        await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'subtract');
-    } else {
-        await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'add');
-    }
+    // Amount has changed, so we need to adjust bank balance.
+    const amountDifference = loanData.amount - originalLoan.amount;
 
     const { data: updatedLoan, error } = await supabase.from('loans').update(loanData).eq('id', loanId).select().single();
-    if (error) { // If update fails, revert the balance reversion
-         if (originalLoan.type === 'loanTaken') {
-            await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'add');
-        } else {
-            await updateAccountBalance(originalLoan.account_id, originalLoan.amount, 'subtract');
-        }
+    if (error) { 
         throw error;
     }
-    
-    // Apply new balance change
-    if (updatedLoan.type === 'loanTaken') {
-        await updateAccountBalance(updatedLoan.account_id, updatedLoan.amount, 'add');
-    } else {
-        await updateAccountBalance(updatedLoan.account_id, updatedLoan.amount, 'subtract');
+
+    if (originalLoan.type === 'loanTaken') { // We received more money
+        await updateAccountBalance(originalLoan.account_id, amountDifference, 'add');
+    } else { // We gave out more money
+        await updateAccountBalance(originalLoan.account_id, amountDifference, 'subtract');
     }
 
     setAllLoans(prev => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
@@ -867,7 +869,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
-    loans: filteredLoans, allLoans, addLoan, addLoans, updateLoan, deleteLoan, getLoanById,
+    loans: filteredLoans, allLoans, addLoan, addLoans, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
     currency, setCurrency,
     isLoading: isLoading || isUserLoading,
     triggerSync,
@@ -881,7 +883,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       addCategory, updateCategory, deleteCategory,
       addTask, updateTask, deleteTask,
       addCredential, updateCredential, deleteCredential,
-      addLoan, addLoans, updateLoan, deleteLoan, getLoanById,
+      addLoan, addLoans, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
       setCurrency,
       triggerSync
     ]);

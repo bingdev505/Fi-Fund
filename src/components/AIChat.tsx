@@ -93,7 +93,7 @@ export default function AIChat() {
   const [lastProcessedMessage, setLastProcessedMessage] = useState('');
   const { 
     addTransactions,
-    addLoans,
+    addOrUpdateLoan,
     addRepayment,
     currency, 
     transactions, 
@@ -273,7 +273,6 @@ export default function AIChat() {
         
         let responseParts: string[] = [];
         const newTransactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[] = [];
-        const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[] = [];
         const projectId = activeProject?.id === 'all' ? undefined : activeProject?.id;
         const businessName = activeProject?.name || 'Personal';
 
@@ -367,22 +366,21 @@ export default function AIChat() {
                     }
                 }
 
-                newLoans.push({
+                await addOrUpdateLoan({
                     type: logResult.transaction_type,
                     amount: logResult.amount,
                     contact_id: contact.id, 
                     description: logResult.description || 'AI Logged Loan',
                     account_id: accountIdToUse,
-                    status: 'active' as 'active' | 'paid',
                     project_id: projectId
                 });
+
                  const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} logged under '${businessName}' against account ${accountNameToUse}.`;
                 responseParts.push(toastDescription);
             }
         }
         
         if(newTransactions.length > 0) await addTransactions(newTransactions);
-        if(newLoans.length > 0) await addLoans(newLoans);
 
         assistantResponse = responseParts.join(' ');
         if (logResults.length > 1) {
