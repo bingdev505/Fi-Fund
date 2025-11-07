@@ -50,7 +50,7 @@ const intentPrompt = ai.definePrompt({
     prompt: `Analyze the user's input to determine the primary intent. Categorize it as 'logData', 'question', or 'command'.
 
 - 'logData': The user is stating a transaction or financial event that has occurred.
-  Examples: "spent 500 on groceries", "got my salary", "income 1000 from freelance", "John owes me 50", "repaid John 20".
+  Examples: "spent 500 on groceries", "got my salary", "income 1000 from freelance", "John owes me 50", "repaid John 20", "lunch 800 with 3 friends, i owe them".
 
 - 'question': The user is asking for information about their finances.
   Examples: "what's my balance?", "how much did I spend on food?", "show me my loans".
