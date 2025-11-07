@@ -420,9 +420,10 @@ export default function AIChat() {
           )}
         </div>
       </ScrollArea>
-      <div className="px-4 pt-4 pb-8 md:pb-4 border-t">
+      
+      <div className="px-4 pt-4 pb-11 md:pb-4 border-t">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
-          <ProjectSwitcher />
+           <ProjectSwitcher />
           <Input
               id="chat-input"
               value={input}
@@ -438,7 +439,7 @@ export default function AIChat() {
               <span className="sr-only">Send</span>
             </Button>
           ) : (
-              <>
+            <>
               <Dialog open={isTransactionFormOpen} onOpenChange={setIsTransactionFormOpen}>
                   <DialogTrigger asChild>
                       <Button type="button" size="icon" className="rounded-full flex-shrink-0 bg-primary text-primary-foreground">
@@ -504,12 +505,12 @@ export default function AIChat() {
                       )}
                   </DialogContent>
               </Dialog>
-              </>
+            </>
           )}
         </form>
       </div>
 
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           {editingEntry && (
             <>
