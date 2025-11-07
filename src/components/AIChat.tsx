@@ -16,7 +16,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EditEntryForm from './EditEntryForm';
 import EntryForm from './EntryForm';
 import { useAuth } from '@/context/AuthContext';
-import ProjectSwitcher from './ProjectSwitcher';
 import RepaymentForm from './RepaymentForm';
 import { format } from 'date-fns';
 
@@ -371,7 +370,7 @@ export default function AIChat() {
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-grow p-4" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4 pr-4">
           {(isMessagesLoading || !messages) && messages?.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
@@ -423,7 +422,6 @@ export default function AIChat() {
       
       <div className="px-4 pt-4 pb-11 md:pb-4 border-t">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
-           <ProjectSwitcher />
           <Input
               id="chat-input"
               value={input}
