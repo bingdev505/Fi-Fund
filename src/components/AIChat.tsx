@@ -266,6 +266,7 @@ export default function AIChat() {
         const newTransactions: Omit<Transaction, 'id' | 'user_id' | 'date'>[] = [];
         const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[] = [];
         const projectId = activeProject?.id === 'all' ? undefined : activeProject?.id;
+        const businessName = activeProject?.name || 'Personal';
 
         for (const logResult of logResults) {
             let accountIdToUse: string | undefined;
@@ -317,7 +318,7 @@ export default function AIChat() {
                     account_id: accountIdToUse,
                     project_id: projectId
                 });
-                const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged to ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged under '${businessName}' to ${accountNameToUse}.`;
                 responseParts.push(toastDescription);
             } else if (logResult.transaction_type === 'repayment') {
                  if (!logResult.contact_id) {
@@ -335,7 +336,7 @@ export default function AIChat() {
                         } else {
                             const loanToRepay = activeLoansForContact[0];
                             await addRepayment(loanToRepay, logResult.amount, accountIdToUse, true);
-                            responseParts.push(`Logged repayment of ${formatCurrency(logResult.amount)} for loan with ${contact.name}.`);
+                            responseParts.push(`Logged repayment of ${formatCurrency(logResult.amount)} for loan with ${contact.name} under '${businessName}'.`);
                         }
                     }
                 }
@@ -366,7 +367,7 @@ export default function AIChat() {
                     status: 'active' as 'active' | 'paid',
                     project_id: projectId
                 });
-                const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} from account ${accountNameToUse}.`;
+                const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} logged under '${businessName}' against account ${accountNameToUse}.`;
                 responseParts.push(toastDescription);
             }
         }
