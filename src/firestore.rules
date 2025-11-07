@@ -52,32 +52,6 @@ service cloud.firestore {
       allow update: if isSignedIn() && isOwner(userId);
       allow delete: if isSignedIn() && isOwner(userId);
     }
-
-    /**
-     * @description Controls access to debt entries (creditors and debtors) for a specific user.
-     * @path /users/{userId}/debts/{debtId}
-     * @allow (create) - User with matching auth UID can create a debt entry under their user ID.
-     * @allow (get, update, delete) - User with matching auth UID can read, update, and delete their own debt entries.
-     * @allow (list) - User can list debts for their own ID.
-     * @deny (create) - User tries to create a debt entry with a userId that doesn't match their auth UID.
-     * @deny (get, update, delete) - User tries to read, update, or delete another user's debt entries.
-     * @principle Enforces document ownership for writes.
-     */
-    match /users/{userId}/debts/{debtId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
-    }
     
     /**
      * @description Controls access to loan entries for a specific user.

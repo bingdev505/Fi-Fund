@@ -112,16 +112,6 @@ export type Credential = {
   created_at: LocalTimestamp;
 };
 
-export type UserGoogleCredential = {
-  user_id: string;
-  access_token: string;
-  refresh_token: string;
-  scope: string;
-  token_type: string;
-  expiry_date: number | null;
-};
-
-
 // Zod schemas for Google Sheet Sync Flow
 const TransactionSchemaForSync = z.custom<Transaction>();
 const LoanSchemaForSync = z.custom<Loan>();
