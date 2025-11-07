@@ -493,10 +493,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addLoans = async (loans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[]) => {
     if (!user || loans.length === 0) return;
+    const now = new Date().toISOString();
     const dbLoans = loans.map(l => ({
       ...l,
-      date: new Date().toISOString(),
-      created_at: new Date().toISOString(),
+      date: now,
+      created_at: now,
       user_id: user.id,
     }));
 
