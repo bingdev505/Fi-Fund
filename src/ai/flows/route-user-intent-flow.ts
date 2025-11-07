@@ -47,7 +47,7 @@ const intentPrompt = ai.definePrompt({
     name: 'intentPrompt',
     input: { schema: z.object({ chat_input: z.string() }) },
     output: { schema: z.object({ intent: z.enum(["logData", "question", "command"]).describe("The user's intent: is the user logging data, asking a question, or giving a command?") }) },
-    prompt: `Analyze the user's input to determine the primary intent. Categorize it as 'logData', 'question', or 'command'.
+    prompt: `Analyze the user's input to determine the primary intent. Categorize it as 'logData', 'question', 'command'.
 
 - 'logData': The user is stating a transaction or financial event that has occurred.
   Examples: "spent 500 on groceries", "got my salary", "income 1000 from freelance", "John owes me 50", "repaid John 20", "lunch 800 with 3 friends, i owe them".
