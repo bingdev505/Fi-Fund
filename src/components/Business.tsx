@@ -154,33 +154,36 @@ export default function Business() {
                   <ul className="divide-y divide-border">
                     {projectTree.map(project => (
                       <li key={project.id} className="p-4 group hover:bg-muted/50">
-                        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
-                          <div className="flex items-center gap-4">
-                              <Folder className="h-6 w-6 text-muted-foreground" />
-                              <div style={{ marginLeft: `${project.level * 1.5}rem`}}>
-                                <span className={cn("font-medium", project.level > 0 && "text-sm")}>{project.name}</span>
+                        <div className='flex flex-col gap-4'>
+                          <div className='flex justify-between items-start'>
+                              <div className="flex items-center gap-4">
+                                <Folder className="h-6 w-6 text-muted-foreground" />
+                                <div style={{ marginLeft: `${project.level * 1.5}rem`}}>
+                                  <span className={cn("font-medium", project.level > 0 && "text-sm")}>{project.name}</span>
+                                </div>
+                              </div>
+                              <div className="font-semibold text-right">
+                                {formatCurrency(projectBalances.get(project.id) || 0)}
                               </div>
                           </div>
-                          <div className="font-semibold text-left md:text-right">
-                              {formatCurrency(projectBalances.get(project.id) || 0)}
-                          </div>
-                          <div className="grid grid-cols-5 md:flex md:flex-wrap items-center bg-background rounded-md border p-1 md:p-0 md:border-0 md:bg-transparent md:ml-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/transactions')}>
+
+                          <div className="grid grid-cols-4 sm:grid-cols-5 md:flex md:flex-wrap items-center md:justify-end gap-1 bg-background rounded-md md:p-0 md:bg-transparent">
+                            <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/transactions')} title="Transactions">
                               <ArrowRightLeft className="h-4 w-4" />
                             </Button>
-                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/contacts')}>
+                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/contacts')} title="Personal Contacts">
                               <Contact className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/clients')}>
+                            <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/clients')} title="Business Clients">
                               <Users className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/categories')}>
+                            <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/categories')} title="Categories">
                               <Tag className="h-4 w-4" />
                             </Button>
-                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/accounts')}>
+                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/accounts')} title="Bank Accounts">
                               <Landmark className="h-4 w-4" />
                             </Button>
-                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/loans')}>
+                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/loans')} title="Loans">
                               <Handshake className="h-4 w-4" />
                             </Button>
                              <Button variant="ghost" size="icon" onClick={() => setConnectSheetProject(project)} title="Connect Google Sheet">
@@ -189,11 +192,11 @@ export default function Business() {
                             <div className='hidden md:block'>
                                 <Separator orientation="vertical" className="h-6 mx-1" />
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(project)} title="Edit Business">
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setDeletingProject(project)}>
+                              <Button variant="ghost" size="icon" onClick={() => setDeletingProject(project)} title="Delete Business">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </AlertDialogTrigger>
