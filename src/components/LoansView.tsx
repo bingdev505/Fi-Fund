@@ -280,7 +280,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
 
 
 export default function LoansView() {
-  const { loans, deleteLoan, isLoading, contacts, currency, transactions } = useFinancials();
+  const { loans, deleteLoan, contacts, currency, transactions } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
@@ -361,11 +361,6 @@ export default function LoansView() {
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
-             {isLoading ? (
-                <div className="flex justify-center items-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : (
                 <>
                 <div>
                   <h3 className="text-lg font-medium mb-2">Loans Given (You are the Lender)</h3>
@@ -442,7 +437,6 @@ export default function LoansView() {
                   )}
                 </div>
                 </>
-              )}
           </CardContent>
         </Card>
         <AlertDialogContent>

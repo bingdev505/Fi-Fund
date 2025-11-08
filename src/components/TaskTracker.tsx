@@ -227,7 +227,7 @@ const TaskItem = ({ task, onEditClick, onDeleteClick }: { task: Task, onEditClic
 
 
 export default function TaskTracker() {
-  const { tasks, deleteTask, isLoading } = useFinancials();
+  const { tasks, deleteTask } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -287,11 +287,7 @@ export default function TaskTracker() {
             </div>
           </CardHeader>
           <CardContent>
-             {isLoading ? (
-                <div className="flex justify-center items-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : tasks.length > 0 ? (
+             {tasks.length > 0 ? (
                 <Accordion type="multiple" defaultValue={['active-tasks']} className="w-full">
                     <AccordionItem value="active-tasks">
                         <AccordionTrigger>Active Tasks ({activeTasks.length})</AccordionTrigger>

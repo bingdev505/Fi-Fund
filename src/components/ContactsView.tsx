@@ -11,7 +11,7 @@ import ContactForm from './ContactForm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 export default function ContactsView() {
-  const { isLoading, contacts, deleteContact } = useFinancials();
+  const { contacts, deleteContact } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -56,11 +56,7 @@ export default function ContactsView() {
           <CardContent>
             <div>
               <h3 className="text-lg font-medium mb-4">Your Contacts</h3>
-              {isLoading ? (
-                <div className="flex justify-center items-center h-24">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : contacts.length > 0 ? (
+              {contacts.length > 0 ? (
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {contacts.map(contact => (

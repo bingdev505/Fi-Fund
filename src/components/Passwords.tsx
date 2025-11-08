@@ -155,7 +155,7 @@ function PasswordDisplay({ value }: { value: string }) {
 
 
 export default function Passwords() {
-  const { credentials, deleteCredential, isLoading, projects } = useFinancials();
+  const { credentials, deleteCredential, projects } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingCredential, setEditingCredential] = useState<Credential | null>(null);
@@ -239,11 +239,7 @@ export default function Passwords() {
             />
           </CardHeader>
           <CardContent>
-             {isLoading ? (
-                <div className="flex justify-center items-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : credentials.length > 0 ? (
+             {credentials.length > 0 ? (
                 <Accordion type="multiple" className="w-full" defaultValue={personalProject ? [personalProject.id] : []}>
                     {Object.entries(groupedCredentials).map(([projectId, creds]) => {
                          const project = projects.find(p => p.id === projectId);

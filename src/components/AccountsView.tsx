@@ -14,7 +14,7 @@ import BankAccountForm from './BankAccountForm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 export default function AccountsView() {
-  const { currency, bankAccounts, setPrimaryBankAccount, isLoading, deleteBankAccount, linkBankAccount, activeProject, allBankAccounts, projects } = useFinancials();
+  const { currency, bankAccounts, setPrimaryBankAccount, deleteBankAccount, linkBankAccount, activeProject, allBankAccounts, projects } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
@@ -104,11 +104,7 @@ export default function AccountsView() {
           </CardHeader>
           <CardContent>
             <div>
-              {isLoading ? (
-                <div className="flex justify-center items-center h-24">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : bankAccounts.length > 0 ? (
+              {bankAccounts.length > 0 ? (
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {bankAccounts.map(account => (

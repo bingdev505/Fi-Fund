@@ -15,7 +15,7 @@ import { DateRange } from 'react-day-picker';
 import { subDays } from 'date-fns';
 
 export default function CategoriesView() {
-  const { isLoading, categories, deleteCategory, currency, transactions } = useFinancials();
+  const { categories, deleteCategory, currency, transactions } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -94,11 +94,7 @@ export default function CategoriesView() {
           <CardContent>
             <div>
               <h3 className="text-lg font-medium mb-4">Your Custom Categories</h3>
-              {isLoading ? (
-                <div className="flex justify-center items-center h-24">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : categories.length > 0 ? (
+              {categories.length > 0 ? (
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {categories.map(cat => (

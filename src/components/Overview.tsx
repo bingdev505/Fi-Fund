@@ -14,7 +14,7 @@ import SummaryCard from './SummaryCard';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Overview() {
-  const { transactions, loans, currency, isLoading, bankAccounts } = useFinancials();
+  const { transactions, loans, currency, bankAccounts } = useFinancials();
   const { user } = useAuth();
   const [entryFormOpen, setEntryFormOpen] = useState(false);
 
@@ -46,10 +46,6 @@ export default function Overview() {
     };
   }, [transactions, bankAccounts, loans]);
   
-  if (isLoading) {
-    // A more detailed skeleton can be built here if desired
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

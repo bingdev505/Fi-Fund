@@ -14,7 +14,7 @@ import { DateRange } from 'react-day-picker';
 import { subDays } from 'date-fns';
 
 export default function ClientsView() {
-  const { isLoading, clients, deleteClient, transactions, currency } = useFinancials();
+  const { clients, deleteClient, transactions, currency } = useFinancials();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -89,11 +89,7 @@ export default function ClientsView() {
           <CardContent>
             <div>
               <h3 className="text-lg font-medium mb-4">Your Clients</h3>
-              {isLoading ? (
-                <div className="flex justify-center items-center h-24">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : clients.length > 0 ? (
+              {clients.length > 0 ? (
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {clients.map(client => (
