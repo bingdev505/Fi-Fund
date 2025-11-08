@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -21,7 +20,7 @@ import RepaymentForm from './RepaymentForm';
 import { format } from 'date-fns';
 
 const useChatHistory = () => {
-    const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading, user } = useFinancials();
+    const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading } = useFinancials();
     
     return {
         messages: chatMessages,
@@ -430,7 +429,7 @@ export default function AIChat() {
         </div>
       </ScrollArea>
       
-      <div className="shrink-0 p-4 pt-0">
+      <div className="shrink-0 border-t bg-background p-4">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
           <Input
               id="chat-input"
