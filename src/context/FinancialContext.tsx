@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
@@ -392,31 +393,37 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const deleteProject = async (projectId: string) => {
     if (!user) throw new Error("User not authenticated");
+    if (allProjects.find(p => p.id === projectId)?.name === PERSONAL_PROJECT_NAME) {
+        toast({variant: 'destructive', title: "Cannot delete Personal business"});
+        return;
+    }
     
-    const tablesToDeleteFrom = ['transactions', 'clients', 'categories', 'tasks', 'credentials', 'loans'];
-    for (const table of tablesToDeleteFrom) {
-        const { error } = await supabase.from(table).delete().eq('project_id', projectId);
-        if (error) throw error;
+    // Use an RPC function to delete project and all related data atomically
+    const { error } = await supabase.rpc('delete_project_and_related_data', {
+      p_id: projectId
+    })
+
+    if (error) {
+        console.error('Error deleting project:', error);
+        toast({ variant: 'destructive', title: "Error deleting business", description: "Could not delete the business and its related data." });
+        return;
     }
 
-    const { error: bankAccountsError } = await supabase.from('bank_accounts').update({ project_id: null }).eq('project_id', projectId);
-    if (bankAccountsError) throw bankAccountsError;
-    
-    const { error: projectError } = await supabase.from('projects').delete().eq('id', projectId);
-    if (projectError) throw projectError;
-    
+    // If successful, update the local state
     updateStateAndCache(projectsKey, setAllProjects, (prev: Project[]) => prev.filter(p => p.id !== projectId));
     updateStateAndCache(transactionsKey, setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.project_id !== projectId));
     updateStateAndCache(clientsKey, setAllClients, (prev: Client[]) => prev.filter(c => c.project_id !== projectId));
     updateStateAndCache(categoriesKey, setAllCategories, (prev: Category[]) => prev.filter(c => c.project_id !== projectId));
     updateStateAndCache(tasksKey, setAllTasks, (prev: Task[]) => prev.filter(t => t.project_id !== projectId));
     updateStateAndCache(credentialsKey, setAllCredentials, (prev: Credential[]) => prev.filter(c => c.project_id !== projectId));
-    updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.map(b => b.project_id === projectId ? { ...b, project_id: undefined } : b));
+    updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.project_id !== projectId));
     updateStateAndCache(loansKey, setAllLoans, (prev: Loan[]) => prev.filter(l => l.project_id !== projectId));
     
     if (activeProject?.id === projectId) {
         setActiveProject(ALL_BUSINESS_PROJECT);
     }
+
+    toast({ title: 'Business Deleted', description: 'The business and all its data have been removed.' });
   };
 
   const addClient = async (clientData: Omit<Client, 'id' | 'user_id' | 'project_id'>, project_id?: string): Promise<Client> => {
@@ -710,10 +717,20 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteBankAccount = async (accountId: string) => {
+    // Check if account is tied to any loans
+    const linkedLoans = allLoans.filter(l => l.account_id === accountId);
+    if (linkedLoans.length > 0) {
+        toast({
+            variant: 'destructive',
+            title: 'Cannot Delete Account',
+            description: `This bank account is linked to ${linkedLoans.length} loan(s). Please re-assign them before deleting.`
+        });
+        return;
+    }
+
     await supabase.from('transactions').update({ account_id: null }).eq('account_id', accountId);
     await supabase.from('transactions').update({ from_account_id: null }).eq('from_account_id', accountId);
     await supabase.from('transactions').update({ to_account_id: null }).eq('to_account_id', accountId);
-    await supabase.from('loans').update({ account_id: null }).eq('account_id', accountId);
 
     const accountToDelete = allBankAccounts.find(b => b.id === accountId);
     const { error } = await supabase.from('bank_accounts').delete().eq('id', accountId);
