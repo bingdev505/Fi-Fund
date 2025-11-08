@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -394,7 +395,7 @@ export default function AIChat() {
 
   return (
     <div className="flex h-full flex-col bg-background" style={{ height: '100dvh' }}>
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+       <ScrollArea className="flex-1 p-4 pb-24" ref={scrollAreaRef}>
         <div className="space-y-4 pr-4">
           {!isMessagesLoading && messages?.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
@@ -444,7 +445,7 @@ export default function AIChat() {
         </div>
       </ScrollArea>
       
-      <div className="shrink-0 border-t bg-background p-4">
+      <div className="fixed bottom-0 left-0 right-0 border-t bg-background p-4 md:left-[240px]">
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
           <Input
               id="chat-input"
@@ -563,3 +564,5 @@ export default function AIChat() {
     </div>
   );
 }
+
+    
