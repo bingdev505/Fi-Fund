@@ -299,7 +299,7 @@ type CredentialItemProps = {
 };
 
 const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => (
-    <div className="p-4 group hover:bg-muted/50 border-b last:border-b-0">
+    <div className="p-4 group hover-mobile:bg-muted/50 border-b last:border-b-0">
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <KeyRound className="h-5 w-5 text-muted-foreground" />
@@ -308,7 +308,7 @@ const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => (
                     <p className="text-sm text-muted-foreground">{cred.username}</p>
                 </div>
             </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+            <div className="group-hover-mobile:opacity-100 flex items-center">
             <Button variant="ghost" size="icon" onClick={() => onEdit(cred)}>
                 <Pencil className="h-4 w-4" />
             </Button>

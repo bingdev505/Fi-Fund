@@ -169,7 +169,7 @@ export default function EntryList({ limit, showHeader = true, showControls = tru
     const dueDate = (entry as Loan).due_date ? parseISO((entry as Loan).due_date) : undefined;
 
     return (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between py-3 group gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between py-3 group hover-mobile:bg-muted/50 gap-2">
             <div className="flex items-center gap-4 flex-1">
                 {renderIcon(entry)}
                 <div className="flex-1">
@@ -193,7 +193,7 @@ export default function EntryList({ limit, showHeader = true, showControls = tru
             </div>
             <div className='flex items-center gap-1 self-end sm:self-center'>
                 {showControls && (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    <div className="group-hover-mobile:opacity-100 flex items-center">
                         <DialogTrigger asChild>
                             <Button variant="ghost" size="icon" onClick={() => setEditingEntry(entry)}>
                                 <Pencil className="h-4 w-4" />

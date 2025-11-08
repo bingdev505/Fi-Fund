@@ -97,4 +97,27 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  
+  .hover-mobile\:bg-muted\/50 {
+    @apply bg-muted/50;
+  }
+  .group-hover-mobile\:opacity-100 {
+    @apply opacity-100;
+  }
+
+  @media (hover: hover) {
+    .hover-mobile\:bg-muted\/50 {
+        @apply bg-transparent;
+    }
+    .hover-mobile\:bg-muted\/50:hover {
+      @apply bg-muted/50;
+    }
+
+    .group-hover-mobile\:opacity-100 {
+        @apply opacity-0;
+    }
+    .group:is(:hover, :focus-within) .group-hover-mobile\:opacity-100 {
+        @apply opacity-100;
+    }
+  }
 }

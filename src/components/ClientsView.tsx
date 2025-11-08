@@ -97,28 +97,28 @@ export default function ClientsView() {
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {clients.map(client => (
-                      <li key={client.id} className="flex items-center justify-between p-4 group hover:bg-muted/50">
-                        <div className="flex items-center gap-4">
-                          <User className="h-6 w-6 text-muted-foreground" />
-                          <div>
-                            <span className="font-medium">{client.name}</span>
-                          </div>
-                        </div>
-                        <div className='flex items-center gap-4'>
-                          <div className='text-right'>
-                            <p className='text-sm font-semibold text-green-600'>{formatCurrency(clientFinancials.get(client.id)?.income || 0)}</p>
-                            <p className='text-xs text-red-600'>{formatCurrency(clientFinancials.get(client.id)?.expense || 0)}</p>
-                          </div>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(client)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                          </div>
+                      <li key={client.id} className="p-4 group hover-mobile:bg-muted/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="flex items-center gap-4">
+                              <User className="h-6 w-6 text-muted-foreground" />
+                              <span className="font-medium">{client.name}</span>
+                            </div>
+                            <div className='flex items-center gap-4 self-end sm:self-center'>
+                              <div className='text-right'>
+                                <p className='text-sm font-semibold text-green-600'>{formatCurrency(clientFinancials.get(client.id)?.income || 0)}</p>
+                                <p className='text-xs text-red-600'>{formatCurrency(clientFinancials.get(client.id)?.expense || 0)}</p>
+                              </div>
+                              <div className="group-hover-mobile:opacity-100 flex items-center">
+                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(client)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => setDeletingClient(client)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </div>
+                            </div>
                         </div>
                       </li>
                     ))}

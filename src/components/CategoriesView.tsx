@@ -102,27 +102,27 @@ export default function CategoriesView() {
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {categories.map(cat => (
-                      <li key={cat.id} className="flex items-center justify-between p-4 group hover:bg-muted/50">
-                        <div className="flex items-center gap-4">
-                          <Tag className="h-6 w-6 text-muted-foreground" />
-                          <div>
-                            <span className="font-medium">{cat.name}</span>
-                          </div>
-                        </div>
-                        <div className='flex items-center gap-4'>
-                          <div className={`text-sm font-semibold px-2 py-1 rounded-md ${cat.type === 'income' ? 'text-green-800' : 'text-red-800'}`}>
-                            {formatCurrency(categoryFinancials.get(cat.id) || 0)}
-                          </div>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(cat)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setDeletingCategory(cat)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                          </div>
+                      <li key={cat.id} className="p-4 group hover-mobile:bg-muted/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="flex items-center gap-4">
+                              <Tag className="h-6 w-6 text-muted-foreground" />
+                              <span className="font-medium">{cat.name}</span>
+                            </div>
+                            <div className='flex items-center gap-4 self-end sm:self-center'>
+                              <div className={`text-sm font-semibold px-2 py-1 rounded-md ${cat.type === 'income' ? 'text-green-800' : 'text-red-800'}`}>
+                                {formatCurrency(categoryFinancials.get(cat.id) || 0)}
+                              </div>
+                              <div className="group-hover-mobile:opacity-100 flex items-center">
+                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(cat)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => setDeletingCategory(cat)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </div>
+                            </div>
                         </div>
                       </li>
                     ))}

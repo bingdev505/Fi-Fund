@@ -398,7 +398,7 @@ export default function AIChat() {
             </div>
           )}
           {messages && messages.map(message => (
-            <div key={message.id} className={cn('flex items-start gap-3 group/message', message.role === 'user' ? 'justify-end' : '')}>
+            <div key={message.id} className={cn('flex items-start gap-3 group', message.role === 'user' ? 'justify-end' : '')}>
               {message.role === 'assistant' && (
                 <Avatar className="h-8 w-8 border bg-white">
                   <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
@@ -406,7 +406,7 @@ export default function AIChat() {
               )}
               <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
                  {message.transaction_id && (
-                  <div className="absolute top-1/2 -translate-y-1/2 -left-20 opacity-0 group-hover/message:opacity-100 transition-opacity flex items-center bg-white rounded-full border shadow-sm">
+                  <div className="absolute top-1/2 -translate-y-1/2 -left-20 group-hover-mobile:opacity-100 transition-opacity flex items-center bg-white rounded-full border shadow-sm">
                       <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
                           <Pencil className="h-4 w-4" />
                       </Button>

@@ -112,35 +112,37 @@ export default function AccountsView() {
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {bankAccounts.map(account => (
-                      <li key={account.id} className="flex items-center justify-between p-4 group hover:bg-muted/50">
-                        <div className="flex items-center gap-4">
-                            <Landmark className="h-6 w-6 text-muted-foreground" />
-                            <div>
-                              <span className="font-medium">{account.name}</span>
-                              <div className="text-sm text-muted-foreground">{formatCurrency(account.balance)}</div>
+                      <li key={account.id} className="p-4 group hover-mobile:bg-muted/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="flex items-center gap-4">
+                                <Landmark className="h-6 w-6 text-muted-foreground" />
+                                <div>
+                                  <span className="font-medium">{account.name}</span>
+                                  <div className="text-sm text-muted-foreground">{formatCurrency(account.balance)}</div>
+                                </div>
                             </div>
-                        </div>
-                        <div className='flex items-center gap-2'>
-                          {account.is_primary ? (
-                              <Badge variant="outline" className='text-primary border-primary'>
-                                  <Star className='mr-1 h-3 w-3' />
-                                  Primary
-                              </Badge>
-                          ) : (
-                              <Button variant="ghost" size="sm" onClick={() => handleSetPrimary(account.id)}>
-                                  Set as Primary
-                              </Button>
-                          )}
-                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                              <Button variant="ghost" size="icon" onClick={() => handleEditClick(account)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setDeletingAccount(account)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                          </div>
+                            <div className='flex items-center gap-2 self-end sm:self-center'>
+                              {account.is_primary ? (
+                                  <Badge variant="outline" className='text-primary border-primary'>
+                                      <Star className='mr-1 h-3 w-3' />
+                                      Primary
+                                  </Badge>
+                              ) : (
+                                  <Button variant="ghost" size="sm" onClick={() => handleSetPrimary(account.id)} className="group-hover-mobile:opacity-100">
+                                      Set as Primary
+                                  </Button>
+                              )}
+                               <div className="group-hover-mobile:opacity-100 flex items-center">
+                                  <Button variant="ghost" size="icon" onClick={() => handleEditClick(account)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => setDeletingAccount(account)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </div>
+                            </div>
                         </div>
                       </li>
                     ))}
