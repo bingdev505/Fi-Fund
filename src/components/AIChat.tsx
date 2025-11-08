@@ -47,6 +47,8 @@ export default function AIChat() {
     bankAccounts,
     contacts,
     addContact,
+    clients,
+    addClient,
     getTransactionById,
     getLoanById,
     deleteTransaction,
@@ -191,18 +193,20 @@ export default function AIChat() {
       });
       
       let chatHistoryForContext = '';
-      const lastMessage = messages[messages.length - 1];
+      if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
 
-      if (lastMessage?.timestamp) {
-        const lastMessageDate = new Date(lastMessage.timestamp);
-        const now = new Date();
-        const timeDiffMinutes = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60);
+        if (lastMessage?.timestamp) {
+            const lastMessageDate = new Date(lastMessage.timestamp);
+            const now = new Date();
+            const timeDiffMinutes = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60);
 
-        if (timeDiffMinutes < 5) {
-          chatHistoryForContext = messages
-            .slice(-4)
-            .map(msg => `${msg.role}: ${msg.content}`)
-            .join('\n');
+            if (timeDiffMinutes < 5) {
+            chatHistoryForContext = messages
+                .slice(-4)
+                .map(msg => `${msg.role}: ${msg.content}`)
+                .join('\n');
+            }
         }
       }
 
@@ -267,13 +271,24 @@ export default function AIChat() {
             }
 
             if (logResult.transaction_type === 'income' || logResult.transaction_type === 'expense') {
+                let clientId: string | undefined;
+                if(logResult.client_name) {
+                    let client = clients.find(c => c.name.toLowerCase() === logResult.client_name!.toLowerCase() && c.project_id === projectId);
+                    if(!client) {
+                        client = await addClient({ name: logResult.client_name }, projectId);
+                        responseParts.push(`Created new client '${client.name}'.`);
+                    }
+                    clientId = client.id;
+                }
+
                 newTransactions.push({
                     type: logResult.transaction_type,
                     amount: logResult.amount,
                     category: logResult.category!,
                     description: logResult.description || 'AI Logged Transaction',
                     account_id: accountIdToUse,
-                    project_id: projectId
+                    project_id: projectId,
+                    client_id: clientId,
                 });
                 const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged under '${businessName}' to ${accountNameToUse}.`;
                 responseParts.push(toastDescription);
@@ -378,7 +393,7 @@ export default function AIChat() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col bg-background" style={{ height: '100dvh' }}>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4 pr-4">
           {!isMessagesLoading && messages?.length === 0 && (

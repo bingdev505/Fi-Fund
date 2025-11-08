@@ -29,6 +29,7 @@ const LogFinancialDataOutputSchema = z.array(z.object({
     .describe('The type of financial transaction.'),
   category: z.string().optional().describe('The category of the transaction for income/expense.'),
   contact_id: z.string().optional().describe('The name of the person/entity for loans or repayments.'),
+  client_name: z.string().optional().describe('The name of the client for income or expense transactions.'),
   amount: z.number().describe('The amount of the transaction.'),
   description: z.string().optional().describe('A description of the transaction.'),
   account_name: z.string().optional().describe("The specific name of the bank account if the user mentions one (e.g., 'savings', 'checking', 'federal')."),
@@ -44,7 +45,7 @@ const logFinancialDataPrompt = ai.definePrompt({
   name: 'logFinancialDataPrompt',
   input: {schema: LogFinancialDataInputSchema},
   output: {schema: LogFinancialDataOutputSchema},
-  prompt: `You are a financial assistant. Your task is to analyze the user's input and break it down into one or more distinct financial transactions. Extract the transaction type (income, expense, loanGiven, loanTaken, repayment), category or contact, amount, description, and bank account name for each transaction. Return an array of transaction objects.
+  prompt: `You are a financial assistant. Your task is to analyze the user's input and break it down into one or more distinct financial transactions. Extract the transaction type (income, expense, loanGiven, loanTaken, repayment), category, client name, contact, amount, description, and bank account name for each transaction. Return an array of transaction objects.
 
 ### Important Rules:
 1.  **Multiple Transactions**: If a user's message implies multiple financial events, create a separate object for each one in the array.
@@ -59,15 +60,21 @@ const logFinancialDataPrompt = ai.definePrompt({
         - The final output should be an array of FOUR objects.
 3.  **Field Assignment**:
     - For 'loanGiven', 'loanTaken', or 'repayment', the 'contact_id' field MUST contain the name of the person/entity.
-    - For 'income' or 'expense', use the 'category' field.
-4.  **Bank Account**: If the user mentions an account (e.g., 'from savings', 'at Federal bank'), extract only the name like 'savings' or 'federal' into the 'accountName' field. If no account is mentioned, check the chat history. Do not include the account name in the description or category.
-5.  **Loan Direction**:
+    - For 'income' or 'expense', use the 'category' field for the type of transaction (e.g., 'Salary', 'Groceries', 'Freelance Work').
+    - For 'income' or 'expense', if a source/company/person is mentioned (the 'who' or 'where from'), put their name in the 'client_name' field.
+4.  **Client vs. Category Example**: For the input "salary get from folksdev 5000":
+    - 'transaction_type' should be 'income'.
+    - 'category' should be 'Salary'.
+    - 'client_name' should be 'folksdev'.
+    - 'amount' should be 5000.
+5.  **Bank Account**: If the user mentions an account (e.g., 'from savings', 'at Federal bank'), extract only the name like 'savings' or 'federal' into the 'accountName' field. If no account is mentioned, check the chat history. Do not include the account name in the description or category.
+6.  **Loan Direction**:
     - "I gave [Name] a loan", "loan given for [Name]" -> 'loanGiven', contact_id is '[Name]'.
     - "[Name] gave me a loan", "loan taken from [Name]" -> 'loanTaken', contact_id is '[Name]'.
-6.  **Repayment**:
+7.  **Repayment**:
     - "repaid [Name]" or "[Name] repaid me" -> 'repayment', contact_id is '[Name]'.
-7.  **Amount**: Ensure the amount is always a positive number.
-8.  **Description**: If not provided, create a short, relevant summary.
+8.  **Amount**: Ensure the amount is always a positive number.
+9.  **Description**: If not provided, create a short, relevant summary.
 
 ### User Input:
 {{{chat_input}}}

@@ -21,6 +21,7 @@ const LogFinancialDataResultSchema = z.array(z.object({
   transaction_type: z.enum(['income', 'expense', 'loanGiven', 'loanTaken', 'repayment']),
   category: z.string().optional(),
   contact_id: z.string().optional(),
+  client_name: z.string().optional(),
   amount: z.number(),
   description: z.string().optional(),
   account_name: z.string().optional(),
