@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -21,33 +22,36 @@ import { format } from 'date-fns';
 
 const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
 
-// Hook to manage chat history in state for the current session
+// Hook to manage chat history, now interacting with the financial context for persistence
 const useChatHistory = () => {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [isLoading, setIsLoading] = useState(false); // No longer loading from storage, but keeping for API consistency
+    const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading, user } = useFinancials();
+    const chatHistoryKey = user ? `chat_history_${user.id}` : null;
 
-    const addMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-        const newMessage: ChatMessage = {
-            ...message,
-            id: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-        };
+    useEffect(() => {
+        if (!isFinancialsLoading && chatMessages.length > 0 && chatHistoryKey) {
+            // Cache the latest 10 messages
+            const recentMessages = chatMessages.slice(-10);
+            localStorage.setItem(chatHistoryKey, JSON.stringify(recentMessages));
+        }
+    }, [chatMessages, isFinancialsLoading, chatHistoryKey]);
 
-        setMessages(prevMessages => [...prevMessages, newMessage]);
-        return newMessage;
+    const [cachedMessages, setCachedMessages] = useState<ChatMessage[]>(() => {
+        if (typeof window !== 'undefined' && chatHistoryKey) {
+            const cached = localStorage.getItem(chatHistoryKey);
+            return cached ? JSON.parse(cached) : [];
+        }
+        return [];
+    });
+
+    const messages = isFinancialsLoading ? cachedMessages : chatMessages;
+
+    return {
+        messages,
+        addMessage: addChatMessage,
+        updateMessage: updateChatMessage,
+        deleteMessage: deleteChatMessage,
+        isLoading: isFinancialsLoading,
     };
-
-    const updateMessage = (updatedMessage: ChatMessage) => {
-        setMessages(prevMessages => 
-            prevMessages.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg)
-        );
-    };
-
-    const deleteMessage = (messageId: string) => {
-        setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
-    };
-    
-    return { messages, addMessage, updateMessage, deleteMessage, isLoading };
 };
 
 
@@ -137,7 +141,7 @@ export default function AIChat() {
     }
   }
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!deletingEntry) return;
 
     const messageToDelete = messages.find(m => m.transaction_id === deletingEntry?.id);
@@ -151,14 +155,14 @@ export default function AIChat() {
     }
 
     if (messageToDelete) {
-        deleteMessage(messageToDelete.id);
+        await deleteMessage(messageToDelete.id);
     }
 
     setDeletingEntry(null);
     setDeleteDialogOpen(false);
   };
 
-  const handleEditFinished = (originalEntry: Transaction | Loan, updatedEntry: Transaction | Loan) => {
+  const handleEditFinished = async (originalEntry: Transaction | Loan, updatedEntry: Transaction | Loan) => {
     const messageToUpdate = messages.find(m => m.transaction_id === originalEntry.id);
     if (messageToUpdate) {
         let newContent = '';
@@ -172,7 +176,7 @@ export default function AIChat() {
             newContent = `${loan.type.charAt(0).toUpperCase() + loan.type.slice(1)} of ${formatCurrency(loan.amount)} for ${contacts.find(c => c.id === loan.contact_id)?.name} logged against ${accountName}.`
         }
 
-        updateMessage({ ...messageToUpdate, content: newContent });
+        await updateMessage(messageToUpdate.id, { content: newContent });
     }
     setEditingEntry(null);
     setEditDialogOpen(false);
@@ -194,7 +198,7 @@ export default function AIChat() {
     const userMessageContent = input;
     setInput('');
 
-    addMessage({
+    await addMessage({
       role: 'user',
       content: userMessageContent,
     });
@@ -232,12 +236,15 @@ export default function AIChat() {
       });
 
       let assistantResponse = '';
+      let transactionIds: string[] = [];
 
       if (result.intent === 'logData') {
         const logResults = result.result;
         
         let responseParts: string[] = [];
         const newTransactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[] = [];
+        const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>[] = [];
+        
         const projectId = activeProject?.id === 'all' ? undefined : activeProject?.id;
         const businessName = activeProject?.name || 'Personal';
 
@@ -308,7 +315,8 @@ export default function AIChat() {
                             responseParts.push(`Multiple active loans with ${contact.name}. Please log repayment manually.`);
                         } else {
                             const loanToRepay = activeLoansForContact[0];
-                            await addRepayment(loanToRepay, logResult.amount, accountIdToUse, true);
+                            const repaymentRef = await addRepayment(loanToRepay, logResult.amount, accountIdToUse, true);
+                            if (repaymentRef) transactionIds.push(repaymentRef.id);
                             responseParts.push(`Logged repayment of ${formatCurrency(logResult.amount)} for loan with ${contact.name} under '${businessName}'.`);
                         }
                     }
@@ -331,7 +339,7 @@ export default function AIChat() {
                     }
                 }
 
-                await addOrUpdateLoan({
+                newLoans.push({
                     type: logResult.transaction_type,
                     amount: logResult.amount,
                     contact_id: contact.id, 
@@ -345,7 +353,15 @@ export default function AIChat() {
             }
         }
         
-        if(newTransactions.length > 0) await addTransactions(newTransactions);
+        if(newTransactions.length > 0) {
+            const addedRefs = await addTransactions(newTransactions);
+            transactionIds.push(...addedRefs.map(r => r.id));
+        }
+
+        for (const loan of newLoans) {
+            const addedRef = await addOrUpdateLoan(loan);
+            if (addedRef) transactionIds.push(addedRef.id);
+        }
 
         assistantResponse = responseParts.join(' ');
         if (logResults.length > 1) {
@@ -367,16 +383,15 @@ export default function AIChat() {
         assistantResponse = result.result.response;
       }
 
-      const assistantMessage: Partial<ChatMessage> = {
+      await addMessage({
         role: 'assistant',
         content: assistantResponse,
-      };
-
-      addMessage(assistantMessage as Omit<ChatMessage, 'id' | 'timestamp'>);
+        transaction_id: transactionIds.length > 0 ? transactionIds[0] : undefined,
+      });
 
     } catch (error) {
       console.error('AI Chat Error:', error);
-      addMessage({
+      await addMessage({
         role: 'assistant',
         content: "Sorry, I couldn't understand that. Please try rephrasing, for example: 'Lunch for 250 rupees' or 'What is my total income?'.",
       });
