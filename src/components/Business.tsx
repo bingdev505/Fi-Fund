@@ -145,11 +145,7 @@ export default function Business() {
           <CardContent>
             <div>
               <h3 className="text-lg font-medium mb-4">Your Businesses</h3>
-              {isLoading ? (
-                <div className="flex justify-center items-center h-24">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : projects.length > 0 ? (
+              {projects.length > 0 ? (
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {projectTree.map(project => (
