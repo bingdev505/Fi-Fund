@@ -20,33 +20,11 @@ import { useAuth } from '@/context/AuthContext';
 import RepaymentForm from './RepaymentForm';
 import { format } from 'date-fns';
 
-const CHAT_CONTEXT_TIMEOUT_MINUTES = 5;
-
-// Hook to manage chat history, now interacting with the financial context for persistence
 const useChatHistory = () => {
     const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading, user } = useFinancials();
-    const chatHistoryKey = user ? `chat_history_${user.id}` : null;
-
-    useEffect(() => {
-        if (!isFinancialsLoading && chatMessages.length > 0 && chatHistoryKey) {
-            // Cache the latest 10 messages
-            const recentMessages = chatMessages.slice(-10);
-            localStorage.setItem(chatHistoryKey, JSON.stringify(recentMessages));
-        }
-    }, [chatMessages, isFinancialsLoading, chatHistoryKey]);
-
-    const [cachedMessages, setCachedMessages] = useState<ChatMessage[]>(() => {
-        if (typeof window !== 'undefined' && chatHistoryKey) {
-            const cached = localStorage.getItem(chatHistoryKey);
-            return cached ? JSON.parse(cached) : [];
-        }
-        return [];
-    });
-
-    const messages = isFinancialsLoading ? cachedMessages : chatMessages;
-
+    
     return {
-        messages,
+        messages: chatMessages,
         addMessage: addChatMessage,
         updateMessage: updateChatMessage,
         deleteMessage: deleteChatMessage,
@@ -221,7 +199,7 @@ export default function AIChat() {
         const now = new Date();
         const timeDiffMinutes = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60);
 
-        if (timeDiffMinutes < CHAT_CONTEXT_TIMEOUT_MINUTES) {
+        if (timeDiffMinutes < 5) {
           chatHistoryForContext = messages
             .slice(-4)
             .map(msg => `${msg.role}: ${msg.content}`)
@@ -404,7 +382,7 @@ export default function AIChat() {
     <div className="flex h-full flex-col bg-background">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4 pr-4">
-          {(isMessagesLoading || !messages) && messages?.length === 0 && (
+          {!isMessagesLoading && messages?.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                 <Bot className="h-12 w-12 mb-4" />
                 <h2 className="text-xl font-semibold mb-2">Welcome to FinanceFlow AI</h2>
