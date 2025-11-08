@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import FinancialChart from './FinancialChart';
@@ -19,7 +19,14 @@ export default function Reports() {
   const [insight, setInsight] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [period, setPeriod] = useState<ReportPeriod>('annual');
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(projects[0]?.id);
+
+  useEffect(() => {
+    if (!selectedProjectId && projects.length > 0) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projects, selectedProjectId]);
+
 
   const handleGenerateInsights = async () => {
     setIsLoading(true);
@@ -43,7 +50,7 @@ export default function Reports() {
   };
   
   const filteredTransactions = useMemo(() => {
-    if (selectedProjectId === 'all') {
+    if (!selectedProjectId) {
       return allTransactions;
     }
     return allTransactions.filter(t => t.project_id === selectedProjectId);
@@ -59,12 +66,11 @@ export default function Reports() {
               <CardDescription>Income vs. Expenses over time.</CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-2">
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <Select value={selectedProjectId} onValueChange={(value) => setSelectedProjectId(value)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Select Business" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Business</SelectItem>
                   {projects.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
