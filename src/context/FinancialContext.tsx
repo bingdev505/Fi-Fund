@@ -323,7 +323,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (key) {
       if (typeof data === 'function') {
         // Recalculate the new state to save it
-        const currentData = JSON.parse(localStorage.getItem(key) || '[]');
+        const currentData = JSON.parse(localStorage.getItem(key) || '[]') as T[];
         let newData = data(currentData);
         if(cacheLimit) newData = newData.slice(-cacheLimit);
         localStorage.setItem(key, JSON.stringify(newData));
@@ -975,9 +975,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     return allLoans.filter(l => l.project_id === personalProject?.id || !l.project_id);
   }, [allLoans, activeProject, allProjects]);
 
+  const projectsForSelectors = useMemo(() => [ALL_BUSINESS_PROJECT, ...allProjects], [allProjects]);
+
 
   const contextValue: FinancialContextType = useMemo(() => ({
-    projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
+    projects: projectsForSelectors, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
     transactions: filteredTransactions, allTransactions, addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, allClients, addClient, updateClient, deleteClient,
@@ -991,7 +993,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
-      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, filteredTasks, filteredCredentials, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
+      projectsForSelectors, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, filteredTasks, filteredCredentials, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
       setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
       addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,

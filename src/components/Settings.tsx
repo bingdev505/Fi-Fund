@@ -1,3 +1,4 @@
+
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -60,7 +61,6 @@ export default function Settings() {
                     <SelectValue placeholder="Select a default business" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">All Business</SelectItem>
                     {projects.map(p => (
                         <SelectItem key={p.id} value={p.id}>
                             {p.name}
