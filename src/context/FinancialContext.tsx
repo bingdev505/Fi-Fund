@@ -89,7 +89,6 @@ const useLocalStorageKey = (key: string, userId?: string | null) => {
   return userId ? `financeflow_${userId}_${key}` : null;
 };
 
-const ALL_BUSINESS_PROJECT: Project = { id: 'all', name: 'All Business', user_id: '', created_at: new Date().toISOString() };
 const PERSONAL_PROJECT_NAME = "Personal";
 
 export function FinancialProvider({ children }: { children: ReactNode }) {
@@ -97,8 +96,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   const [allProjects, setAllProjects] = useState<Project[]>([]);
-  const [activeProject, _setActiveProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
-  const [defaultProject, _setDefaultProject] = useState<Project | null>(ALL_BUSINESS_PROJECT);
+  const [activeProject, _setActiveProject] = useState<Project | null>(null);
+  const [defaultProject, _setDefaultProject] = useState<Project | null>(null);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [allBankAccounts, setAllBankAccounts] = useState<BankAccount[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
@@ -182,6 +181,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
       let projects = projectsRes.data || [];
       const hasPersonalProject = projects.some(p => p.name === PERSONAL_PROJECT_NAME);
+      const personalProject = projects.find(p => p.name === PERSONAL_PROJECT_NAME);
 
       if (!hasPersonalProject) {
           const { data: newPersonalProject, error: personalProjectError } = await supabase.from('projects').insert({
@@ -223,8 +223,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
 
       if ((!bankAccountsRes.data || bankAccountsRes.data.length === 0) && projects.length > 0) {
-        const personalProject = projects.find(p => p.name === PERSONAL_PROJECT_NAME);
-        const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true, project_id: personalProject?.id }).select().single();
+        const personalProj = projects.find(p => p.name === PERSONAL_PROJECT_NAME);
+        const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true, project_id: personalProj?.id }).select().single();
         if (newAccount) {
             setAllBankAccounts([newAccount]);
             if (bankAccountsKey) localStorage.setItem(bankAccountsKey, JSON.stringify([newAccount]));
@@ -236,19 +236,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       if (currencyKey) localStorage.setItem(currencyKey, currencyToSet);
       
       const dbDefaultProjectId = userSettingsRes.data?.default_project_id;
-      const defaultProj = projects.find(p => p.id === dbDefaultProjectId);
-      _setDefaultProject(defaultProj || ALL_BUSINESS_PROJECT);
-       if (defaultProjectKey) localStorage.setItem(defaultProjectKey, JSON.stringify(defaultProj || ALL_BUSINESS_PROJECT));
+      const defaultProj = projects.find(p => p.id === dbDefaultProjectId) || personalProject;
+      _setDefaultProject(defaultProj || null);
+       if (defaultProjectKey) localStorage.setItem(defaultProjectKey, JSON.stringify(defaultProj || null));
 
 
       const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
-      let activeProjectToSet: Project | null = defaultProj || ALL_BUSINESS_PROJECT;
+      let activeProjectToSet: Project | null = defaultProj || null;
       if (storedActiveProject) activeProjectToSet = storedActiveProject;
       
       if (activeProjectToSet && (activeProjectToSet.id === 'all' || projects.some(p => p.id === activeProjectToSet!.id))) {
         _setActiveProject(activeProjectToSet);
       } else {
-        _setActiveProject(defaultProj || ALL_BUSINESS_PROJECT);
+        _setActiveProject(defaultProj || null);
       }
       
     } catch (error) {
@@ -276,8 +276,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         setAllLoans(JSON.parse(localStorage.getItem(loansKey!) || '[]'));
         setAllChatMessages(JSON.parse(localStorage.getItem(chatMessagesKey!) || '[]'));
         setCurrencyState(localStorage.getItem(currencyKey!) || 'INR');
-        _setActiveProject(JSON.parse(localStorage.getItem(activeProjectKey!) || JSON.stringify(ALL_BUSINESS_PROJECT)));
-        _setDefaultProject(JSON.parse(localStorage.getItem(defaultProjectKey!) || JSON.stringify(ALL_BUSINESS_PROJECT)));
+        _setActiveProject(JSON.parse(localStorage.getItem(activeProjectKey!) || 'null'));
+        _setDefaultProject(JSON.parse(localStorage.getItem(defaultProjectKey!) || 'null'));
       } catch (e) {
         console.error("Failed to load cached data", e);
       }
@@ -340,29 +340,27 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
      if (currencyKey) {
           localStorage.setItem(currencyKey, newCurrency);
           if (user) {
-              supabase.from('user_settings').upsert({ user_id: user.id, currency: newCurrency, default_project_id: defaultProject?.id === 'all' ? undefined : defaultProject?.id }).then();
+              supabase.from('user_settings').upsert({ user_id: user.id, currency: newCurrency, default_project_id: defaultProject?.id }).then();
           }
       }
   }, [currencyKey, user, defaultProject]);
 
   const setActiveProject = useCallback((project: Project | null) => {
-    const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
-    _setActiveProject(projectToSet);
+    _setActiveProject(project);
     if (activeProjectKey) {
-      localStorage.setItem(activeProjectKey, JSON.stringify(projectToSet));
+      localStorage.setItem(activeProjectKey, JSON.stringify(project));
     }
   }, [activeProjectKey]);
   
   const setDefaultProject = useCallback(async (project: Project | null) => {
     if (!user) return;
-    const projectToSet = project === null || project.id === 'all' ? ALL_BUSINESS_PROJECT : project;
-    _setDefaultProject(projectToSet);
-     if (defaultProjectKey) localStorage.setItem(defaultProjectKey, JSON.stringify(projectToSet));
+    _setDefaultProject(project);
+     if (defaultProjectKey) localStorage.setItem(defaultProjectKey, JSON.stringify(project));
     
     try {
         const { error } = await supabase.from('user_settings').upsert({ 
             user_id: user.id, 
-            default_project_id: projectToSet.id === 'all' ? null : projectToSet.id,
+            default_project_id: project?.id,
             currency: currency,
         });
         if (error) throw error;
@@ -420,7 +418,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     updateStateAndCache(loansKey, setAllLoans, (prev: Loan[]) => prev.filter(l => l.project_id !== projectId));
     
     if (activeProject?.id === projectId) {
-        setActiveProject(ALL_BUSINESS_PROJECT);
+        setActiveProject(allProjects.find(p => p.name === PERSONAL_PROJECT_NAME) || null);
     }
 
     toast({ title: 'Business Deleted', description: 'The business and all its data have been removed.' });
@@ -922,7 +920,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     return (activeProject && activeProject.id !== 'all') 
       ? allTransactions.filter(t => t.project_id === activeProject.id) 
-      : allTransactions.filter(t => t.project_id === personalProject?.id || !t.project_id);
+      : (activeProject === null ? allTransactions : allTransactions.filter(t => t.project_id === personalProject?.id || !t.project_id));
   }, [allTransactions, activeProject, allProjects]);
 
   const filteredClients = useMemo(() => {
@@ -930,7 +928,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       if (activeProject && activeProject.id !== 'all') {
         return allClients.filter(c => c.project_id === activeProject.id);
       }
-      return allClients.filter(c => c.project_id === personalProject?.id || !c.project_id);
+       return (activeProject === null ? allClients : allClients.filter(c => c.project_id === personalProject?.id || !c.project_id));
   }, [allClients, activeProject, allProjects]);
 
   const filteredContacts = useMemo(() => {
@@ -942,21 +940,21 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       if (activeProject && activeProject.id !== 'all') {
           return allCategories.filter(c => c.project_id === activeProject.id);
       }
-      return allCategories.filter(c => c.project_id === personalProject?.id || !c.project_id);
+       return (activeProject === null ? allCategories : allCategories.filter(c => c.project_id === personalProject?.id || !c.project_id));
   }, [allCategories, activeProject, allProjects]);
 
   const filteredTasks = useMemo(() => {
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     return (activeProject && activeProject.id !== 'all') 
       ? allTasks.filter(t => t.project_id === activeProject.id) 
-      : allTasks.filter(t => t.project_id === personalProject?.id || !t.project_id);
+      : (activeProject === null ? allTasks : allTasks.filter(t => t.project_id === personalProject?.id || !t.project_id));
   }, [allTasks, activeProject, allProjects]);
 
   const filteredCredentials = useMemo(() => {
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     return (activeProject && activeProject.id !== 'all') 
       ? allCredentials.filter(c => c.project_id === activeProject.id) 
-      : allCredentials.filter(c => c.project_id === personalProject?.id || !c.project_id);
+      : (activeProject === null ? allCredentials : allCredentials.filter(c => c.project_id === personalProject?.id || !c.project_id));
   }, [allCredentials, activeProject, allProjects]);
 
   const filteredBankAccounts = useMemo(() => {
@@ -964,7 +962,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       if (activeProject && activeProject.id !== 'all') {
           return allBankAccounts.filter(acc => acc.project_id === activeProject.id);
       }
-      return allBankAccounts.filter(acc => acc.project_id === personalProject?.id || !acc.project_id);
+      return (activeProject === null ? allBankAccounts : allBankAccounts.filter(acc => acc.project_id === personalProject?.id || !acc.project_id));
   }, [allBankAccounts, activeProject, allProjects]);
   
   const filteredLoans = useMemo(() => {
@@ -972,14 +970,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (activeProject && activeProject.id !== 'all') {
       return allLoans.filter(l => l.project_id === activeProject.id);
     }
-    return allLoans.filter(l => l.project_id === personalProject?.id || !l.project_id);
+    return (activeProject === null ? allLoans : allLoans.filter(l => l.project_id === personalProject?.id || !l.project_id));
   }, [allLoans, activeProject, allProjects]);
 
-  const projectsForSelectors = useMemo(() => [ALL_BUSINESS_PROJECT, ...allProjects], [allProjects]);
-
-
   const contextValue: FinancialContextType = useMemo(() => ({
-    projects: projectsForSelectors, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
+    projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
     transactions: filteredTransactions, allTransactions, addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, allClients, addClient, updateClient, deleteClient,
@@ -993,7 +988,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
-      projectsForSelectors, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, filteredTasks, filteredCredentials, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
+      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, filteredTasks, filteredCredentials, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
       setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
       addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,

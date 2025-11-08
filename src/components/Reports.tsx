@@ -64,6 +64,7 @@ export default function Reports() {
                   <SelectValue placeholder="Select Business" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All Business</SelectItem>
                   {projects.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}

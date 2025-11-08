@@ -56,7 +56,7 @@ export default function Settings() {
           </div>
           <div className="w-full max-w-xs">
             <h3 className="text-lg font-medium mb-2">Default Business</h3>
-            <Select onValueChange={handleDefaultProjectChange} defaultValue={defaultProject?.id}>
+            <Select onValueChange={handleDefaultProjectChange} value={defaultProject?.id}>
                 <SelectTrigger>
                     <SelectValue placeholder="Select a default business" />
                 </SelectTrigger>

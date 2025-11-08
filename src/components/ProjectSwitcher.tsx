@@ -31,7 +31,7 @@ export default function ProjectSwitcher() {
         >
           <Briefcase className="mr-2 h-4 w-4" />
           <span className="truncate">
-            {activeProject ? activeProject.name : 'Select a Business'}
+            {activeProject ? activeProject.name : 'All Business'}
           </span>
           <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -39,7 +39,7 @@ export default function ProjectSwitcher() {
       <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]">
         <DropdownMenuItem
             onClick={() => handleProjectChange(null)}
-            className={cn({'font-bold': !activeProject || activeProject?.id === 'all'})}
+            className={cn({'font-bold': !activeProject })}
         >
           All Business
         </DropdownMenuItem>
