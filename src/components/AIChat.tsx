@@ -448,6 +448,7 @@ export default function AIChat() {
         <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
           <Input
               id="chat-input"
+              aria-label="Chat message"
               value={input}
               onChange={handleInputChange}
               placeholder="Type your message..."
