@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import type { Transaction, Loan } from '@/lib/types';
 import { useMemo } from 'react';
+import { Combobox } from './ui/combobox';
 
 const formSchema = z.object({
   type: z.enum(['expense', 'income', 'loanGiven', 'loanTaken']),
@@ -37,6 +38,7 @@ const formSchema = z.object({
   category: z.string().optional(),
   description: z.string().optional(),
   contact_id: z.string().optional(),
+  client_id: z.string().optional(),
   due_date: z.date().optional(),
   status: z.enum(['active', 'paid']).optional(),
   account_id: z.string().optional(),
@@ -75,7 +77,7 @@ type EditEntryFormProps = {
 }
 
 export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps) {
-  const { updateTransaction, updateLoan, currency, bankAccounts, categories: customCategories, contacts, projects } = useFinancials();
+  const { updateTransaction, updateLoan, currency, bankAccounts, categories: customCategories, contacts, projects, clients, addCategory, addClient } = useFinancials();
   const { toast } = useToast();
   
   const isTransaction = 'category' in entry;
@@ -89,6 +91,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       category: (entry as Transaction).category,
       account_id: (entry as Transaction).account_id,
       project_id: (entry as Transaction).project_id,
+      client_id: (entry as Transaction).client_id,
     } : {
       type: (entry as Loan).type as 'loanGiven' | 'loanTaken',
       amount: entry.amount,
@@ -102,18 +105,36 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
   });
 
   const watchedType = form.watch('type');
+  const selectedProjectId = form.watch('project_id');
 
-  const categories = useMemo(() => {
-    return customCategories.filter(c => c.type === watchedType).map(c => c.name);
-  }, [watchedType, customCategories]);
+  const { categoryOptions, clientOptions } = useMemo(() => {
+    const projectCategories = customCategories.filter(c => c.type === watchedType && c.project_id === selectedProjectId).map(c => ({ value: c.name, label: c.name }));
+
+    const projectClients = clients.filter(c => c.project_id === selectedProjectId).map(c => ({ value: c.id, label: c.name }));
+
+    return { 
+        categoryOptions: projectCategories,
+        clientOptions: projectClients,
+    };
+  }, [watchedType, customCategories, clients, selectedProjectId]);
 
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     const { ...data } = values;
     
     let updatedEntry;
     if (isTransaction) {
-      const finalTransaction = { ...entry, ...data, description: data.description || '' } as Transaction;
+      if (data.category && !customCategories.some(c => c.name === data.category && c.type === data.type)) {
+        await addCategory({ name: data.category, type: data.type as 'income' | 'expense' }, data.project_id);
+      }
+      
+      let finalClientId = data.client_id;
+      if (finalClientId && !clients.some(c => c.id === finalClientId)) {
+        const newClient = await addClient({ name: finalClientId }, data.project_id);
+        finalClientId = newClient.id;
+      }
+
+      const finalTransaction = { ...entry, ...data, description: data.description || '', client_id: finalClientId } as Transaction;
       updateTransaction(finalTransaction.id, finalTransaction);
       updatedEntry = finalTransaction;
       toast({ title: "Transaction Updated" });
@@ -127,7 +148,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
   }
 
   // Transfers cannot be edited from this form
-  if (entry.type === 'transfer') {
+  if (entry.type === 'transfer' || entry.type === 'repayment') {
       return (
           <div className='text-center text-muted-foreground p-8'>
               <p>This entry type cannot be edited here.</p>
@@ -183,26 +204,16 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
               control={form.control}
               name="category"
               render={({ field }) => (
-                <FormItem>
+                 <FormItem className="flex flex-col">
                   <FormLabel>Category</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    key={entry.type}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                      options={categoryOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Category"
+                      searchPlaceholder="Search categories..."
+                      noResultsText="No categories found."
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -314,6 +325,27 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
             )}
             />
 
+        {(watchedType === 'income' || watchedType === 'expense') && (
+              <FormField
+                control={form.control}
+                name="client_id"
+                render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                        <FormLabel>Client (Optional)</FormLabel>
+                        <Combobox
+                            options={clientOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Client"
+                            searchPlaceholder="Search clients..."
+                            noResultsText="No clients found."
+                        />
+                        <FormMessage />
+                    </FormItem>
+                )}
+              />
+        )}
+            
         <FormField
           control={form.control}
           name="description"

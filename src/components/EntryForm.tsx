@@ -42,6 +42,7 @@ const formSchema = z.object({
   from_account_id: z.string().optional(), // for transfer
   to_account_id: z.string().optional(), // for transfer
   project_id: z.string().optional(),
+  client_id: z.string().optional(),
 }).refine(data => {
     if ((data.entryType === 'income' || data.entryType === 'expense' || data.entryType === 'loanGiven' || data.entryType === 'loanTaken') && !data.account_id) {
         return false;
@@ -194,12 +195,13 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         }
     }
     
-    if ((entryType === 'income' || entryType === 'expense') && finalContactId) {
-         const isNewClient = !clients.some(c => c.id === finalContactId);
+    let finalClientId = data.client_id;
+    if ((entryType === 'income' || entryType === 'expense') && finalClientId) {
+         const isNewClient = !clients.some(c => c.id === finalClientId);
         if (isNewClient) {
             try {
-                const newClient = await addClient({ name: finalContactId }, projectId);
-                finalContactId = newClient.id;
+                const newClient = await addClient({ name: finalClientId }, projectId);
+                finalClientId = newClient.id;
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Could not create client.' });
                 return;
@@ -223,7 +225,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
         account_id: data.account_id,
         from_account_id: data.from_account_id,
         to_account_id: data.to_account_id,
-        client_id: (entryType === 'income' || entryType === 'expense') ? finalContactId : undefined,
+        client_id: finalClientId,
         project_id: projectId,
       });
       toast({
@@ -491,7 +493,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
             {(entryType === 'income' || entryType === 'expense') && (
               <FormField
                 control={form.control}
-                name="contact_id"
+                name="client_id"
                 render={({ field }) => (
                     <FormItem className="flex flex-col">
                         <FormLabel>Client (Optional)</FormLabel>
