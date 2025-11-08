@@ -421,7 +421,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     updateStateAndCache(clientsKey, setAllClients, (prev: Client[]) => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
     if (updatedClient.project_id) triggerSync(updatedClient.project_id);
   };
-
+  
   const deleteClient = async (clientId: string) => {
     const clientToDelete = allClients.find(c => c.id === clientId);
     const { error } = await supabase.from('clients').delete().eq('id', clientId);
@@ -444,7 +444,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     updateStateAndCache(contactsKey, setAllContacts, (prev: Contact[]) => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
   };
-
+  
   const deleteContact = async (contactId: string) => {
     await supabase.from('loans').update({ contact_id: null }).eq('contact_id', contactId);
     const { error } = await supabase.from('contacts').delete().eq('id', contactId);

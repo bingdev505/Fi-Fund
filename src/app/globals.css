@@ -98,26 +98,27 @@
     scrollbar-width: none;
   }
   
-  .hover-mobile\:bg-muted\/50 {
+  .hover-mobile-bg-muted {
     @apply bg-muted/50;
   }
-  .group-hover-mobile\:opacity-100 {
+
+  .group-hover-mobile-opacity {
     @apply opacity-100;
   }
-
-  @media (hover: hover) {
-    .hover-mobile\:bg-muted\/50 {
-        @apply bg-transparent;
+  
+  @media (hover: hover) and (pointer: fine) {
+    .hover-mobile-bg-muted {
+      @apply bg-transparent;
     }
-    .hover-mobile\:bg-muted\/50:hover {
+    .hover-mobile-bg-muted:hover {
       @apply bg-muted/50;
     }
 
-    .group-hover-mobile\:opacity-100 {
-        @apply opacity-0;
+    .group-hover-mobile-opacity {
+      @apply opacity-0 transition-opacity;
     }
-    .group:is(:hover, :focus-within) .group-hover-mobile\:opacity-100 {
-        @apply opacity-100;
+    .group:hover .group-hover-mobile-opacity {
+      @apply opacity-100;
     }
   }
 }

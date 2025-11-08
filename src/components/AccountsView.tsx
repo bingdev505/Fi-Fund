@@ -112,7 +112,7 @@ export default function AccountsView() {
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {bankAccounts.map(account => (
-                      <li key={account.id} className="p-4 group hover-mobile:bg-muted/50">
+                      <li key={account.id} className="p-4 group hover-mobile-bg-muted">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div className="flex items-center gap-4">
                                 <Landmark className="h-6 w-6 text-muted-foreground" />
@@ -128,11 +128,11 @@ export default function AccountsView() {
                                       Primary
                                   </Badge>
                               ) : (
-                                  <Button variant="ghost" size="sm" onClick={() => handleSetPrimary(account.id)} className="group-hover-mobile:opacity-100">
+                                  <Button variant="ghost" size="sm" onClick={() => handleSetPrimary(account.id)} className="group-hover-mobile-opacity">
                                       Set as Primary
                                   </Button>
                               )}
-                               <div className="group-hover-mobile:opacity-100 flex items-center">
+                               <div className="group-hover-mobile-opacity flex items-center">
                                   <Button variant="ghost" size="icon" onClick={() => handleEditClick(account)}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>

@@ -102,7 +102,7 @@ export default function CategoriesView() {
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {categories.map(cat => (
-                      <li key={cat.id} className="p-4 group hover-mobile:bg-muted/50">
+                      <li key={cat.id} className="p-4 group hover-mobile-bg-muted">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div className="flex items-center gap-4">
                               <Tag className="h-6 w-6 text-muted-foreground" />
@@ -112,7 +112,7 @@ export default function CategoriesView() {
                               <div className={`text-sm font-semibold px-2 py-1 rounded-md ${cat.type === 'income' ? 'text-green-800' : 'text-red-800'}`}>
                                 {formatCurrency(categoryFinancials.get(cat.id) || 0)}
                               </div>
-                              <div className="group-hover-mobile:opacity-100 flex items-center">
+                              <div className="group-hover-mobile-opacity flex items-center">
                                 <Button variant="ghost" size="icon" onClick={() => handleEditClick(cat)}>
                                   <Pencil className="h-4 w-4" />
                                 </Button>

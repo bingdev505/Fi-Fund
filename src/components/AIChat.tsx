@@ -406,7 +406,7 @@ export default function AIChat() {
               )}
               <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
                  {message.transaction_id && (
-                  <div className="absolute top-1/2 -translate-y-1/2 -left-20 group-hover-mobile:opacity-100 transition-opacity flex items-center bg-white rounded-full border shadow-sm">
+                  <div className="absolute top-1/2 -translate-y-1/2 -left-20 group-hover-mobile-opacity transition-opacity flex items-center bg-white rounded-full border shadow-sm">
                       <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
                           <Pencil className="h-4 w-4" />
                       </Button>

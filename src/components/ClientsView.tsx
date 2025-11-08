@@ -97,7 +97,7 @@ export default function ClientsView() {
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {clients.map(client => (
-                      <li key={client.id} className="p-4 group hover-mobile:bg-muted/50">
+                      <li key={client.id} className="p-4 group hover-mobile-bg-muted">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div className="flex items-center gap-4">
                               <User className="h-6 w-6 text-muted-foreground" />
@@ -108,7 +108,7 @@ export default function ClientsView() {
                                 <p className='text-sm font-semibold text-green-600'>{formatCurrency(clientFinancials.get(client.id)?.income || 0)}</p>
                                 <p className='text-xs text-red-600'>{formatCurrency(clientFinancials.get(client.id)?.expense || 0)}</p>
                               </div>
-                              <div className="group-hover-mobile:opacity-100 flex items-center">
+                              <div className="group-hover-mobile-opacity flex items-center">
                                 <Button variant="ghost" size="icon" onClick={() => handleEditClick(client)}>
                                   <Pencil className="h-4 w-4" />
                                 </Button>

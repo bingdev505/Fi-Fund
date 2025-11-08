@@ -64,7 +64,7 @@ export default function ContactsView() {
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {contacts.map(contact => (
-                      <li key={contact.id} className="flex items-center justify-between p-4 group hover-mobile:bg-muted/50">
+                      <li key={contact.id} className="flex items-center justify-between p-4 group hover-mobile-bg-muted">
                         <div className="flex items-center gap-4">
                           <User className="h-6 w-6 text-muted-foreground" />
                           <div>
@@ -72,7 +72,7 @@ export default function ContactsView() {
                           </div>
                         </div>
                         <div className='flex items-center gap-4'>
-                          <div className="group-hover-mobile:opacity-100 flex items-center">
+                          <div className="group-hover-mobile-opacity flex items-center">
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(contact)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
