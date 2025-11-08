@@ -119,7 +119,7 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
                 </FormItem>
             )}
         />
-         {watchedAmount.toFixed(2) === outstandingAmount.toFixed(2) && outstandingAmount > 0 && (
+         {Number(watchedAmount).toFixed(2) === outstandingAmount.toFixed(2) && outstandingAmount > 0 && (
             <div className="text-sm p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
                 This will mark the loan as fully paid.
             </div>
