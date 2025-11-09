@@ -50,6 +50,8 @@ export default function AIChat() {
     addContact,
     clients,
     addClient,
+    categories,
+    addCategory,
     getTransactionById,
     getLoanById,
     deleteTransaction,
@@ -127,10 +129,10 @@ export default function AIChat() {
     const messageToDelete = messages.find(m => m.transaction_id === deletingEntry?.id);
 
     if ('category' in deletingEntry) {
-      deleteTransaction(deletingEntry as Transaction);
+      deleteTransaction(deletingEntry as Transaction, messageToDelete?.id);
       toast({ title: "Transaction Deleted" });
     } else {
-      deleteLoan((deletingEntry as Loan).id);
+      deleteLoan((deletingEntry as Loan).id, messageToDelete?.id);
       toast({ title: "Loan Deleted" });
     }
 
@@ -280,6 +282,18 @@ export default function AIChat() {
                         responseParts.push(`Created new client '${client.name}'.`);
                     }
                     clientId = client.id;
+                }
+                
+                if (logResult.category) {
+                  const categoryExists = categories.some(
+                    (c) =>
+                      c.name.toLowerCase() === logResult.category!.toLowerCase() &&
+                      c.type === logResult.transaction_type
+                  );
+                  if (!categoryExists) {
+                    await addCategory({ name: logResult.category, type: logResult.transaction_type }, projectId);
+                     responseParts.push(`Created new category '${logResult.category}'.`);
+                  }
                 }
 
                 newTransactions.push({
@@ -564,5 +578,7 @@ export default function AIChat() {
     </div>
   );
 }
+
+    
 
     

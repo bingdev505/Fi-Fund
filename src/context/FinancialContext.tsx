@@ -24,7 +24,7 @@ interface FinancialContextType {
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'user_id'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   addTransactions: (transactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[]) => Promise<{ id: string }[]>;
   updateTransaction: (transactionId: string, updatedData: Partial<Transaction>) => Promise<void>;
-  deleteTransaction: (transaction: Transaction) => Promise<void>;
+  deleteTransaction: (transaction: Transaction, chatMessageId?: string) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
   addRepayment: (loan: Loan, amount: number, accountId: string, returnRef?: boolean) => Promise<{ id: string } | void>;
   
@@ -34,7 +34,7 @@ interface FinancialContextType {
   addLoans: (loans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[]) => Promise<void>;
   addOrUpdateLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
-  deleteLoan: (loanId: string) => Promise<void>;
+  deleteLoan: (loanId: string, chatMessageId?: string) => Promise<void>;
   getLoanById: (id: string) => Loan | undefined;
 
   bankAccounts: BankAccount[];
@@ -650,7 +650,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (updatedTransaction.project_id) triggerSync(updatedTransaction.project_id);
   };
 
-  const deleteTransaction = async (transactionToDelete: Transaction) => {
+  const deleteTransaction = async (transactionToDelete: Transaction, chatMessageId?: string) => {
     if (transactionToDelete.account_id) {
         if (transactionToDelete.type === 'income') { await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'subtract'); } 
         else if (transactionToDelete.type === 'expense') { await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'add'); }
@@ -658,6 +658,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         await updateAccountBalance(transactionToDelete.from_account_id, transactionToDelete.amount, 'add');
         await updateAccountBalance(transactionToDelete.to_account_id, transactionToDelete.amount, 'subtract');
     }
+
+    if (chatMessageId) {
+        const { error } = await supabase.from('chat_messages').delete().eq('id', chatMessageId);
+        if (error) console.error("Error deleting related chat message", error);
+        else updateStateAndCache(chatMessagesKey, setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== chatMessageId), 10);
+    }
+    
     const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
     if (error) throw error;
     updateStateAndCache(transactionsKey, setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.id !== transactionToDelete.id));
@@ -872,9 +879,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (updatedLoan.project_id) triggerSync(updatedLoan.project_id);
   };
 
-  const deleteLoan = async (loanId: string) => {
+  const deleteLoan = async (loanId: string, chatMessageId?: string) => {
     const loanToDelete = allLoans.find(l => l.id === loanId);
     if (!loanToDelete) return;
+
+    if (chatMessageId) {
+        const { error } = await supabase.from('chat_messages').delete().eq('id', chatMessageId);
+        if (error) console.error("Error deleting related chat message", error);
+        else updateStateAndCache(chatMessagesKey, setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== chatMessageId), 10);
+    }
 
     const { error } = await supabase.from('loans').delete().eq('id', loanId);
     if (error) throw error;
@@ -1009,3 +1022,5 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     </FinancialContext.Provider>
   );
 }
+
+    
