@@ -83,7 +83,7 @@ export default function CategoriesView() {
                 <CardTitle>Manage Categories</CardTitle>
                 <CardDescription>Add or manage your custom categories for the active business.</CardDescription>
               </div>
-              <div className='flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto'>
+              <div className='flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto'>
                 <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full" />
                 <Button onClick={handleAddClick} className="w-full">
                     <PlusCircle className="mr-2 h-4 w-4" /> Add Category
