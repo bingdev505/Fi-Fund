@@ -31,7 +31,9 @@ const taskSchema = z.object({
   description: z.string().optional(),
   status: z.enum(['todo', 'in-progress', 'done']),
   due_date: z.date().optional(),
-  due_time: z.string().regex(timeRegex, "Invalid time format (HH:MM)").optional(),
+  due_time: z.string().optional().refine(val => !val || timeRegex.test(val), {
+    message: "Invalid time format (HH:MM)",
+  }),
   project_id: z.string().optional(),
 }).refine(data => !data.due_time || (data.due_time && data.due_date), {
     message: "A due date is required if you specify a time.",
@@ -81,7 +83,9 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
         }
 
         const finalValues = {
-            ...values,
+            name: values.name,
+            description: values.description,
+            status: values.status,
             project_id: values.project_id,
             due_date: finalDueDate,
         };
@@ -279,7 +283,8 @@ export default function TaskTracker() {
       tasks.forEach(task => {
         if (task.due_date && task.status !== 'done' && !notifiedTasks.has(task.id)) {
           const dueDate = parseISO(task.due_date);
-          if (dueDate <= now && !isPast(dueDate)) {
+          const timeDifference = dueDate.getTime() - now.getTime();
+          if (timeDifference > 0 && timeDifference < 60000) { // If due within the next minute
              if (Notification.permission === 'granted') {
               new Notification('Task Due!', {
                 body: `Your task "${task.name}" is due now.`,
@@ -290,7 +295,7 @@ export default function TaskTracker() {
           }
         }
       });
-    }, 60000); // Check every minute
+    }, 30000); // Check every 30 seconds
 
     return () => clearInterval(interval);
   }, [tasks]);
