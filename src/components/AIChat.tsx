@@ -409,7 +409,7 @@ export default function AIChat() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1 p-4 pb-24" ref={scrollAreaRef}>
         <div className="space-y-4 pr-4">
           {!isMessagesLoading && messages?.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
@@ -428,7 +428,7 @@ export default function AIChat() {
               )}
               <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
                  {message.transaction_id && (
-                  <div className="absolute top-1/2 -translate-y-1/2 -left-20 group-hover-mobile-opacity transition-opacity flex items-center bg-white rounded-full border shadow-sm">
+                  <div className="absolute top-1/2 -translate-y-1/2 -left-20 group-hover-mobile-opacity transition-opacity flex items-center bg-white rounded-full border shadow-sm ml-[30px]">
                       <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
                           <Pencil className="h-4 w-4" />
                       </Button>
@@ -459,8 +459,8 @@ export default function AIChat() {
         </div>
       </ScrollArea>
       
-      <div className="shrink-0 p-4 pt-0">
-        <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2">
+      <div className="fixed bottom-0 left-0 md:left-[180px] lg:left-[240px] right-0 bg-background/80 backdrop-blur-sm p-4 border-t">
+        <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2 max-w-3xl mx-auto">
           <Input
               id="chat-input"
               aria-label="Chat message"
@@ -578,7 +578,3 @@ export default function AIChat() {
     </div>
   );
 }
-
-    
-
-    
