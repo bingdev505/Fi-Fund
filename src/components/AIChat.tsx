@@ -366,7 +366,7 @@ export default function AIChat() {
         }
 
         for (const loan of newLoans) {
-            const addedRef = await addOrUpdateLoan(loan);
+            const addedRef = await addOrUpdateLoan(loan, true);
             if (addedRef) transactionIds.push(addedRef.id);
         }
 
