@@ -165,7 +165,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
           
-          <ProjectSwitcher />
+          <div className={cn("hidden", {'md:hidden': isChatPage, 'md:block': !isChatPage})}>
+            <ProjectSwitcher />
+          </div>
           
           <div className="w-full flex-1" />
 

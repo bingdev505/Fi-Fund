@@ -59,7 +59,9 @@ export default function AIChat() {
     activeProject
   } = useFinancials();
   const { toast } = useToast();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const scrollEndRef = useRef<HTMLDivElement>(null);
+  const userScrolledUpRef = useRef(false);
   
   const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading } = useChatHistory();
 
@@ -87,13 +89,21 @@ export default function AIChat() {
   };
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (viewport) {
-        setTimeout(() => {
-          viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
-        }, 100);
-      }
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const handleScroll = () => {
+        const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 1;
+        userScrolledUpRef.current = !isAtBottom;
+    };
+
+    viewport.addEventListener('scroll', handleScroll);
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!userScrolledUpRef.current) {
+        scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isProcessing]);
 
@@ -409,8 +419,8 @@ export default function AIChat() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        <div className="space-y-4 pr-4">
+      <ScrollArea className="flex-1" viewportRef={viewportRef}>
+        <div className="space-y-4 p-4">
           {!isMessagesLoading && messages?.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                 <Bot className="h-12 w-12 mb-4" />
@@ -446,7 +456,7 @@ export default function AIChat() {
               )}
             </div>
           ))}
-          {isProcessing && (
+           {isProcessing && (
             <div className="flex items-start gap-3">
               <Avatar className="h-8 w-8 border bg-white">
                 <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
@@ -456,6 +466,7 @@ export default function AIChat() {
               </div>
             </div>
           )}
+          <div ref={scrollEndRef} />
         </div>
       </ScrollArea>
       
