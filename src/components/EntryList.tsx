@@ -15,7 +15,7 @@ import {
   Handshake,
 } from 'lucide-react';
 import type { Transaction, Loan } from '@/lib/types';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -29,11 +29,17 @@ type EntryListProps = {
   showControls?: boolean;
 }
 
+const PAGE_SIZE = 20;
+
 export default function EntryList({ limit, showHeader = true, showControls = true }: EntryListProps) {
   const { transactions, loans, currency, bankAccounts, clients, isLoading, deleteTransaction, deleteLoan, contacts } = useFinancials();
   const [editingEntry, setEditingEntry] = useState<Transaction | Loan | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Loan | null>(null);
   const { toast } = useToast();
+  
+  const [visibleCount, setVisibleCount] = useState(limit || PAGE_SIZE);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [isFullyLoaded, setIsFullyLoaded] = useState(false);
 
   const allEntries = useMemo(() => {
     const combined: (Transaction | Loan)[] = [...transactions, ...loans];
@@ -43,13 +49,44 @@ export default function EntryList({ limit, showHeader = true, showControls = tru
         const dateB = new Date(b.date || (b as Loan).created_at).getTime();
         return dateB - dateA;
     });
-    
-    if (limit) {
-      return sorted.slice(0, limit);
-    }
 
     return sorted;
-  }, [transactions, loans, limit]);
+  }, [transactions, loans]);
+
+  const visibleEntries = useMemo(() => {
+      return allEntries.slice(0, visibleCount);
+  }, [allEntries, visibleCount]);
+
+  useEffect(() => {
+    if (limit) {
+      setVisibleCount(limit);
+      setIsFullyLoaded(true);
+    } else {
+      setVisibleCount(PAGE_SIZE);
+      setIsFullyLoaded(allEntries.length <= PAGE_SIZE);
+    }
+  }, [allEntries.length, limit]);
+
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || limit) return;
+
+    const handleScroll = () => {
+      if (viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 200) {
+        if (visibleCount < allEntries.length) {
+            const nextCount = Math.min(visibleCount + PAGE_SIZE, allEntries.length);
+            setVisibleCount(nextCount);
+            if(nextCount === allEntries.length){
+                setIsFullyLoaded(true);
+            }
+        }
+      }
+    };
+    
+    viewport.addEventListener('scroll', handleScroll);
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, [visibleCount, allEntries.length, limit]);
 
 
   const formatCurrency = (amount: number) => {
@@ -215,19 +252,24 @@ export default function EntryList({ limit, showHeader = true, showControls = tru
   }
 
   const Wrapper = showHeader ? ScrollArea : 'div';
-  const wrapperProps = showHeader ? { className: "h-full max-h-[500px] rounded-md border" } : {};
+  const wrapperProps = showHeader ? { className: "h-full max-h-[500px] rounded-md border", viewportRef: viewportRef } : { ref: viewportRef, className: "max-h-[calc(100vh-200px)] overflow-y-auto no-scrollbar" };
 
   return (
     <Dialog onOpenChange={(isOpen) => !isOpen && setEditingEntry(null)}>
         <AlertDialog onOpenChange={(isOpen) => !isOpen && setDeletingEntry(null)}>
             <Wrapper {...wrapperProps}>
             <div className={showHeader ? 'p-4' : ''}>
-                {allEntries.map((entry, index) => (
+                {visibleEntries.map((entry, index) => (
                 <div key={entry.id}>
                     {renderEntry(entry)}
-                    {index < allEntries.length - 1 && <Separator />}
+                    {index < visibleEntries.length - 1 && <Separator />}
                 </div>
                 ))}
+                {!isFullyLoaded && !isLoading && (
+                  <div className="flex justify-center items-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
             </div>
             </Wrapper>
             

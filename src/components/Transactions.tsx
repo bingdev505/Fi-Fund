@@ -93,7 +93,7 @@ export default function Transactions() {
                 </div>
             </CardHeader>
             <CardContent>
-            <EntryList />
+            <EntryList showHeader={false} />
             </CardContent>
         </Card>
         </div>
