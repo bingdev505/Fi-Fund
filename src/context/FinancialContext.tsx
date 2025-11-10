@@ -630,24 +630,51 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteTransaction = async (transactionToDelete: Transaction, chatMessageId?: string) => {
-    if (transactionToDelete.account_id) {
-        if (transactionToDelete.type === 'income') { await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'subtract'); } 
-        else if (transactionToDelete.type === 'expense') { await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'add'); }
+    // Revert balance changes before deleting the transaction record
+    if (transactionToDelete.type === 'income' && transactionToDelete.account_id) {
+        await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'subtract');
+    } else if (transactionToDelete.type === 'expense' && transactionToDelete.account_id) {
+        await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'add');
     } else if (transactionToDelete.type === 'transfer' && transactionToDelete.from_account_id && transactionToDelete.to_account_id) {
+        // Correctly revert the transfer: add back to 'from', subtract from 'to'
         await updateAccountBalance(transactionToDelete.from_account_id, transactionToDelete.amount, 'add');
         await updateAccountBalance(transactionToDelete.to_account_id, transactionToDelete.amount, 'subtract');
     }
 
+    // Delete associated chat message if ID is provided
     if (chatMessageId) {
-        const { error } = await supabase.from('chat_messages').delete().eq('id', chatMessageId);
-        if (error) console.error("Error deleting related chat message", error);
-        else updateState(setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== chatMessageId));
+        const { error: chatError } = await supabase.from('chat_messages').delete().eq('id', chatMessageId);
+        if (chatError) {
+            console.error("Error deleting related chat message", chatError);
+        } else {
+            updateState(setAllChatMessages, (prev) => prev.filter(m => m.id !== chatMessageId));
+        }
     }
     
+    // Delete the transaction from the database
     const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
-    if (error) throw error;
-    updateState(setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.id !== transactionToDelete.id));
-    if (transactionToDelete.project_id) triggerSync(transactionToDelete.project_id);
+    if (error) {
+        // If the DB delete fails, we should ideally roll back the balance changes.
+        // This is complex, for now, we'll log the error and hope the user retries.
+        console.error("Failed to delete transaction from DB, balance might be inconsistent:", error);
+        toast({ variant: 'destructive', title: 'Deletion Failed', description: 'Could not delete the transaction. Please try again.' });
+        // Attempt to revert the balance change reversal
+        if (transactionToDelete.type === 'income' && transactionToDelete.account_id) await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'add');
+        else if (transactionToDelete.type === 'expense' && transactionToDelete.account_id) await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'subtract');
+        else if (transactionToDelete.type === 'transfer' && transactionToDelete.from_account_id && transactionToDelete.to_account_id) {
+            await updateAccountBalance(transactionToDelete.from_account_id, transactionToDelete.amount, 'subtract');
+            await updateAccountBalance(transactionToDelete.to_account_id, transactionToDelete.amount, 'add');
+        }
+        return; // Stop execution
+    }
+
+    // Update local state
+    updateState(setAllTransactions, (prev) => prev.filter(t => t.id !== transactionToDelete.id));
+
+    // Trigger sync if applicable
+    if (transactionToDelete.project_id) {
+        triggerSync(transactionToDelete.project_id);
+    }
   };
     
   const addRepayment = async (loan: Loan, amount: number, accountId: string, returnRef = false): Promise<{ id: string } | void> => {
