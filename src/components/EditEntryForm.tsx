@@ -135,12 +135,12 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
       }
 
       const finalTransaction = { ...entry, ...data, description: data.description || '', client_id: finalClientId } as Transaction;
-      updateTransaction(finalTransaction.id, finalTransaction);
+      await updateTransaction(finalTransaction.id, finalTransaction);
       updatedEntry = finalTransaction;
       toast({ title: "Transaction Updated" });
     } else {
       const finalLoan = { ...entry, ...data, due_date: data.due_date?.toISOString(), description: data.description || '' } as Loan;
-      updateLoan((entry as Loan).id, finalLoan);
+      await updateLoan((entry as Loan).id, finalLoan);
       updatedEntry = finalLoan;
       toast({ title: "Loan Updated" });
     }

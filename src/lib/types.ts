@@ -42,7 +42,7 @@ export type BankAccount = {
   user_id: string;
   project_id?: string;
   name: string;
-  balance: number;
+  balance: number; // This is the initial balance. Current balance is calculated.
   is_primary: boolean;
 };
 

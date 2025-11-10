@@ -104,7 +104,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [activeProject, _setActiveProject] = useState<Project | null>(null);
   const [defaultProject, _setDefaultProject] = useState<Project | null>(null);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
-  const [allBankAccounts, setAllBankAccounts] = useState<BankAccount[]>([]);
+  const [rawBankAccounts, setRawBankAccounts] = useState<BankAccount[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -119,16 +119,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Define keys based on user ID
-  const projectsKey = useLocalStorageKey('projects', user?.id);
-  const transactionsKey = useLocalStorageKey('transactions', user?.id);
-  const bankAccountsKey = useLocalStorageKey('bankAccounts', user?.id);
-  const clientsKey = useLocalStorageKey('clients', user?.id);
-  const contactsKey = useLocalStorageKey('contacts', user?.id);
-  const categoriesKey = useLocalStorageKey('categories', user?.id);
-  const tasksKey = useLocalStorageKey('tasks', user?.id);
-  const credentialsKey = useLocalStorageKey('credentials', user?.id);
-  const loansKey = useLocalStorageKey('loans', user?.id);
-  const chatMessagesKey = useLocalStorageKey('chat_messages', user?.id);
   const activeProjectKey = useLocalStorageKey('activeProject', user?.id);
   const currencyKey = useLocalStorageKey('currency', user?.id);
   const defaultProjectKey = useLocalStorageKey('defaultProject', user?.id);
@@ -139,7 +129,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     allProjects,
     allTransactions,
     allLoans,
-    allBankAccounts,
+    allBankAccounts: rawBankAccounts,
     allClients,
     allContacts,
     user,
@@ -150,12 +140,64 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       allProjects,
       allTransactions,
       allLoans,
-      allBankAccounts,
+      allBankAccounts: rawBankAccounts,
       allClients,
       allContacts,
       user,
     };
-  }, [allProjects, allTransactions, allLoans, allBankAccounts, allClients, allContacts, user]);
+  }, [allProjects, allTransactions, allLoans, rawBankAccounts, allClients, allContacts, user]);
+
+  const allBankAccounts = useMemo(() => {
+    const balanceMap = new Map<string, number>();
+    rawBankAccounts.forEach(acc => {
+      balanceMap.set(acc.id, acc.balance); // Start with initial balance
+    });
+  
+    [...allTransactions, ...allLoans].forEach(entry => {
+      if ('category' in entry) { // Transaction
+        const tx = entry as Transaction;
+        if (tx.type === 'income' && tx.account_id && balanceMap.has(tx.account_id)) {
+          balanceMap.set(tx.account_id, balanceMap.get(tx.account_id)! + tx.amount);
+        } else if (tx.type === 'expense' && tx.account_id && balanceMap.has(tx.account_id)) {
+          balanceMap.set(tx.account_id, balanceMap.get(tx.account_id)! - tx.amount);
+        } else if (tx.type === 'transfer' && tx.from_account_id && tx.to_account_id) {
+          if (balanceMap.has(tx.from_account_id)) {
+            balanceMap.set(tx.from_account_id, balanceMap.get(tx.from_account_id)! - tx.amount);
+          }
+          if (balanceMap.has(tx.to_account_id)) {
+            balanceMap.set(tx.to_account_id, balanceMap.get(tx.to_account_id)! + tx.amount);
+          }
+        }
+      } else { // Loan
+        const loan = entry as Loan;
+        if (loan.account_id && balanceMap.has(loan.account_id)) {
+          if (loan.type === 'loanTaken') {
+            balanceMap.set(loan.account_id, balanceMap.get(loan.account_id)! + loan.amount);
+          } else { // loanGiven
+            balanceMap.set(loan.account_id, balanceMap.get(loan.account_id)! - loan.amount);
+          }
+        }
+      }
+    });
+
+    // Also account for repayments
+    allTransactions.filter(t => t.type === 'repayment').forEach(repayment => {
+        const relatedLoan = allLoans.find(l => l.id === repayment.loan_id);
+        if (relatedLoan && repayment.account_id && balanceMap.has(repayment.account_id)) {
+            if (relatedLoan.type === 'loanGiven') { // Money coming back IN
+                 balanceMap.set(repayment.account_id, balanceMap.get(repayment.account_id)! + repayment.amount);
+            } else { // Paying back a loan you took, money OUT
+                 balanceMap.set(repayment.account_id, balanceMap.get(repayment.account_id)! - repayment.amount);
+            }
+        }
+    });
+  
+    return rawBankAccounts.map(acc => ({
+      ...acc,
+      balance: balanceMap.get(acc.id) ?? acc.balance,
+    }));
+  }, [rawBankAccounts, allTransactions, allLoans]);
+  
 
   const loadMoreChatMessages = useCallback(async () => {
     if (!user || !hasMoreChatMessages) return;
@@ -177,7 +219,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setHasMoreChatMessages(false);
     }
     
-    setAllChatMessages(prev => [...newMessages.reverse(), ...prev]);
+    setAllChatMessages(prev => [...newMessages.reverse(), ...prev].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
     setChatPage(nextPage);
 
   }, [user, chatPage, hasMoreChatMessages]);
@@ -213,7 +255,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
       let projects = projectsRes.data || [];
       const hasPersonalProject = projects.some(p => p.name === PERSONAL_PROJECT_NAME);
-      const personalProject = projects.find(p => p.name === PERSONAL_PROJECT_NAME);
+      let personalProject = projects.find(p => p.name === PERSONAL_PROJECT_NAME);
 
       if (!hasPersonalProject) {
           const { data: newPersonalProject, error: personalProjectError } = await supabase.from('projects').insert({
@@ -227,12 +269,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           }
           if (newPersonalProject) {
             projects = [...projects, newPersonalProject];
+            personalProject = newPersonalProject;
           }
       }
 
       setAllProjects(projects);
       setAllTransactions(transactionsRes.data || []);
-      setAllBankAccounts(bankAccountsRes.data || []);
+      setRawBankAccounts(bankAccountsRes.data || []);
       setAllClients(clientsRes.data || []);
       setAllContacts(contactsRes.data || []);
       setAllCategories(categoriesRes.data || []);
@@ -240,16 +283,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllCredentials(credentialsRes.data || []);
       setAllLoans(loansRes.data || []);
       
-      const initialMessages = (chatMessagesRes.data || []).reverse();
+      const initialMessages = (chatMessagesRes.data || []).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
       setAllChatMessages(initialMessages);
       setChatPage(0);
       setHasMoreChatMessages(initialMessages.length === CHAT_PAGE_SIZE);
 
       if ((!bankAccountsRes.data || bankAccountsRes.data.length === 0) && projects.length > 0) {
-        const personalProj = projects.find(p => p.name === PERSONAL_PROJECT_NAME);
-        const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true, project_id: personalProj?.id }).select().single();
+        const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true, project_id: personalProject?.id }).select().single();
         if (newAccount) {
-            setAllBankAccounts([newAccount]);
+            setRawBankAccounts([newAccount]);
         }
       }
       
@@ -375,7 +417,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         return;
     }
     
-    // Use an RPC function to delete project and all related data atomically
     const { error } = await supabase.rpc('delete_project_and_related_data', {
       p_id: projectId
     })
@@ -386,14 +427,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         return;
     }
 
-    // If successful, update the local state
     updateState(setAllProjects, (prev: Project[]) => prev.filter(p => p.id !== projectId));
     updateState(setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.project_id !== projectId));
     updateState(setAllClients, (prev: Client[]) => prev.filter(c => c.project_id !== projectId));
     updateState(setAllCategories, (prev: Category[]) => prev.filter(c => c.project_id !== projectId));
     updateState(setAllTasks, (prev: Task[]) => prev.filter(t => t.project_id !== projectId));
     updateState(setAllCredentials, (prev: Credential[]) => prev.filter(c => c.project_id !== projectId));
-    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.project_id !== projectId));
+    updateState(setRawBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.project_id !== projectId));
     updateState(setAllLoans, (prev: Loan[]) => prev.filter(l => l.project_id !== projectId));
     
     if (activeProject?.id === projectId) {
@@ -478,53 +518,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (categoryToDelete?.project_id) triggerSync(categoryToDelete.project_id);
   };
 
-  const updateAccountBalance = useCallback(async (account_id: string, amount: number, operation: 'add' | 'subtract') => {
-      const accountToUpdate = allBankAccounts.find(acc => acc.id === account_id);
-      if (!accountToUpdate) {
-          console.error("Account not found for balance update");
-          return;
-      }
-      const newBalance = operation === 'add' ? accountToUpdate.balance + amount : accountToUpdate.balance - amount;
-      
-      const { data: updatedAccount, error } = await supabase.from('bank_accounts').update({ balance: newBalance }).eq('id', account_id).select().single();
-      if (error) {
-          console.error("Error updating balance in DB:", error);
-          // Optionally revert UI change here or show a toast
-      } else {
-        updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === account_id ? updatedAccount : acc));
-      }
-  }, [allBankAccounts]);
-  
-  const handleBatchBalanceUpdates = useCallback(async (entries: (Transaction | Loan)[]) => {
-    const balanceChanges = new Map<string, number>();
-
-    entries.forEach(entry => {
-        if ('category' in entry) { // Transaction
-            const tx = entry as Transaction;
-            if (tx.type === 'income' && tx.account_id) {
-                balanceChanges.set(tx.account_id, (balanceChanges.get(tx.account_id) || 0) + tx.amount);
-            } else if (tx.type === 'expense' && tx.account_id) {
-                balanceChanges.set(tx.account_id, (balanceChanges.get(tx.account_id) || 0) - tx.amount);
-            } else if (tx.type === 'transfer' && tx.from_account_id && tx.to_account_id) {
-                balanceChanges.set(tx.from_account_id, (balanceChanges.get(tx.from_account_id) || 0) - tx.amount);
-                balanceChanges.set(tx.to_account_id, (balanceChanges.get(tx.to_account_id) || 0) + tx.amount);
-            }
-        } else { // Loan
-            const loan = entry as Loan;
-            if (loan.type === 'loanTaken') {
-                balanceChanges.set(loan.account_id, (balanceChanges.get(loan.account_id) || 0) + loan.amount);
-            } else { // loanGiven
-                balanceChanges.set(loan.account_id, (balanceChanges.get(loan.account_id) || 0) - loan.amount);
-            }
-        }
-    });
-
-    for (const [accountId, change] of balanceChanges.entries()) {
-        const operation = change >= 0 ? 'add' : 'subtract';
-        await updateAccountBalance(accountId, Math.abs(change), operation);
-    }
-  }, [updateAccountBalance]);
-
   const addTransactions = async (transactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[]): Promise<{ id: string }[]> => {
     if (!user || transactions.length === 0) return [];
     const dbTransactions = transactions.map(t => ({
@@ -538,7 +531,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     
     updateState(setAllTransactions, (prev: Transaction[]) => [...prev, ...newTransactions]);
-    await handleBatchBalanceUpdates(newTransactions);
     
     const projectIds = [...new Set(newTransactions.map(t => t.project_id).filter(Boolean))];
     for (const projectId of projectIds) {
@@ -562,7 +554,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
 
     updateState(setAllLoans, (prev: Loan[]) => [...prev, ...newLoans]);
-    await handleBatchBalanceUpdates(newLoans);
 
     const projectIds = [...new Set(newLoans.map(l => l.project_id).filter(Boolean))];
     for (const projectId of projectIds) {
@@ -584,64 +575,20 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     
     updateState(setAllTransactions, (prev: Transaction[]) => [...prev, newTransaction]);
-    await handleBatchBalanceUpdates([newTransaction]);
     if (newTransaction.project_id) triggerSync(newTransaction.project_id);
 
     if (returnRef) return { id: newTransaction.id };
   };
 
   const updateTransaction = async (transactionId: string, updatedData: Partial<Transaction>) => {
-    const originalTransaction = allTransactions.find(t => t.id === transactionId);
-    if (!originalTransaction) return;
-    
-    // Revert old balance change
-    const originalAccountId = originalTransaction.account_id || (originalTransaction.type === 'transfer' ? originalTransaction.from_account_id : undefined);
-    if (originalAccountId) {
-        if (originalTransaction.type === 'income') await updateAccountBalance(originalAccountId, originalTransaction.amount, 'subtract');
-        else if (originalTransaction.type === 'expense') await updateAccountBalance(originalAccountId, originalTransaction.amount, 'add');
-        else if (originalTransaction.type === 'transfer' && originalTransaction.to_account_id) {
-            await updateAccountBalance(originalAccountId, originalTransaction.amount, 'add');
-            await updateAccountBalance(originalTransaction.to_account_id, originalTransaction.amount, 'subtract');
-        }
-    }
-    
     const { data: updatedTransaction, error } = await supabase.from('transactions').update(updatedData).eq('id', transactionId).select().single();
-    if (error) {
-        if (originalAccountId) {
-            if (originalTransaction.type === 'income') await updateAccountBalance(originalAccountId, originalTransaction.amount, 'add');
-            else if (originalTransaction.type === 'expense') await updateAccountBalance(originalAccountId, originalTransaction.amount, 'subtract');
-        }
-        throw error;
-    }
+    if (error) throw error;
     
     updateState(setAllTransactions, (prev: Transaction[]) => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
-
-    // Apply new balance change
-    const newAccountId = updatedTransaction.account_id || (updatedTransaction.type === 'transfer' ? updatedTransaction.from_account_id : undefined);
-    if (newAccountId) {
-        if (updatedTransaction.type === 'income') await updateAccountBalance(newAccountId, updatedTransaction.amount, 'add');
-        else if (updatedTransaction.type === 'expense') await updateAccountBalance(newAccountId, updatedTransaction.amount, 'subtract');
-        else if (updatedTransaction.type === 'transfer' && updatedTransaction.to_account_id) {
-            await updateAccountBalance(newAccountId, updatedTransaction.amount, 'subtract');
-            await updateAccountBalance(updatedTransaction.to_account_id, updatedTransaction.amount, 'add');
-        }
-    }
     if (updatedTransaction.project_id) triggerSync(updatedTransaction.project_id);
   };
 
   const deleteTransaction = async (transactionToDelete: Transaction, chatMessageId?: string) => {
-    // Revert balance changes before deleting the transaction record
-    if (transactionToDelete.type === 'income' && transactionToDelete.account_id) {
-        await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'subtract');
-    } else if (transactionToDelete.type === 'expense' && transactionToDelete.account_id) {
-        await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'add');
-    } else if (transactionToDelete.type === 'transfer' && transactionToDelete.from_account_id && transactionToDelete.to_account_id) {
-        // Correctly revert the transfer: add back to 'from', subtract from 'to'
-        await updateAccountBalance(transactionToDelete.from_account_id, transactionToDelete.amount, 'add');
-        await updateAccountBalance(transactionToDelete.to_account_id, transactionToDelete.amount, 'subtract');
-    }
-
-    // Delete associated chat message if ID is provided
     if (chatMessageId) {
         const { error: chatError } = await supabase.from('chat_messages').delete().eq('id', chatMessageId);
         if (chatError) {
@@ -651,27 +598,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         }
     }
     
-    // Delete the transaction from the database
     const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
     if (error) {
-        // If the DB delete fails, we should ideally roll back the balance changes.
-        // This is complex, for now, we'll log the error and hope the user retries.
-        console.error("Failed to delete transaction from DB, balance might be inconsistent:", error);
+        console.error("Failed to delete transaction from DB:", error);
         toast({ variant: 'destructive', title: 'Deletion Failed', description: 'Could not delete the transaction. Please try again.' });
-        // Attempt to revert the balance change reversal
-        if (transactionToDelete.type === 'income' && transactionToDelete.account_id) await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'add');
-        else if (transactionToDelete.type === 'expense' && transactionToDelete.account_id) await updateAccountBalance(transactionToDelete.account_id, transactionToDelete.amount, 'subtract');
-        else if (transactionToDelete.type === 'transfer' && transactionToDelete.from_account_id && transactionToDelete.to_account_id) {
-            await updateAccountBalance(transactionToDelete.from_account_id, transactionToDelete.amount, 'subtract');
-            await updateAccountBalance(transactionToDelete.to_account_id, transactionToDelete.amount, 'add');
-        }
-        return; // Stop execution
+        return;
     }
 
-    // Update local state
     updateState(setAllTransactions, (prev) => prev.filter(t => t.id !== transactionToDelete.id));
 
-    // Trigger sync if applicable
     if (transactionToDelete.project_id) {
         triggerSync(transactionToDelete.project_id);
     }
@@ -707,28 +642,28 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     const finalProjectId = project_id === personalProject?.id ? project_id : (project_id && project_id !== 'all' ? project_id : personalProject?.id);
 
-    const { data: newAccount, error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, project_id: finalProjectId, is_primary: allBankAccounts.length === 0 }).select().single();
+    const { data: newAccount, error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, project_id: finalProjectId, is_primary: rawBankAccounts.length === 0 }).select().single();
     if (error) throw error;
-    updateState(setAllBankAccounts, (prev: BankAccount[]) => [...prev, newAccount]);
+    updateState(setRawBankAccounts, (prev: BankAccount[]) => [...prev, newAccount]);
     if (finalProjectId) triggerSync(finalProjectId);
   };
 
   const updateBankAccount = async (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'user_id'>>) => {
-    const { data: updatedAccount, error } = await supabase.from('bank_accounts').update(accountData).eq('id', accountId).select().single();
+    // Only 'name' and 'balance' (initial balance) can be updated.
+    const { data: updatedAccount, error } = await supabase.from('bank_accounts').update({ name: accountData.name, balance: accountData.balance }).eq('id', accountId).select().single();
     if (error) throw error;
-    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
+    updateState(setRawBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
     if (updatedAccount.project_id) triggerSync(updatedAccount.project_id);
   };
   
   const linkBankAccount = async (accountId: string, projectId: string) => {
     const { data: updatedAccount, error } = await supabase.from('bank_accounts').update({ project_id: projectId }).eq('id', accountId).select().single();
     if (error) throw error;
-    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
+    updateState(setRawBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
     if (updatedAccount.project_id) triggerSync(updatedAccount.project_id);
   };
 
   const deleteBankAccount = async (accountId: string) => {
-    // Check if account is tied to any loans
     const linkedLoans = allLoans.filter(l => l.account_id === accountId);
     if (linkedLoans.length > 0) {
         toast({
@@ -743,18 +678,18 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     await supabase.from('transactions').update({ from_account_id: null }).eq('from_account_id', accountId);
     await supabase.from('transactions').update({ to_account_id: null }).eq('to_account_id', accountId);
 
-    const accountToDelete = allBankAccounts.find(b => b.id === accountId);
+    const accountToDelete = rawBankAccounts.find(b => b.id === accountId);
     const { error } = await supabase.from('bank_accounts').delete().eq('id', accountId);
     if (error) throw error;
     
-    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.id !== accountId));
+    updateState(setRawBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.id !== accountId));
     if (accountToDelete?.project_id) triggerSync(accountToDelete.project_id);
   };
 
   const setPrimaryBankAccount = async (accountId: string) => {
     if (!user) return;
     
-    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => ({...acc, is_primary: acc.id === accountId})));
+    updateState(setRawBankAccounts, (prev: BankAccount[]) => prev.map(acc => ({...acc, is_primary: acc.id === accountId})));
 
     try {
         const { error: errorClear } = await supabase.from('bank_accounts').update({ is_primary: false }).eq('user_id', user.id);
@@ -763,7 +698,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         const { error: errorSet } = await supabase.from('bank_accounts').update({ is_primary: true }).eq('id', accountId);
         if (errorSet) throw errorSet;
     } catch (error) {
-        updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => ({...acc, is_primary: acc.id === accountId ? false : acc.is_primary })));
+        updateState(setRawBankAccounts, (prev: BankAccount[]) => prev.map(acc => ({...acc, is_primary: acc.id === accountId ? false : acc.is_primary })));
         console.error("Failed to set primary bank account:", error);
         toast({
             variant: 'destructive',
@@ -866,7 +801,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     
     updateState(setAllLoans, (prev: Loan[]) => [...prev, newLoan]);
-    await handleBatchBalanceUpdates([newLoan]);
     if (newLoan.project_id) triggerSync(newLoan.project_id);
 
     if (returnRef) return { id: newLoan.id };
@@ -884,28 +818,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const updateLoan = async (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => {
-    const originalLoan = allLoans.find(l => l.id === loanId);
-    if (!originalLoan) return;
-
-    if (!loanData.amount || loanData.amount === originalLoan.amount) {
-      const { data: updatedLoan, error } = await supabase.from('loans').update(loanData).eq('id', loanId).select().single();
-      if (error) throw error;
-      updateState(setAllLoans, (prev: Loan[]) => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
-      if (updatedLoan.project_id) triggerSync(updatedLoan.project_id);
-      return;
-    }
-
-    const amountDifference = loanData.amount - originalLoan.amount;
-
     const { data: updatedLoan, error } = await supabase.from('loans').update(loanData).eq('id', loanId).select().single();
     if (error) throw error;
-
-    if (originalLoan.type === 'loanTaken') {
-        await updateAccountBalance(originalLoan.account_id, amountDifference, 'add');
-    } else {
-        await updateAccountBalance(originalLoan.account_id, amountDifference, 'subtract');
-    }
-    
     updateState(setAllLoans, (prev: Loan[]) => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
     if (updatedLoan.project_id) triggerSync(updatedLoan.project_id);
   };
@@ -922,12 +836,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
     const { error } = await supabase.from('loans').delete().eq('id', loanId);
     if (error) throw error;
-    
-    if (loanToDelete.type === 'loanTaken') {
-        await updateAccountBalance(loanToDelete.account_id, loanToDelete.amount, 'subtract');
-    } else {
-        await updateAccountBalance(loanToDelete.account_id, loanToDelete.amount, 'add');
-    }
     
     updateState(setAllLoans, (prev: Loan[]) => prev.filter(l => l.id !== loanId));
     if (loanToDelete.project_id) triggerSync(loanToDelete.project_id);
