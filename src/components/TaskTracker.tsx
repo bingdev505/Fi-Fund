@@ -6,7 +6,7 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PlusCircle, ListTodo, Pencil, Trash2, CheckCircle, CircleDot, PlayCircle, Bell } from 'lucide-react';
+import { PlusCircle, ListTodo, Pencil, Trash2, CheckCircle, CircleDot, PlayCircle, Bell, Repeat } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,7 +18,7 @@ import { Textarea } from './ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { format, parseISO, setHours, setMinutes, isToday, isPast } from 'date-fns';
+import { format, parseISO, setHours, setMinutes, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
 import { CalendarIcon } from 'lucide-react';
@@ -35,6 +35,7 @@ const taskSchema = z.object({
     message: "Invalid time format (HH:MM)",
   }),
   project_id: z.string().optional(),
+  recurrence: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(),
 }).refine(data => !data.due_time || (data.due_time && data.due_date), {
     message: "A due date is required if you specify a time.",
     path: ["due_date"],
@@ -62,12 +63,14 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             due_date: task.due_date ? parseISO(task.due_date) : undefined,
             due_time: defaultTime,
             project_id: task.project_id || personalProject?.id,
+            recurrence: task.recurrence || 'none',
         } : {
             name: '',
             description: '',
             status: 'todo',
             due_time: '',
             project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
+            recurrence: 'none',
         }
     });
 
@@ -88,6 +91,7 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             status: values.status,
             project_id: values.project_id,
             due_date: finalDueDate,
+            recurrence: values.recurrence,
         };
 
         if (task) {
@@ -168,6 +172,25 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                 )} />
                  <FormField
                     control={form.control}
+                    name="recurrence"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Recurrence</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
                     name="project_id"
                     render={({ field }) => (
                         <FormItem>
@@ -203,7 +226,7 @@ const TaskItem = ({ task, onEditClick, onDeleteClick }: { task: Task, onEditClic
     const { toast } = useToast();
 
     const handleStatusChange = (status: 'todo' | 'in-progress' | 'done') => {
-        updateTask(task.id, { status });
+        updateTask(task.id, { ...task, status });
         toast({ title: `Task moved to ${status}` });
     };
 
@@ -223,7 +246,7 @@ const TaskItem = ({ task, onEditClick, onDeleteClick }: { task: Task, onEditClic
             <div className="flex items-center gap-4">
                 <ListTodo className="h-5 w-5 text-muted-foreground" />
                 <div>
-                    <p className="font-medium">{task.name}</p>
+                    <p className="font-medium flex items-center gap-2">{task.name} {task.recurrence && task.recurrence !== 'none' && <Repeat className="h-4 w-4 text-muted-foreground" />}</p>
                     {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
                     {task.due_date && <p className="text-xs text-muted-foreground">Due: {format(parseISO(task.due_date), 'PPP p')}</p>}
                 </div>

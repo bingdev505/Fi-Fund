@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Project": {
@@ -163,7 +164,8 @@
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
         "dueDate": { "type": "string", "format": "date-time" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "created_at": { "type": "string", "format": "date-time" },
+        "recurrence": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"], "description": "How often the task repeats." }
       },
       "required": ["id", "userId", "name", "status", "created_at"]
     },

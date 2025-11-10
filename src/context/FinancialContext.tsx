@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
 import { syncTransactionsToSheet } from '@/services/google-sheets';
+import { addDays, addMonths, addWeeks, parseISO } from 'date-fns';
 
 interface FinancialContextType {
   projects: Project[];
@@ -780,10 +781,35 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     updateStateAndCache(tasksKey, setAllTasks, (prev: Task[]) => [...prev, newTask]);
   };
 
-  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'user_id'>>) => {
+  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'user_id' | 'created_at'>>) => {
+    const originalTask = allTasks.find(t => t.id === taskId);
+    
     const { data: updatedTask, error } = await supabase.from('tasks').update(taskData).eq('id', taskId).select().single();
     if (error) throw error;
+    
     updateStateAndCache(tasksKey, setAllTasks, (prev: Task[]) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+
+    if (originalTask && updatedTask.status === 'done' && originalTask.status !== 'done' && updatedTask.recurrence && updatedTask.recurrence !== 'none') {
+        let nextDueDate: Date | undefined;
+        if (updatedTask.due_date) {
+            const currentDueDate = parseISO(updatedTask.due_date);
+            switch (updatedTask.recurrence) {
+                case 'daily': nextDueDate = addDays(currentDueDate, 1); break;
+                case 'weekly': nextDueDate = addWeeks(currentDueDate, 1); break;
+                case 'monthly': nextDueDate = addMonths(currentDueDate, 1); break;
+                default: break;
+            }
+        }
+        
+        if (nextDueDate) {
+            const newTask: Omit<Task, 'id' | 'user_id' | 'created_at'> = {
+                ...updatedTask,
+                due_date: nextDueDate.toISOString(),
+                status: 'todo',
+            };
+            await addTask(newTask);
+        }
+    }
   };
 
   const deleteTask = async (taskId: string) => {
@@ -1022,5 +1048,3 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     </FinancialContext.Provider>
   );
 }
-
-    

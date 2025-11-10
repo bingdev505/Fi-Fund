@@ -101,6 +101,7 @@ export type Task = {
   status: 'todo' | 'in-progress' | 'done';
   due_date?: LocalTimestamp;
   created_at: LocalTimestamp;
+  recurrence?: 'none' | 'daily' | 'weekly' | 'monthly';
 };
 
 export type Credential = {
