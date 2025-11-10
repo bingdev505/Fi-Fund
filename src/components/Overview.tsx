@@ -2,7 +2,7 @@
 'use client';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowRight, PlusCircle, CheckCircle, HandCoins } from 'lucide-react';
+import { ArrowRight, PlusCircle, CheckCircle, HandCoins, Landmark } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import EntryForm from './EntryForm';
 import SummaryCard from './SummaryCard';
 import { useAuth } from '@/context/AuthContext';
+import { Separator } from './ui/separator';
 
 export default function Overview() {
   const { transactions, loans, currency, bankAccounts } = useFinancials();
@@ -25,26 +26,22 @@ export default function Overview() {
   const {
     totalIncome,
     totalExpenses,
-    primaryAccount,
     totalLoansGiven,
     totalLoansTaken,
   } = useMemo(() => {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     
-    let primaryAcc = bankAccounts.find(acc => acc.is_primary) || bankAccounts[0];
-
     const loansGiven = loans.filter(d => d.type === 'loanGiven' && d.status === 'active').reduce((sum, d) => sum + d.amount, 0);
     const loansTaken = loans.filter(d => d.type === 'loanTaken' && d.status === 'active').reduce((sum, d) => sum + d.amount, 0);
     
     return {
       totalIncome: income,
       totalExpenses: expenses,
-      primaryAccount: primaryAcc,
       totalLoansGiven: loansGiven,
       totalLoansTaken: loansTaken,
     };
-  }, [transactions, bankAccounts, loans]);
+  }, [transactions, loans]);
   
 
   return (
@@ -87,13 +84,33 @@ export default function Overview() {
 
           {/* Right Column */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Primary Account</CardTitle>
+             <Card>
+              <CardHeader>
+                <CardTitle>Account Balances</CardTitle>
+                <CardDescription>All account balances for this business.</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">{primaryAccount ? formatCurrency(primaryAccount.balance) : formatCurrency(0)}</p>
-                <p className="text-xs text-muted-foreground">{primaryAccount?.name || 'No account set'}</p>
+                {bankAccounts.length > 0 ? (
+                  <ul className="space-y-4">
+                    {bankAccounts.map((account, index) => (
+                      <li key={account.id}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Landmark className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                    <p className="font-medium">{account.name}</p>
+                                    <p className="text-xs text-muted-foreground">{account.is_primary && "Primary"}</p>
+                                </div>
+                            </div>
+                            <p className="font-semibold">{formatCurrency(account.balance)}</p>
+                        </div>
+                        {index < bankAccounts.length - 1 && <Separator className="mt-4" />}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No bank accounts for this business.</p>
+                )}
               </CardContent>
             </Card>
           </div>
