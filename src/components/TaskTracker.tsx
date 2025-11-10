@@ -1,11 +1,12 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PlusCircle, ListTodo, Loader2, Pencil, Trash2, CheckCircle, CircleDot, PlayCircle } from 'lucide-react';
+import { PlusCircle, ListTodo, Pencil, Trash2, CheckCircle, CircleDot, PlayCircle, Bell } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,18 +18,24 @@ import { Textarea } from './ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, setHours, setMinutes, isToday, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
 import { CalendarIcon } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+
+const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const taskSchema = z.object({
   name: z.string().min(3, 'Task name must be at least 3 characters'),
   description: z.string().optional(),
   status: z.enum(['todo', 'in-progress', 'done']),
   due_date: z.date().optional(),
+  due_time: z.string().regex(timeRegex, "Invalid time format (HH:MM)").optional(),
   project_id: z.string().optional(),
+}).refine(data => !data.due_time || (data.due_time && data.due_date), {
+    message: "A due date is required if you specify a time.",
+    path: ["due_date"],
 });
 
 type TaskFormProps = {
@@ -42,6 +49,8 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
 
     const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
 
+    const defaultTime = task?.due_date ? format(parseISO(task.due_date), 'HH:mm') : '';
+
     const form = useForm<z.infer<typeof taskSchema>>({
         resolver: zodResolver(taskSchema),
         defaultValues: task ? {
@@ -49,20 +58,32 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             description: task.description || '',
             status: task.status,
             due_date: task.due_date ? parseISO(task.due_date) : undefined,
+            due_time: defaultTime,
             project_id: task.project_id || personalProject?.id,
         } : {
             name: '',
             description: '',
             status: 'todo',
+            due_time: '',
             project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
         }
     });
 
     async function onSubmit(values: z.infer<typeof taskSchema>) {
+        let finalDueDate: string | undefined = undefined;
+        if (values.due_date) {
+            let date = values.due_date;
+            if (values.due_time) {
+                const [hours, minutes] = values.due_time.split(':').map(Number);
+                date = setHours(setMinutes(date, minutes), hours);
+            }
+            finalDueDate = date.toISOString();
+        }
+
         const finalValues = {
             ...values,
             project_id: values.project_id,
-            due_date: values.due_date?.toISOString(),
+            due_date: finalDueDate,
         };
 
         if (task) {
@@ -88,27 +109,13 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                  <FormField control={form.control} name="description" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Description (Optional)</FormLabel>
-                        <FormControl><Textarea placeholder="Add more details..." {...field} /></FormControl>
+                        <FormControl><Textarea placeholder="Add more details..." {...field} value={field.value ?? ''} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="status" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Status</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="todo">To Do</SelectItem>
-                                    <SelectItem value="in-progress">In Progress</SelectItem>
-                                    <SelectItem value="done">Done</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={form.control} name="due_date" render={({ field }) => (
+                     <FormField control={form.control} name="due_date" render={({ field }) => (
                         <FormItem className="flex flex-col">
                             <FormLabel>Due Date (Optional)</FormLabel>
                             <Popover>
@@ -127,7 +134,34 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                             <FormMessage />
                         </FormItem>
                     )} />
+                     <FormField
+                        control={form.control}
+                        name="due_time"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Due Time (Optional)</FormLabel>
+                                <FormControl>
+                                    <Input type="time" {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                        />
                 </div>
+                 <FormField control={form.control} name="status" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="todo">To Do</SelectItem>
+                                <SelectItem value="in-progress">In Progress</SelectItem>
+                                <SelectItem value="done">Done</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )} />
                  <FormField
                     control={form.control}
                     name="project_id"
@@ -187,7 +221,7 @@ const TaskItem = ({ task, onEditClick, onDeleteClick }: { task: Task, onEditClic
                 <div>
                     <p className="font-medium">{task.name}</p>
                     {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
-                    {task.due_date && <p className="text-xs text-muted-foreground">Due: {format(parseISO(task.due_date), 'PPP')}</p>}
+                    {task.due_date && <p className="text-xs text-muted-foreground">Due: {format(parseISO(task.due_date), 'PPP p')}</p>}
                 </div>
             </div>
             <div className="flex items-center gap-2">
@@ -233,6 +267,34 @@ export default function TaskTracker() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   
+  useEffect(() => {
+    // Request notification permission on component mount
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    const notifiedTasks = new Set<string>();
+    const interval = setInterval(() => {
+      const now = new Date();
+      tasks.forEach(task => {
+        if (task.due_date && task.status !== 'done' && !notifiedTasks.has(task.id)) {
+          const dueDate = parseISO(task.due_date);
+          if (dueDate <= now && !isPast(dueDate)) {
+             if (Notification.permission === 'granted') {
+              new Notification('Task Due!', {
+                body: `Your task "${task.name}" is due now.`,
+                icon: '/icons/icon-192x192.png'
+              });
+              notifiedTasks.add(task.id);
+            }
+          }
+        }
+      });
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [tasks]);
+
   const handleEditClick = (task: Task) => {
     setEditingTask(task);
     setFormOpen(true);
@@ -250,21 +312,33 @@ export default function TaskTracker() {
     setDeletingTask(null);
   };
 
-  const { activeTasks, completedTasks } = useMemo(() => {
-    const active = tasks.filter(t => t.status !== 'done');
+  const { todaysTasks, otherActiveTasks, completedTasks } = useMemo(() => {
+    const today: Task[] = [];
+    const active: Task[] = [];
     const completed = tasks.filter(t => t.status === 'done');
     const statusOrder = { 'in-progress': 1, 'todo': 2 };
 
-    active.sort((a, b) => {
-        if (a.status !== b.status) return statusOrder[a.status] - statusOrder[b.status];
+    tasks.filter(t => t.status !== 'done').forEach(task => {
+      if (task.due_date && isToday(parseISO(task.due_date))) {
+        today.push(task);
+      } else {
+        active.push(task);
+      }
+    });
+
+    [today, active].forEach(arr => {
+      arr.sort((a, b) => {
         const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity;
         const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-        return aDate - bDate;
+        if (aDate !== bDate) return aDate - bDate;
+        if (a.status !== b.status) return statusOrder[a.status] - statusOrder[b.status];
+        return 0;
+      });
     });
 
     completed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    return { activeTasks: active, completedTasks: completed };
+    return { todaysTasks: today, otherActiveTasks: active, completedTasks: completed };
   }, [tasks]);
 
 
@@ -274,6 +348,7 @@ export default function TaskTracker() {
         if (!open) setEditingTask(null);
     }}>
       <AlertDialog>
+        <div className="space-y-6">
         <Card>
           <CardHeader>
              <div className="flex justify-between items-center">
@@ -287,40 +362,51 @@ export default function TaskTracker() {
             </div>
           </CardHeader>
           <CardContent>
-             {tasks.length > 0 ? (
-                <Accordion type="multiple" defaultValue={['active-tasks']} className="w-full">
-                    <AccordionItem value="active-tasks">
-                        <AccordionTrigger>Active Tasks ({activeTasks.length})</AccordionTrigger>
-                        <AccordionContent>
-                           {activeTasks.length > 0 ? (
-                             <ul className="divide-y divide-border border rounded-md">
-                                {activeTasks.map(task => <TaskItem key={task.id} task={task} onEditClick={handleEditClick} onDeleteClick={setDeletingTask} />)}
-                             </ul>
-                           ) : (
-                             <p className="text-muted-foreground text-sm p-4 text-center">No active tasks.</p>
-                           )}
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="completed-tasks">
-                        <AccordionTrigger>Completed Tasks ({completedTasks.length})</AccordionTrigger>
-                        <AccordionContent>
-                             {completedTasks.length > 0 ? (
-                             <ul className="divide-y divide-border border rounded-md">
-                                {completedTasks.map(task => <TaskItem key={task.id} task={task} onEditClick={handleEditClick} onDeleteClick={setDeletingTask} />)}
-                             </ul>
-                           ) : (
-                            <p className="text-muted-foreground text-sm p-4 text-center">No completed tasks yet.</p>
-                           )}
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
-              ) : (
+            {tasks.length === 0 ? (
                 <div className="text-center py-10 border-dashed border-2 rounded-md">
                   <p className="text-muted-foreground text-sm">You have no tasks yet. Add one to get started!</p>
                 </div>
-              )}
+            ) : (
+                <div className="space-y-6">
+                    {todaysTasks.length > 0 && (
+                        <div>
+                             <h3 className="text-lg font-semibold mb-2 flex items-center gap-2 text-amber-600"><Bell className="h-5 w-5" /> Today's Tasks ({todaysTasks.length})</h3>
+                             <ul className="divide-y divide-border border rounded-md">
+                                {todaysTasks.map(task => <TaskItem key={task.id} task={task} onEditClick={handleEditClick} onDeleteClick={setDeletingTask} />)}
+                             </ul>
+                        </div>
+                    )}
+                    <Accordion type="multiple" defaultValue={['active-tasks']} className="w-full">
+                        <AccordionItem value="active-tasks">
+                            <AccordionTrigger>Other Active Tasks ({otherActiveTasks.length})</AccordionTrigger>
+                            <AccordionContent>
+                               {otherActiveTasks.length > 0 ? (
+                                 <ul className="divide-y divide-border border rounded-md">
+                                    {otherActiveTasks.map(task => <TaskItem key={task.id} task={task} onEditClick={handleEditClick} onDeleteClick={setDeletingTask} />)}
+                                 </ul>
+                               ) : (
+                                 <p className="text-muted-foreground text-sm p-4 text-center">No other active tasks.</p>
+                               )}
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="completed-tasks">
+                            <AccordionTrigger>Completed Tasks ({completedTasks.length})</AccordionTrigger>
+                            <AccordionContent>
+                                 {completedTasks.length > 0 ? (
+                                 <ul className="divide-y divide-border border rounded-md">
+                                    {completedTasks.map(task => <TaskItem key={task.id} task={task} onEditClick={handleEditClick} onDeleteClick={setDeletingTask} />)}
+                                 </ul>
+                               ) : (
+                                <p className="text-muted-foreground text-sm p-4 text-center">No completed tasks yet.</p>
+                               )}
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                </div>
+            )}
           </CardContent>
         </Card>
+        </div>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
