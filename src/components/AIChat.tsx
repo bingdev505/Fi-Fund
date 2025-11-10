@@ -21,7 +21,7 @@ import RepaymentForm from './RepaymentForm';
 import { format } from 'date-fns';
 
 const useChatHistory = () => {
-    const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading } = useFinancials();
+    const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading, loadMoreChatMessages, hasMoreChatMessages } = useFinancials();
     
     return {
         messages: chatMessages,
@@ -29,6 +29,8 @@ const useChatHistory = () => {
         updateMessage: updateChatMessage,
         deleteMessage: deleteChatMessage,
         isLoading: isFinancialsLoading,
+        loadMoreMessages: loadMoreChatMessages,
+        hasMoreMessages: hasMoreChatMessages,
     };
 };
 
@@ -61,14 +63,14 @@ export default function AIChat() {
   const { toast } = useToast();
   const viewportRef = useRef<HTMLDivElement>(null);
   const scrollEndRef = useRef<HTMLDivElement>(null);
-  const userScrolledUpRef = useRef(false);
   
-  const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading } = useChatHistory();
+  const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading, loadMoreMessages, hasMoreMessages } = useChatHistory();
 
   const [editingEntry, setEditingEntry] = useState<Transaction | Loan | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Loan | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
   const [isRepayLoanOpen, setIsRepayLoanOpen] = useState(false);
@@ -92,20 +94,41 @@ export default function AIChat() {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
-    const handleScroll = () => {
-        const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 1;
-        userScrolledUpRef.current = !isAtBottom;
+    const handleScroll = async () => {
+      if (viewport.scrollTop === 0 && hasMoreMessages && !isFetchingMore) {
+        setIsFetchingMore(true);
+        const { scrollHeight: previousScrollHeight, scrollTop: previousScrollTop } = viewport;
+        await loadMoreMessages();
+        // Use requestAnimationFrame to wait for the DOM to update
+        requestAnimationFrame(() => {
+          const newScrollHeight = viewport.scrollHeight;
+          viewport.scrollTop = newScrollHeight - previousScrollHeight + previousScrollTop;
+          setIsFetchingMore(false);
+        });
+      }
     };
-
+    
     viewport.addEventListener('scroll', handleScroll);
     return () => viewport.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [hasMoreMessages, isFetchingMore, loadMoreMessages]);
 
   useEffect(() => {
-    if (!userScrolledUpRef.current) {
-        scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll to bottom on initial load
+    if(!isMessagesLoading) {
+      scrollEndRef.current?.scrollIntoView({ behavior: 'auto' });
     }
-  }, [messages, isProcessing]);
+  }, [isMessagesLoading]);
+
+  useEffect(() => {
+    // Only scroll to bottom for new messages if the user is already near the bottom
+    const viewport = viewportRef.current;
+    if (viewport) {
+      const isScrolledToBottom = viewport.scrollHeight - viewport.clientHeight <= viewport.scrollTop + 1;
+      if(isScrolledToBottom) {
+        scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [messages.length, isProcessing]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,13 +185,16 @@ export default function AIChat() {
             const tx = updatedEntry as Transaction;
             const accountName = bankAccounts.find(ba => ba.id === tx.account_id)?.name || 'an account';
             newContent = `${tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} of ${formatCurrency(tx.amount)} in ${tx.category} logged to ${accountName}.`
-        } else {
+        } else if (updatedEntry.type === 'loanGiven' || updatedEntry.type === 'loanTaken') {
             const loan = updatedEntry as Loan;
             const accountName = bankAccounts.find(ba => ba.id === loan.account_id)?.name || 'an account';
-            newContent = `${loan.type.charAt(0).toUpperCase() + loan.type.slice(1)} of ${formatCurrency(loan.amount)} for ${contacts.find(c => c.id === loan.contact_id)?.name} logged against ${accountName}.`
+            const contactName = contacts.find(c => c.id === loan.contact_id)?.name || 'a contact';
+            newContent = `${loan.type.charAt(0).toUpperCase() + loan.type.slice(1)} of ${formatCurrency(loan.amount)} for ${contactName} logged against ${accountName}.`
         }
 
-        await updateMessage(messageToUpdate.id, { content: newContent });
+        if (newContent) {
+            await updateMessage(messageToUpdate.id, { content: newContent });
+        }
     }
     setEditingEntry(null);
     setEditDialogOpen(false);
@@ -421,6 +447,11 @@ export default function AIChat() {
     <div className="flex h-full flex-col bg-background">
       <ScrollArea className="flex-1" viewportRef={viewportRef}>
         <div className="space-y-4 p-4">
+          {isFetchingMore && (
+              <div className="flex justify-center my-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+          )}
           {!isMessagesLoading && messages?.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                 <Bot className="h-12 w-12 mb-4" />
@@ -456,7 +487,7 @@ export default function AIChat() {
               )}
             </div>
           ))}
-           {isProcessing && (
+           {isProcessing && !isFetchingMore && (
             <div className="flex items-start gap-3">
               <Avatar className="h-8 w-8 border bg-white">
                 <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
@@ -566,7 +597,7 @@ export default function AIChat() {
               <DialogHeader>
                   <DialogTitle>Edit Entry</DialogTitle>
               </DialogHeader>
-              <EditEntryForm entry={editingEntry} onFinished={() => handleEditFinished(editingEntry, editingEntry)} />
+              <EditEntryForm entry={editingEntry} onFinished={(updatedEntry) => handleEditFinished(editingEntry, updatedEntry)} />
             </>
           )}
         </DialogContent>

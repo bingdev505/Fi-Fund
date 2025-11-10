@@ -10,6 +10,8 @@ import { useAuth } from './AuthContext';
 import { syncTransactionsToSheet } from '@/services/google-sheets';
 import { addDays, addMonths, addWeeks, parseISO } from 'date-fns';
 
+const CHAT_PAGE_SIZE = 20;
+
 interface FinancialContextType {
   projects: Project[];
   activeProject: Project | null;
@@ -74,6 +76,8 @@ interface FinancialContextType {
   deleteCredential: (credentialId: string) => Promise<void>;
 
   chatMessages: ChatMessage[];
+  hasMoreChatMessages: boolean;
+  loadMoreChatMessages: () => Promise<void>;
   addChatMessage: (messageData: Omit<ChatMessage, 'id' | 'user_id' | 'timestamp'>) => Promise<void>;
   updateChatMessage: (messageId: string, messageData: Partial<ChatMessage>) => Promise<void>;
   deleteChatMessage: (messageId: string) => Promise<void>;
@@ -108,6 +112,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
   const [allLoans, setAllLoans] = useState<Loan[]>([]);
   const [allChatMessages, setAllChatMessages] = useState<ChatMessage[]>([]);
+  const [chatPage, setChatPage] = useState(0);
+  const [hasMoreChatMessages, setHasMoreChatMessages] = useState(true);
   
   const [currency, setCurrencyState] = useState<string>('INR');
   const [isLoading, setIsLoading] = useState(true);
@@ -151,6 +157,31 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     };
   }, [allProjects, allTransactions, allLoans, allBankAccounts, allClients, allContacts, user]);
 
+  const loadMoreChatMessages = useCallback(async () => {
+    if (!user || !hasMoreChatMessages) return;
+
+    const nextPage = chatPage + 1;
+    const { data: newMessages, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('timestamp', { ascending: false })
+      .range(nextPage * CHAT_PAGE_SIZE, (nextPage + 1) * CHAT_PAGE_SIZE - 1);
+
+    if (error) {
+      console.error("Error fetching more chat messages:", error);
+      return;
+    }
+
+    if (newMessages.length < CHAT_PAGE_SIZE) {
+      setHasMoreChatMessages(false);
+    }
+    
+    setAllChatMessages(prev => [...newMessages.reverse(), ...prev]);
+    setChatPage(nextPage);
+
+  }, [user, chatPage, hasMoreChatMessages]);
+
   const fetchData = useCallback(async (userId: string) => {
     setIsLoading(true);
     try {
@@ -176,7 +207,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('tasks').select('*').eq('user_id', userId),
         supabase.from('credentials').select('*').eq('user_id', userId),
         supabase.from('loans').select('*').eq('user_id', userId),
-        supabase.from('chat_messages').select('*').eq('user_id', userId).order('timestamp', { ascending: true }),
+        supabase.from('chat_messages').select('*').eq('user_id', userId).order('timestamp', { ascending: false }).range(0, CHAT_PAGE_SIZE - 1),
         supabase.from('user_settings').select('*').eq('user_id', userId).single(),
       ]);
 
@@ -208,39 +239,26 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllTasks(tasksRes.data || []);
       setAllCredentials(credentialsRes.data || []);
       setAllLoans(loansRes.data || []);
-      setAllChatMessages(chatMessagesRes.data || []);
       
-      // Update local storage
-      if(projectsKey) localStorage.setItem(projectsKey, JSON.stringify(projects));
-      if(transactionsKey) localStorage.setItem(transactionsKey, JSON.stringify(transactionsRes.data));
-      if(bankAccountsKey) localStorage.setItem(bankAccountsKey, JSON.stringify(bankAccountsRes.data));
-      if(clientsKey) localStorage.setItem(clientsKey, JSON.stringify(clientsRes.data));
-      if(contactsKey) localStorage.setItem(contactsKey, JSON.stringify(contactsRes.data));
-      if(categoriesKey) localStorage.setItem(categoriesKey, JSON.stringify(categoriesRes.data));
-      if(tasksKey) localStorage.setItem(tasksKey, JSON.stringify(tasksRes.data));
-      if(credentialsKey) localStorage.setItem(credentialsKey, JSON.stringify(credentialsRes.data));
-      if(loansKey) localStorage.setItem(loansKey, JSON.stringify(loansRes.data));
-      if(chatMessagesKey) localStorage.setItem(chatMessagesKey, JSON.stringify((chatMessagesRes.data || []).slice(-10)));
-
+      const initialMessages = (chatMessagesRes.data || []).reverse();
+      setAllChatMessages(initialMessages);
+      setChatPage(0);
+      setHasMoreChatMessages(initialMessages.length === CHAT_PAGE_SIZE);
 
       if ((!bankAccountsRes.data || bankAccountsRes.data.length === 0) && projects.length > 0) {
         const personalProj = projects.find(p => p.name === PERSONAL_PROJECT_NAME);
         const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true, project_id: personalProj?.id }).select().single();
         if (newAccount) {
             setAllBankAccounts([newAccount]);
-            if (bankAccountsKey) localStorage.setItem(bankAccountsKey, JSON.stringify([newAccount]));
         }
       }
       
       const currencyToSet = userSettingsRes.data?.currency || 'INR';
       setCurrencyState(currencyToSet);
-      if (currencyKey) localStorage.setItem(currencyKey, currencyToSet);
       
       const dbDefaultProjectId = userSettingsRes.data?.default_project_id;
       const defaultProj = projects.find(p => p.id === dbDefaultProjectId) || personalProject;
       _setDefaultProject(defaultProj || null);
-       if (defaultProjectKey) localStorage.setItem(defaultProjectKey, JSON.stringify(defaultProj || null));
-
 
       const storedActiveProject = activeProjectKey ? JSON.parse(localStorage.getItem(activeProjectKey) || 'null') : null;
       let activeProjectToSet: Project | null = defaultProj || null;
@@ -258,34 +276,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, projectsKey, transactionsKey, bankAccountsKey, clientsKey, contactsKey, categoriesKey, tasksKey, credentialsKey, loansKey, chatMessagesKey, activeProjectKey, currencyKey, defaultProjectKey]);
-
-    // Effect to load initial data from local storage
-  useEffect(() => {
-    if (!user) return;
-
-    const loadCachedData = () => {
-      try {
-        setAllProjects(JSON.parse(localStorage.getItem(projectsKey!) || '[]'));
-        setAllTransactions(JSON.parse(localStorage.getItem(transactionsKey!) || '[]'));
-        setAllBankAccounts(JSON.parse(localStorage.getItem(bankAccountsKey!) || '[]'));
-        setAllClients(JSON.parse(localStorage.getItem(clientsKey!) || '[]'));
-        setAllContacts(JSON.parse(localStorage.getItem(contactsKey!) || '[]'));
-        setAllCategories(JSON.parse(localStorage.getItem(categoriesKey!) || '[]'));
-        setAllTasks(JSON.parse(localStorage.getItem(tasksKey!) || '[]'));
-        setAllCredentials(JSON.parse(localStorage.getItem(credentialsKey!) || '[]'));
-        setAllLoans(JSON.parse(localStorage.getItem(loansKey!) || '[]'));
-        setAllChatMessages(JSON.parse(localStorage.getItem(chatMessagesKey!) || '[]'));
-        setCurrencyState(localStorage.getItem(currencyKey!) || 'INR');
-        _setActiveProject(JSON.parse(localStorage.getItem(activeProjectKey!) || 'null'));
-        _setDefaultProject(JSON.parse(localStorage.getItem(defaultProjectKey!) || 'null'));
-      } catch (e) {
-        console.error("Failed to load cached data", e);
-      }
-    };
-    
-    loadCachedData();
-  }, [user, projectsKey, transactionsKey, bankAccountsKey, clientsKey, contactsKey, categoriesKey, tasksKey, credentialsKey, loansKey, chatMessagesKey, currencyKey, activeProjectKey, defaultProjectKey]);
+  }, [toast, activeProjectKey]);
 
 
   const triggerSync = useCallback(async (projectId: string) => {
@@ -318,22 +309,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isUserLoading, fetchData]);
   
-  // Helper to update state and local storage together
-  const updateStateAndCache = <T>(key: string | null, setter: React.Dispatch<React.SetStateAction<T[]>>, data: T[] | ((prev: T[]) => T[]), cacheLimit?: number) => {
+  // Helper to update state
+  const updateState = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>, data: T[] | ((prev: T[]) => T[])) => {
     setter(data);
-    if (key) {
-      if (typeof data === 'function') {
-        // Recalculate the new state to save it
-        const currentData = JSON.parse(localStorage.getItem(key) || '[]') as T[];
-        let newData = data(currentData);
-        if(cacheLimit) newData = newData.slice(-cacheLimit);
-        localStorage.setItem(key, JSON.stringify(newData));
-      } else {
-        let dataToCache = data;
-        if(cacheLimit) dataToCache = dataToCache.slice(-cacheLimit);
-        localStorage.setItem(key, JSON.stringify(dataToCache));
-      }
-    }
   };
 
   const setCurrency = useCallback((newCurrency: string) => {
@@ -380,14 +358,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     };
     const { data: newProject, error } = await supabase.from('projects').insert(dbProject).select().single();
     if (error) throw error;
-    updateStateAndCache(projectsKey, setAllProjects, (prev: Project[]) => [...prev, newProject]);
+    updateState(setAllProjects, (prev: Project[]) => [...prev, newProject]);
     return newProject;
   };
 
   const updateProject = async (projectId: string, projectData: Partial<Omit<Project, 'id' | 'user_id' | 'created_at'>>) => {
     const { data: updatedProject, error } = await supabase.from('projects').update(projectData).eq('id', projectId).select().single();
     if (error) throw error;
-    updateStateAndCache(projectsKey, setAllProjects, (prev: Project[]) => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    updateState(setAllProjects, (prev: Project[]) => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
   };
 
   const deleteProject = async (projectId: string) => {
@@ -409,14 +387,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
 
     // If successful, update the local state
-    updateStateAndCache(projectsKey, setAllProjects, (prev: Project[]) => prev.filter(p => p.id !== projectId));
-    updateStateAndCache(transactionsKey, setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.project_id !== projectId));
-    updateStateAndCache(clientsKey, setAllClients, (prev: Client[]) => prev.filter(c => c.project_id !== projectId));
-    updateStateAndCache(categoriesKey, setAllCategories, (prev: Category[]) => prev.filter(c => c.project_id !== projectId));
-    updateStateAndCache(tasksKey, setAllTasks, (prev: Task[]) => prev.filter(t => t.project_id !== projectId));
-    updateStateAndCache(credentialsKey, setAllCredentials, (prev: Credential[]) => prev.filter(c => c.project_id !== projectId));
-    updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.project_id !== projectId));
-    updateStateAndCache(loansKey, setAllLoans, (prev: Loan[]) => prev.filter(l => l.project_id !== projectId));
+    updateState(setAllProjects, (prev: Project[]) => prev.filter(p => p.id !== projectId));
+    updateState(setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.project_id !== projectId));
+    updateState(setAllClients, (prev: Client[]) => prev.filter(c => c.project_id !== projectId));
+    updateState(setAllCategories, (prev: Category[]) => prev.filter(c => c.project_id !== projectId));
+    updateState(setAllTasks, (prev: Task[]) => prev.filter(t => t.project_id !== projectId));
+    updateState(setAllCredentials, (prev: Credential[]) => prev.filter(c => c.project_id !== projectId));
+    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.project_id !== projectId));
+    updateState(setAllLoans, (prev: Loan[]) => prev.filter(l => l.project_id !== projectId));
     
     if (activeProject?.id === projectId) {
         setActiveProject(allProjects.find(p => p.name === PERSONAL_PROJECT_NAME) || null);
@@ -432,7 +410,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
     const { data: newClient, error } = await supabase.from('clients').insert({ ...clientData, project_id: finalProjectId, user_id: user.id }).select().single();
     if (error) throw error;
-    updateStateAndCache(clientsKey, setAllClients, (prev: Client[]) => [...prev, newClient]);
+    updateState(setAllClients, (prev: Client[]) => [...prev, newClient]);
     if (finalProjectId) triggerSync(finalProjectId);
     return newClient;
   };
@@ -440,7 +418,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const updateClient = async (clientId: string, clientData: Partial<Omit<Client, 'id' | 'user_id'>>) => {
     const { data: updatedClient, error } = await supabase.from('clients').update(clientData).eq('id', clientId).select().single();
     if (error) throw error;
-    updateStateAndCache(clientsKey, setAllClients, (prev: Client[]) => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+    updateState(setAllClients, (prev: Client[]) => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
     if (updatedClient.project_id) triggerSync(updatedClient.project_id);
   };
   
@@ -448,7 +426,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const clientToDelete = allClients.find(c => c.id === clientId);
     const { error } = await supabase.from('clients').delete().eq('id', clientId);
     if (error) throw error;
-    updateStateAndCache(clientsKey, setAllClients, (prev: Client[]) => prev.filter(c => c.id !== clientId));
+    updateState(setAllClients, (prev: Client[]) => prev.filter(c => c.id !== clientId));
     if (clientToDelete?.project_id) triggerSync(clientToDelete.project_id);
   };
 
@@ -457,21 +435,21 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
     const { data: newContact, error } = await supabase.from('contacts').insert({ ...contactData, user_id: user.id }).select().single();
     if (error) throw error;
-    updateStateAndCache(contactsKey, setAllContacts, (prev: Contact[]) => [...prev, newContact]);
+    updateState(setAllContacts, (prev: Contact[]) => [...prev, newContact]);
     return newContact;
   };
 
   const updateContact = async (contactId: string, contactData: Partial<Omit<Contact, 'id' | 'user_id'>>) => {
     const { data: updatedContact, error } = await supabase.from('contacts').update(contactData).eq('id', contactId).select().single();
     if (error) throw error;
-    updateStateAndCache(contactsKey, setAllContacts, (prev: Contact[]) => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
+    updateState(setAllContacts, (prev: Contact[]) => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
   };
   
   const deleteContact = async (contactId: string) => {
     await supabase.from('loans').update({ contact_id: null }).eq('contact_id', contactId);
     const { error } = await supabase.from('contacts').delete().eq('id', contactId);
     if (error) throw error;
-    updateStateAndCache(contactsKey, setAllContacts, (prev: Contact[]) => prev.filter(c => c.id !== contactId));
+    updateState(setAllContacts, (prev: Contact[]) => prev.filter(c => c.id !== contactId));
   };
 
   const addCategory = async (categoryData: Omit<Category, 'id' | 'user_id' | 'project_id'>, project_id?: string): Promise<Category> => {
@@ -480,7 +458,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const finalProjectId = project_id === personalProject?.id ? project_id : (project_id && project_id !== 'all' ? project_id : personalProject?.id);
     const { data: newCategory, error } = await supabase.from('categories').insert({ ...categoryData, project_id: finalProjectId, user_id: user.id }).select().single();
     if (error) throw error;
-    updateStateAndCache(categoriesKey, setAllCategories, (prev: Category[]) => [...prev, newCategory]);
+    updateState(setAllCategories, (prev: Category[]) => [...prev, newCategory]);
     if (finalProjectId) triggerSync(finalProjectId);
     return newCategory;
   };
@@ -488,7 +466,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const updateCategory = async (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'user_id'>>) => {
     const { data: updatedCategory, error } = await supabase.from('categories').update(categoryData).eq('id', categoryId).select().single();
     if (error) throw error;
-    updateStateAndCache(categoriesKey, setAllCategories, (prev: Category[]) => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
+    updateState(setAllCategories, (prev: Category[]) => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
     if (updatedCategory.project_id) triggerSync(updatedCategory.project_id);
   };
   
@@ -496,7 +474,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const categoryToDelete = allCategories.find(c => c.id === categoryId);
     const { error } = await supabase.from('categories').delete().eq('id', categoryId);
     if (error) throw error;
-    updateStateAndCache(categoriesKey, setAllCategories, (prev: Category[]) => prev.filter(c => c.id !== categoryId));
+    updateState(setAllCategories, (prev: Category[]) => prev.filter(c => c.id !== categoryId));
     if (categoryToDelete?.project_id) triggerSync(categoryToDelete.project_id);
   };
 
@@ -513,9 +491,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           console.error("Error updating balance in DB:", error);
           // Optionally revert UI change here or show a toast
       } else {
-        updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === account_id ? updatedAccount : acc));
+        updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === account_id ? updatedAccount : acc));
       }
-  }, [allBankAccounts, bankAccountsKey]);
+  }, [allBankAccounts]);
   
   const handleBatchBalanceUpdates = useCallback(async (entries: (Transaction | Loan)[]) => {
     const balanceChanges = new Map<string, number>();
@@ -559,7 +537,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newTransactions, error } = await supabase.from('transactions').insert(dbTransactions).select();
     if (error) throw error;
     
-    updateStateAndCache(transactionsKey, setAllTransactions, (prev: Transaction[]) => [...prev, ...newTransactions]);
+    updateState(setAllTransactions, (prev: Transaction[]) => [...prev, ...newTransactions]);
     await handleBatchBalanceUpdates(newTransactions);
     
     const projectIds = [...new Set(newTransactions.map(t => t.project_id).filter(Boolean))];
@@ -583,7 +561,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newLoans, error } = await supabase.from('loans').insert(dbLoans).select();
     if (error) throw error;
 
-    updateStateAndCache(loansKey, setAllLoans, (prev: Loan[]) => [...prev, ...newLoans]);
+    updateState(setAllLoans, (prev: Loan[]) => [...prev, ...newLoans]);
     await handleBatchBalanceUpdates(newLoans);
 
     const projectIds = [...new Set(newLoans.map(l => l.project_id).filter(Boolean))];
@@ -605,7 +583,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newTransaction, error } = await supabase.from('transactions').insert(dbTransaction).select().single();
     if (error) throw error;
     
-    updateStateAndCache(transactionsKey, setAllTransactions, (prev: Transaction[]) => [...prev, newTransaction]);
+    updateState(setAllTransactions, (prev: Transaction[]) => [...prev, newTransaction]);
     await handleBatchBalanceUpdates([newTransaction]);
     if (newTransaction.project_id) triggerSync(newTransaction.project_id);
 
@@ -636,7 +614,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         throw error;
     }
     
-    updateStateAndCache(transactionsKey, setAllTransactions, (prev: Transaction[]) => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
+    updateState(setAllTransactions, (prev: Transaction[]) => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
 
     // Apply new balance change
     const newAccountId = updatedTransaction.account_id || (updatedTransaction.type === 'transfer' ? updatedTransaction.from_account_id : undefined);
@@ -663,12 +641,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (chatMessageId) {
         const { error } = await supabase.from('chat_messages').delete().eq('id', chatMessageId);
         if (error) console.error("Error deleting related chat message", error);
-        else updateStateAndCache(chatMessagesKey, setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== chatMessageId), 10);
+        else updateState(setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== chatMessageId));
     }
     
     const { error } = await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
     if (error) throw error;
-    updateStateAndCache(transactionsKey, setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.id !== transactionToDelete.id));
+    updateState(setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.id !== transactionToDelete.id));
     if (transactionToDelete.project_id) triggerSync(transactionToDelete.project_id);
   };
     
@@ -704,21 +682,21 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
     const { data: newAccount, error } = await supabase.from('bank_accounts').insert({ ...account, user_id: user.id, project_id: finalProjectId, is_primary: allBankAccounts.length === 0 }).select().single();
     if (error) throw error;
-    updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => [...prev, newAccount]);
+    updateState(setAllBankAccounts, (prev: BankAccount[]) => [...prev, newAccount]);
     if (finalProjectId) triggerSync(finalProjectId);
   };
 
   const updateBankAccount = async (accountId: string, accountData: Partial<Omit<BankAccount, 'id' | 'user_id'>>) => {
     const { data: updatedAccount, error } = await supabase.from('bank_accounts').update(accountData).eq('id', accountId).select().single();
     if (error) throw error;
-    updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
+    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
     if (updatedAccount.project_id) triggerSync(updatedAccount.project_id);
   };
   
   const linkBankAccount = async (accountId: string, projectId: string) => {
     const { data: updatedAccount, error } = await supabase.from('bank_accounts').update({ project_id: projectId }).eq('id', accountId).select().single();
     if (error) throw error;
-    updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
+    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
     if (updatedAccount.project_id) triggerSync(updatedAccount.project_id);
   };
 
@@ -742,14 +720,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from('bank_accounts').delete().eq('id', accountId);
     if (error) throw error;
     
-    updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.id !== accountId));
+    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.id !== accountId));
     if (accountToDelete?.project_id) triggerSync(accountToDelete.project_id);
   };
 
   const setPrimaryBankAccount = async (accountId: string) => {
     if (!user) return;
     
-    updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => ({...acc, is_primary: acc.id === accountId})));
+    updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => ({...acc, is_primary: acc.id === accountId})));
 
     try {
         const { error: errorClear } = await supabase.from('bank_accounts').update({ is_primary: false }).eq('user_id', user.id);
@@ -758,7 +736,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         const { error: errorSet } = await supabase.from('bank_accounts').update({ is_primary: true }).eq('id', accountId);
         if (errorSet) throw errorSet;
     } catch (error) {
-        updateStateAndCache(bankAccountsKey, setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => ({...acc, is_primary: acc.id === accountId ? false : acc.is_primary })));
+        updateState(setAllBankAccounts, (prev: BankAccount[]) => prev.map(acc => ({...acc, is_primary: acc.id === accountId ? false : acc.is_primary })));
         console.error("Failed to set primary bank account:", error);
         toast({
             variant: 'destructive',
@@ -778,7 +756,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
     const { data: newTask, error } = await supabase.from('tasks').insert({ ...taskData, project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
     if (error) throw error;
-    updateStateAndCache(tasksKey, setAllTasks, (prev: Task[]) => [...prev, newTask]);
+    updateState(setAllTasks, (prev: Task[]) => [...prev, newTask]);
   };
 
   const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'user_id' | 'created_at'>>) => {
@@ -787,7 +765,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: updatedTask, error } = await supabase.from('tasks').update(taskData).eq('id', taskId).select().single();
     if (error) throw error;
     
-    updateStateAndCache(tasksKey, setAllTasks, (prev: Task[]) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    updateState(setAllTasks, (prev: Task[]) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
 
     if (originalTask && updatedTask.status === 'done' && originalTask.status !== 'done' && updatedTask.recurrence && updatedTask.recurrence !== 'none') {
         let nextDueDate: Date | undefined;
@@ -815,7 +793,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const deleteTask = async (taskId: string) => {
     const { error } = await supabase.from('tasks').delete().eq('id', taskId);
     if (error) throw error;
-    updateStateAndCache(tasksKey, setAllTasks, (prev: Task[]) => prev.filter(t => t.id !== taskId));
+    updateState(setAllTasks, (prev: Task[]) => prev.filter(t => t.id !== taskId));
   };
 
   const addCredential = async (credentialData: Omit<Credential, 'id' | 'user_id' | 'created_at'>) => {
@@ -831,19 +809,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     };
     const { data: newCredential, error } = await supabase.from('credentials').insert(dbData).select().single();
     if (error) throw error;
-    updateStateAndCache(credentialsKey, setAllCredentials, (prev: Credential[]) => [...prev, newCredential]);
+    updateState(setAllCredentials, (prev: Credential[]) => [...prev, newCredential]);
   };
 
   const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'user_id'>>) => {
     const { data: updatedCredential, error } = await supabase.from('credentials').update(credentialData).eq('id', credentialId).select().single();
     if (error) throw error;
-    updateStateAndCache(credentialsKey, setAllCredentials, (prev: Credential[]) => prev.map(c => c.id === updatedCredential.id ? updatedCredential : c));
+    updateState(setAllCredentials, (prev: Credential[]) => prev.map(c => c.id === updatedCredential.id ? updatedCredential : c));
   };
   
   const deleteCredential = async (credentialId: string) => {
     const { error } = await supabase.from('credentials').delete().eq('id', credentialId);
     if (error) throw error;
-    updateStateAndCache(credentialsKey, setAllCredentials, (prev: Credential[]) => prev.filter(c => c.id !== credentialId));
+    updateState(setAllCredentials, (prev: Credential[]) => prev.filter(c => c.id !== credentialId));
   };
   
   const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef = false): Promise<{ id: string } | void> => {
@@ -860,7 +838,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newLoan, error } = await supabase.from('loans').insert(dbLoan).select().single();
     if (error) throw error;
     
-    updateStateAndCache(loansKey, setAllLoans, (prev: Loan[]) => [...prev, newLoan]);
+    updateState(setAllLoans, (prev: Loan[]) => [...prev, newLoan]);
     await handleBatchBalanceUpdates([newLoan]);
     if (newLoan.project_id) triggerSync(newLoan.project_id);
 
@@ -885,7 +863,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (!loanData.amount || loanData.amount === originalLoan.amount) {
       const { data: updatedLoan, error } = await supabase.from('loans').update(loanData).eq('id', loanId).select().single();
       if (error) throw error;
-      updateStateAndCache(loansKey, setAllLoans, (prev: Loan[]) => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
+      updateState(setAllLoans, (prev: Loan[]) => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
       if (updatedLoan.project_id) triggerSync(updatedLoan.project_id);
       return;
     }
@@ -901,7 +879,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         await updateAccountBalance(originalLoan.account_id, amountDifference, 'subtract');
     }
     
-    updateStateAndCache(loansKey, setAllLoans, (prev: Loan[]) => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
+    updateState(setAllLoans, (prev: Loan[]) => prev.map(l => l.id === updatedLoan.id ? updatedLoan : l));
     if (updatedLoan.project_id) triggerSync(updatedLoan.project_id);
   };
 
@@ -912,7 +890,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (chatMessageId) {
         const { error } = await supabase.from('chat_messages').delete().eq('id', chatMessageId);
         if (error) console.error("Error deleting related chat message", error);
-        else updateStateAndCache(chatMessagesKey, setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== chatMessageId), 10);
+        else updateState(setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== chatMessageId));
     }
 
     const { error } = await supabase.from('loans').delete().eq('id', loanId);
@@ -924,7 +902,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         await updateAccountBalance(loanToDelete.account_id, loanToDelete.amount, 'add');
     }
     
-    updateStateAndCache(loansKey, setAllLoans, (prev: Loan[]) => prev.filter(l => l.id !== loanId));
+    updateState(setAllLoans, (prev: Loan[]) => prev.filter(l => l.id !== loanId));
     if (loanToDelete.project_id) triggerSync(loanToDelete.project_id);
   };
 
@@ -939,19 +917,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newMessage, error } = await supabase.from('chat_messages').insert(dbMessage).select().single();
     if (error) throw error;
     
-    updateStateAndCache(chatMessagesKey, setAllChatMessages, (prev: ChatMessage[]) => [...prev, newMessage], 10);
+    updateState(setAllChatMessages, (prev: ChatMessage[]) => [...prev, newMessage]);
   };
   
   const updateChatMessage = async (messageId: string, messageData: Partial<ChatMessage>) => {
     const { data: updatedMessage, error } = await supabase.from('chat_messages').update(messageData).eq('id', messageId).select().single();
     if (error) throw error;
-    updateStateAndCache(chatMessagesKey, setAllChatMessages, (prev: ChatMessage[]) => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m), 10);
+    updateState(setAllChatMessages, (prev: ChatMessage[]) => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
   };
   
   const deleteChatMessage = async (messageId: string) => {
     const { error } = await supabase.from('chat_messages').delete().eq('id', messageId);
     if (error) throw error;
-    updateStateAndCache(chatMessagesKey, setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== messageId), 10);
+    updateState(setAllChatMessages, (prev: ChatMessage[]) => prev.filter(m => m.id !== messageId));
   };
 
 
@@ -1022,7 +1000,9 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
     loans: filteredLoans, allLoans, addLoan, addLoans, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
-    chatMessages: allChatMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()), 
+    chatMessages: allChatMessages,
+    hasMoreChatMessages,
+    loadMoreChatMessages, 
     addChatMessage, 
     updateChatMessage, 
     deleteChatMessage,
@@ -1030,7 +1010,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
-      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, filteredTasks, filteredCredentials, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
+      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, filteredTasks, filteredCredentials, filteredLoans, allLoans, allChatMessages, hasMoreChatMessages, currency, isLoading, isUserLoading,
       setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
       addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
@@ -1040,7 +1020,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       addTask, updateTask, deleteTask,
       addCredential, updateCredential, deleteCredential,
       addLoan, addLoans, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
-      addChatMessage, updateChatMessage, deleteChatMessage,
+      loadMoreChatMessages, addChatMessage, updateChatMessage, deleteChatMessage,
       setCurrency,
       triggerSync
     ]);
