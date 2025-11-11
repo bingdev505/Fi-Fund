@@ -10,7 +10,7 @@ import { useAuth } from './AuthContext';
 import { syncTransactionsToSheet } from '@/services/google-sheets';
 import { addDays, addMonths, addWeeks, parseISO } from 'date-fns';
 
-const CHAT_PAGE_SIZE = 20;
+const CHAT_PAGE_SIZE = 7;
 
 interface FinancialContextType {
   projects: Project[];
@@ -1040,5 +1040,3 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     </FinancialContext.Provider>
   );
 }
-
-    
