@@ -607,5 +607,4 @@ export default function AIChat() {
       </AlertDialog>
     </div>
   );
-
-    
+}
