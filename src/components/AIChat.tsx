@@ -112,23 +112,11 @@ export default function AIChat() {
     return () => viewport.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, isFetchingMore, loadMoreMessages]);
 
-  useEffect(() => {
-    // Scroll to bottom on initial load
-    if(!isMessagesLoading) {
-      scrollEndRef.current?.scrollIntoView({ behavior: 'auto' });
-    }
-  }, [isMessagesLoading]);
 
   useEffect(() => {
-    // Only scroll to bottom for new messages if the user is already near the bottom
-    const viewport = viewportRef.current;
-    if (viewport) {
-      const isScrolledToBottom = viewport.scrollHeight - viewport.clientHeight <= viewport.scrollTop + 1;
-      if(isScrolledToBottom) {
-        scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-  }, [messages.length, isProcessing]);
+    // Scroll to bottom on initial load and when new messages are added.
+    scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, isMessagesLoading, isProcessing]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -619,4 +607,5 @@ export default function AIChat() {
       </AlertDialog>
     </div>
   );
-}
+
+    
