@@ -21,7 +21,7 @@ import RepaymentForm from './RepaymentForm';
 import { format } from 'date-fns';
 
 const useChatHistory = () => {
-    const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading, loadMoreChatMessages, hasMoreChatMessages } = useFinancials();
+    const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading } = useFinancials();
     
     return {
         messages: chatMessages,
@@ -29,8 +29,6 @@ const useChatHistory = () => {
         updateMessage: updateChatMessage,
         deleteMessage: deleteChatMessage,
         isLoading: isFinancialsLoading,
-        loadMoreMessages: loadMoreChatMessages,
-        hasMoreMessages: hasMoreChatMessages,
     };
 };
 
@@ -64,13 +62,12 @@ export default function AIChat() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const scrollEndRef = useRef<HTMLDivElement>(null);
   
-  const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading, loadMoreMessages, hasMoreMessages } = useChatHistory();
+  const { messages, addMessage, updateMessage, deleteMessage, isLoading: isMessagesLoading } = useChatHistory();
 
   const [editingEntry, setEditingEntry] = useState<Transaction | Loan | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<Transaction | Loan | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
   const [isRepayLoanOpen, setIsRepayLoanOpen] = useState(false);
@@ -89,29 +86,6 @@ export default function AIChat() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   };
-
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-
-    const handleScroll = async () => {
-      if (viewport.scrollTop === 0 && hasMoreMessages && !isFetchingMore) {
-        setIsFetchingMore(true);
-        const { scrollHeight: previousScrollHeight, scrollTop: previousScrollTop } = viewport;
-        await loadMoreMessages();
-        // Use requestAnimationFrame to wait for the DOM to update
-        requestAnimationFrame(() => {
-          const newScrollHeight = viewport.scrollHeight;
-          viewport.scrollTop = newScrollHeight - previousScrollHeight + previousScrollTop;
-          setIsFetchingMore(false);
-        });
-      }
-    };
-    
-    viewport.addEventListener('scroll', handleScroll);
-    return () => viewport.removeEventListener('scroll', handleScroll);
-  }, [hasMoreMessages, isFetchingMore, loadMoreMessages]);
-
 
   useEffect(() => {
     // Scroll to bottom on initial load and when new messages are added.
@@ -435,11 +409,6 @@ export default function AIChat() {
     <div className="flex h-full flex-col bg-background">
       <ScrollArea className="flex-1" viewportRef={viewportRef}>
         <div className="space-y-4 p-4">
-          {isFetchingMore && (
-              <div className="flex justify-center my-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-          )}
           {!isMessagesLoading && messages?.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                 <Bot className="h-12 w-12 mb-4" />
@@ -475,7 +444,7 @@ export default function AIChat() {
               )}
             </div>
           ))}
-           {isProcessing && !isFetchingMore && (
+           {isProcessing && (
             <div className="flex items-start gap-3">
               <Avatar className="h-8 w-8 border bg-white">
                 <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>

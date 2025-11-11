@@ -10,8 +10,6 @@ import { useAuth } from './AuthContext';
 import { syncTransactionsToSheet } from '@/services/google-sheets';
 import { addDays, addMonths, addWeeks, parseISO } from 'date-fns';
 
-const CHAT_PAGE_SIZE = 7;
-
 interface FinancialContextType {
   projects: Project[];
   activeProject: Project | null;
@@ -114,8 +112,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
   const [allLoans, setAllLoans] = useState<Loan[]>([]);
   const [allChatMessages, setAllChatMessages] = useState<ChatMessage[]>([]);
-  const [chatPage, setChatPage] = useState(0);
-  const [hasMoreChatMessages, setHasMoreChatMessages] = useState(true);
+  const [hasMoreChatMessages, setHasMoreChatMessages] = useState(false);
   
   const [currency, setCurrencyState] = useState<string>('INR');
   const [isLoading, setIsLoading] = useState(true);
@@ -202,30 +199,12 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   
 
   const loadMoreChatMessages = useCallback(async () => {
-    if (!user || !hasMoreChatMessages) return;
-  
-    // Fetch all remaining messages
-    const { data: allMessages, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('timestamp', { ascending: true });
-  
-    if (error) {
-      console.error("Error fetching all chat messages:", error);
-      return;
-    }
-  
-    if (allMessages) {
-      setAllChatMessages(allMessages);
-    }
-  
-    setHasMoreChatMessages(false); // All messages are loaded
-  }, [user, hasMoreChatMessages]);
+    // This function is now empty as we load all messages at once.
+  }, []);
 
   const fetchData = useCallback(async (userId: string) => {
     // 1. Load from cache first
-    const tables = ['projects', 'transactions', 'bank_accounts', 'clients', 'contacts', 'categories', 'tasks', 'credentials', 'loans'];
+    const tables = ['projects', 'transactions', 'bank_accounts', 'clients', 'contacts', 'categories', 'tasks', 'credentials', 'loans', 'chat_messages'];
     let isDataLoadedFromCache = false;
     try {
         const cachedData = tables.map(table => JSON.parse(localStorage.getItem(cacheKey(table, userId)) || 'null'));
@@ -239,6 +218,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setAllTasks(cachedData[6]);
             setAllCredentials(cachedData[7]);
             setAllLoans(cachedData[8]);
+            setAllChatMessages(cachedData[9]);
             isDataLoadedFromCache = true;
             setIsLoading(false);
         }
@@ -271,7 +251,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('tasks').select('*').eq('user_id', userId),
         supabase.from('credentials').select('*').eq('user_id', userId),
         supabase.from('loans').select('*').eq('user_id', userId),
-        supabase.from('chat_messages').select('*').eq('user_id', userId).order('timestamp', { ascending: false }).limit(CHAT_PAGE_SIZE),
+        supabase.from('chat_messages').select('*').eq('user_id', userId).order('timestamp', { ascending: true }),
         supabase.from('user_settings').select('*').eq('user_id', userId).single(),
       ]);
 
@@ -285,6 +265,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(cacheKey('tasks', userId), JSON.stringify(tasksRes.data || []));
       localStorage.setItem(cacheKey('credentials', userId), JSON.stringify(credentialsRes.data || []));
       localStorage.setItem(cacheKey('loans', userId), JSON.stringify(loansRes.data || []));
+      localStorage.setItem(cacheKey('chat_messages', userId), JSON.stringify(chatMessagesRes.data || []));
 
 
       let projects = projectsRes.data || [];
@@ -316,9 +297,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllCredentials(credentialsRes.data || []);
       setAllLoans(loansRes.data || []);
       
-      const initialMessages = (chatMessagesRes.data || []).reverse();
-      setAllChatMessages(initialMessages);
-      setHasMoreChatMessages((chatMessagesRes.data || []).length === CHAT_PAGE_SIZE);
+      setAllChatMessages(chatMessagesRes.data || []);
+      setHasMoreChatMessages(false);
 
       if ((!bankAccountsRes.data || bankAccountsRes.data.length === 0) && projects.length > 0) {
         const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true, project_id: personalProject?.id }).select().single();
@@ -922,19 +902,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     const { data: newMessage, error } = await supabase.from('chat_messages').insert(dbMessage).select().single();
     if (error) throw error;
     
-    setAllChatMessages((prev: ChatMessage[]) => [...prev, newMessage]);
+    updateStateAndCache(setAllChatMessages, 'chat_messages', (prev: ChatMessage[]) => [...prev, newMessage]);
   };
   
   const updateChatMessage = async (messageId: string, messageData: Partial<ChatMessage>) => {
     const { data: updatedMessage, error } = await supabase.from('chat_messages').update(messageData).eq('id', messageId).select().single();
     if (error) throw error;
-    setAllChatMessages((prev: ChatMessage[]) => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
+    updateStateAndCache(setAllChatMessages, 'chat_messages', (prev: ChatMessage[]) => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
   };
   
   const deleteChatMessage = async (messageId: string) => {
     const { error } = await supabase.from('chat_messages').delete().eq('id', messageId);
     if (error) throw error;
-    setAllChatMessages((prev: ChatMessage[]) => prev.filter(m => m.id !== messageId));
+    updateStateAndCache(setAllChatMessages, 'chat_messages', (prev: ChatMessage[]) => prev.filter(m => m.id !== messageId));
   };
 
 
