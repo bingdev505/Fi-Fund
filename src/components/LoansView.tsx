@@ -26,38 +26,34 @@ import type { Loan } from '@/lib/types';
 import RepaymentForm from './RepaymentForm';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import SummaryCard from './SummaryCard';
+import EditEntryForm from './EditEntryForm';
 
 
 const loanSchema = z.object({
-  type: z.enum(['loanTaken', 'loanGiven']),
+  type: z.enum(['loanGiven', 'loanTaken']),
   contact_id: z.string().min(1, "Please select or create a contact."),
   amount: z.coerce.number().positive("Amount must be positive."),
   description: z.string().optional(),
   due_date: z.date().optional(),
   project_id: z.string().optional(),
-  status: z.enum(['active', 'paid']),
   account_id: z.string({ required_error: 'Please select a bank account.' }),
 });
 
 
-function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => void; }) {
-  const { addLoan, updateLoan, projects, activeProject, contacts, addContact, bankAccounts, currency } = useFinancials();
+function LoanForm({ onFinished }: { onFinished: () => void; }) {
+  const { addLoan, projects, activeProject, contacts, addContact, allBankAccounts, currency } = useFinancials();
   const { toast } = useToast();
   const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
 
   const form = useForm<z.infer<typeof loanSchema>>({
     resolver: zodResolver(loanSchema),
-    defaultValues: loan ? {
-      ...loan,
-      due_date: loan.due_date ? parseISO(loan.due_date) : undefined,
-    } : {
+    defaultValues: {
       type: 'loanGiven',
       amount: '' as any,
       contact_id: '',
       description: '',
-      status: 'active',
       project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
-      account_id: bankAccounts.find(acc => acc.is_primary)?.id
+      account_id: allBankAccounts.find(acc => acc.is_primary)?.id
     }
   });
 
@@ -71,7 +67,6 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
 
   async function onSubmit(values: z.infer<typeof loanSchema>) {
     let contactId = values.contact_id;
-    // Check if the provided contact_id is a UUID. If not, it's a new contact name.
     const isNewContact = !contacts.some(c => c.id === contactId);
 
     if (isNewContact && contactId) {
@@ -86,17 +81,13 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
     
     const finalValues = {
         ...values,
+        status: 'active',
         contact_id: contactId,
         due_date: values.due_date?.toISOString(),
     };
 
-    if (loan) {
-      await updateLoan(loan.id, finalValues);
-      toast({ title: 'Loan Updated' });
-    } else {
-      await addLoan(finalValues);
-      toast({ title: 'Loan Added' });
-    }
+    await addLoan(finalValues);
+    toast({ title: 'Loan Added' });
     onFinished();
   }
 
@@ -171,7 +162,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {bankAccounts.map(acc => (
+                    {allBankAccounts.map(acc => (
                       <SelectItem key={acc.id} value={acc.id}>
                         {acc.name} ({formatCurrency(acc.balance)})
                       </SelectItem>
@@ -225,29 +216,6 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
             </FormItem>
           )}
         />
-        {loan && (
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
         <FormField
           control={form.control}
           name="project_id"
@@ -272,9 +240,7 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-          {loan ? 'Save Changes' : 'Add Loan'}
-        </Button>
+        <Button type="submit" className="w-full">Add Loan</Button>
       </form>
     </Form>
   );
@@ -284,19 +250,20 @@ function LoanForm({ loan, onFinished }: { loan?: Loan | null; onFinished: () => 
 export default function LoansView() {
   const { loans, deleteLoan, contacts, currency, transactions } = useFinancials();
   const { toast } = useToast();
-  const [formOpen, setFormOpen] = useState(false);
+  const [addFormOpen, setAddFormOpen] = useState(false);
+  const [editFormOpen, setEditFormOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [deletingLoan, setDeletingLoan] = useState<Loan | null>(null);
   const [repayingLoan, setRepayingLoan] = useState<Loan | null>(null);
 
   const handleEditClick = (loan: Loan) => {
     setEditingLoan(loan);
-    setFormOpen(true);
+    setEditFormOpen(true);
   };
   
   const handleAddClick = () => {
     setEditingLoan(null);
-    setFormOpen(true);
+    setAddFormOpen(true);
   };
 
   const handleDelete = () => {
@@ -338,23 +305,17 @@ export default function LoansView() {
     }
   }, [loans, transactions]);
 
-  const closeForm = () => {
-    setFormOpen(false);
-    setEditingLoan(null);
-  }
-
   const closeRepayForm = () => {
       setRepayingLoan(null);
   }
 
+  const handleEditFinished = () => {
+    setEditFormOpen(false);
+    setEditingLoan(null);
+  }
+
   return (
-    <Dialog open={formOpen || !!repayingLoan} onOpenChange={(open) => {
-        if (!open) {
-            setFormOpen(false);
-            setEditingLoan(null);
-            setRepayingLoan(null);
-        }
-    }}>
+    <Dialog open={repayingLoan !== null} onOpenChange={(open) => !open && setRepayingLoan(null)}>
       <AlertDialog>
         <div className="space-y-6">
         <Card>
@@ -364,11 +325,17 @@ export default function LoansView() {
                 <CardTitle>Loan Manager</CardTitle>
                 <CardDescription>Track money you've borrowed or lent.</CardDescription>
               </div>
-              <DialogTrigger asChild>
-                <Button onClick={handleAddClick}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Loan
-                </Button>
-              </DialogTrigger>
+              <Dialog open={addFormOpen} onOpenChange={setAddFormOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={handleAddClick}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add Loan
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Add a New Loan</DialogTitle></DialogHeader>
+                  <LoanForm onFinished={() => setAddFormOpen(false)} />
+                </DialogContent>
+              </Dialog>
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
@@ -461,14 +428,20 @@ export default function LoansView() {
                 <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
+        <Dialog open={editFormOpen} onOpenChange={setEditFormOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Loan</DialogTitle>
+                </DialogHeader>
+                {editingLoan && <EditEntryForm entry={editingLoan} onFinished={handleEditFinished} />}
+            </DialogContent>
+        </Dialog>
       </AlertDialog>
 
        <DialogContent>
           <DialogHeader>
-              <DialogTitle>{editingLoan ? 'Edit Loan' : (repayingLoan ? 'Log Repayment' : 'Add a New Loan')}</DialogTitle>
+              <DialogTitle>Log Repayment</DialogTitle>
           </DialogHeader>
-          {editingLoan && <LoanForm loan={editingLoan} onFinished={closeForm} />}
-          {!editingLoan && !repayingLoan && <LoanForm onFinished={closeForm} />}
           {repayingLoan && <RepaymentForm
               loan={repayingLoan}
               outstandingAmount={repayingLoan.amount - (loanRepayments.get(repayingLoan.id) || 0)}
@@ -528,5 +501,3 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
     </li>
   )
 }
-
-    
