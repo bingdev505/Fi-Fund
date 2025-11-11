@@ -1,11 +1,12 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { PlusCircle, KeyRound, Loader2, Pencil, Trash2, Eye, EyeOff, Copy } from 'lucide-react';
+import { PlusCircle, KeyRound, Pencil, Trash2, Eye, EyeOff, Copy } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import type { Credential } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import * as OTPAuth from "otpauth";
+import { Progress } from './ui/progress';
 
 const credentialSchema = z.object({
   site_name: z.string().min(2, 'Site name must be at least 2 characters'),
@@ -153,6 +156,67 @@ function PasswordDisplay({ value }: { value: string }) {
     )
 }
 
+function TotpDisplay({ secret }: { secret: string }) {
+    const [token, setToken] = useState<string | null>(null);
+    const [remaining, setRemaining] = useState(30);
+    const { toast } = useToast();
+  
+    useEffect(() => {
+      let totp: OTPAuth.TOTP;
+      try {
+        totp = new OTPAuth.TOTP({
+            issuer: "fi-fund",
+            label: "Fi-Fund",
+            algorithm: "SHA1",
+            digits: 6,
+            period: 30,
+            secret: secret,
+        });
+      } catch (e) {
+        console.error("Invalid TOTP Secret", e);
+        return;
+      }
+  
+      const updateToken = () => {
+        const newToken = totp.generate();
+        setToken(newToken);
+        const newRemaining = totp.period - (Math.floor(Date.now() / 1000) % totp.period);
+        setRemaining(newRemaining);
+      };
+  
+      updateToken();
+      const interval = setInterval(updateToken, 1000);
+  
+      return () => clearInterval(interval);
+    }, [secret]);
+
+    const handleCopy = () => {
+        if (token) {
+            navigator.clipboard.writeText(token);
+            toast({ title: 'TOTP code copied!' });
+        }
+    }
+  
+    if (!token) {
+      return (
+        <div className="text-xs text-destructive">Invalid TOTP secret provided.</div>
+      );
+    }
+  
+    return (
+        <div className="space-y-2">
+             <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2">
+                <span className="font-mono text-2xl tracking-widest text-center w-full">
+                    {token.slice(0, 3)} {token.slice(3)}
+                </span>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy}>
+                    <Copy className="h-4 w-4" />
+                </Button>
+            </div>
+            <Progress value={(remaining / 30) * 100} className="h-1" />
+        </div>
+    );
+}
 
 export default function Passwords() {
   const { credentials, deleteCredential, projects } = useFinancials();
@@ -186,22 +250,20 @@ export default function Passwords() {
     );
 
     const grouped: { [key: string]: Credential[] } = {};
-    const projectMap = new Map(projects.map(p => [p.id, p.name]));
     
     projects.forEach(p => {
         grouped[p.id] = [];
     });
 
     filtered.forEach(cred => {
-        const projectId = cred.project_id || 'personal'; // Should find the real personal project ID.
-        if (grouped[projectId]) {
+        const projectId = cred.project_id;
+        if (projectId && grouped[projectId]) {
             grouped[projectId].push(cred);
-        } else if (!grouped[projectId]) {
+        } else if (projectId && !grouped[projectId]) {
            grouped[projectId] = [cred];
         }
     });
 
-    // Don't show groups with no credentials
     for (const key in grouped) {
       if (grouped[key].length === 0) {
         delete grouped[key];
@@ -315,7 +377,7 @@ const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => (
             </AlertDialogTrigger>
             </div>
         </div>
-        <div className="mt-4 space-y-2 pl-9">
+        <div className="mt-4 space-y-4 pl-9">
             {cred.password && (
                 <div>
                     <label className="text-xs font-medium text-muted-foreground">Password</label>
@@ -324,8 +386,8 @@ const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => (
             )}
             {cred.totp_secret && (
                 <div>
-                    <label className="text-xs font-medium text-muted-foreground">2FA Secret</label>
-                    <PasswordDisplay value={cred.totp_secret} />
+                    <label className="text-xs font-medium text-muted-foreground">One-Time Password</label>
+                    <TotpDisplay secret={cred.totp_secret} />
                 </div>
             )}
         </div>
