@@ -320,8 +320,6 @@ export default function LoansView() {
     activeLoansTaken,
     paidLoansTaken,
     loanRepayments,
-    totalOwedToYou,
-    totalYouOwe,
   } = useMemo(() => {
     const repayments = new Map<string, number>();
     transactions.filter(t => t.type === 'repayment' && t.loan_id).forEach(t => {
@@ -331,20 +329,12 @@ export default function LoansView() {
     const allGiven = loans.filter(l => l.type === 'loanGiven');
     const allTaken = loans.filter(l => l.type === 'loanTaken');
     
-    const activeGiven = allGiven.filter(l => l.status === 'active');
-    const activeTaken = allTaken.filter(l => l.status === 'active');
-
-    const totalOwed = activeGiven.reduce((sum, loan) => sum + (loan.amount - (repayments.get(loan.id) || 0)), 0);
-    const totalOwe = activeTaken.reduce((sum, loan) => sum + (loan.amount - (repayments.get(loan.id) || 0)), 0);
-  
     return {
-      activeLoansGiven: activeGiven,
+      activeLoansGiven: allGiven.filter(l => l.status === 'active'),
       paidLoansGiven: allGiven.filter(l => l.status === 'paid'),
-      activeLoansTaken: activeTaken,
+      activeLoansTaken: allTaken.filter(l => l.status === 'active'),
       paidLoansTaken: allTaken.filter(l => l.status === 'paid'),
       loanRepayments: repayments,
-      totalOwedToYou: totalOwed,
-      totalYouOwe: totalOwe,
     }
   }, [loans, transactions]);
 
@@ -367,10 +357,6 @@ export default function LoansView() {
     }}>
       <AlertDialog>
         <div className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
-            <SummaryCard title="Loans Given" value={formatCurrency(totalOwedToYou)} icon="debtor" />
-            <SummaryCard title="Loans Taken" value={formatCurrency(totalYouOwe)} icon="creditor" />
-        </div>
         <Card>
           <CardHeader>
              <div className="flex justify-between items-center">
@@ -388,7 +374,7 @@ export default function LoansView() {
           <CardContent className="space-y-8">
                 <>
                 <div>
-                  <h3 className="text-lg font-medium mb-2">Loans Given (You are the Lender)</h3>
+                  <h3 className="text-lg font-medium mb-2">Loans Given</h3>
                   {activeLoansGiven.length > 0 ? (
                     <div className="border rounded-md">
                       <ul className="divide-y divide-border">
@@ -425,7 +411,7 @@ export default function LoansView() {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium mb-2">Loans Taken (You are the Borrower)</h3>
+                  <h3 className="text-lg font-medium mb-2">Loans Taken</h3>
                   {activeLoansTaken.length > 0 ? (
                      <div className="border rounded-md">
                       <ul className="divide-y divide-border">
@@ -542,3 +528,5 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
     </li>
   )
 }
+
+    
