@@ -2,7 +2,7 @@
 'use client';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowRight, PlusCircle, CheckCircle, HandCoins, Landmark } from 'lucide-react';
+import { PlusCircle, Landmark } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import Link from 'next/link';
@@ -26,20 +26,32 @@ export default function Overview() {
   const {
     totalIncome,
     totalExpenses,
-    totalLoansGiven,
-    totalLoansTaken,
+    outstandingLoansGiven,
+    outstandingLoansTaken,
   } = useMemo(() => {
     const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+
+    const loanRepayments = new Map<string, number>();
+    transactions.filter(t => t.type === 'repayment' && t.loan_id).forEach(t => {
+      loanRepayments.set(t.loan_id!, (loanRepayments.get(t.loan_id!) || 0) + t.amount);
+    });
+
+    const activeLoans = loans.filter(d => d.status === 'active');
     
-    const loansGiven = loans.filter(d => d.type === 'loanGiven' && d.status === 'active').reduce((sum, d) => sum + d.amount, 0);
-    const loansTaken = loans.filter(d => d.type === 'loanTaken' && d.status === 'active').reduce((sum, d) => sum + d.amount, 0);
+    const given = activeLoans
+      .filter(d => d.type === 'loanGiven')
+      .reduce((sum, d) => sum + d.amount - (loanRepayments.get(d.id) || 0), 0);
+      
+    const taken = activeLoans
+      .filter(d => d.type === 'loanTaken')
+      .reduce((sum, d) => sum + d.amount - (loanRepayments.get(d.id) || 0), 0);
     
     return {
       totalIncome: income,
       totalExpenses: expenses,
-      totalLoansGiven: loansGiven,
-      totalLoansTaken: loansTaken,
+      outstandingLoansGiven: given,
+      outstandingLoansTaken: taken,
     };
   }, [transactions, loans]);
   
@@ -64,8 +76,8 @@ export default function Overview() {
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard title="Total Income" value={formatCurrency(totalIncome)} icon="income" />
           <SummaryCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon="expense" />
-          <SummaryCard title="Loans Given" value={formatCurrency(totalLoansGiven)} icon="debtor" />
-          <SummaryCard title="Loans Taken" value={formatCurrency(totalLoansTaken)} icon="creditor" />
+          <SummaryCard title="Owed to You" value={formatCurrency(outstandingLoansGiven)} icon="debtor" />
+          <SummaryCard title="You Owe" value={formatCurrency(outstandingLoansTaken)} icon="creditor" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

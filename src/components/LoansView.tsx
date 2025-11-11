@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -24,6 +25,7 @@ import { Combobox } from './ui/combobox';
 import type { Loan } from '@/lib/types';
 import RepaymentForm from './RepaymentForm';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import SummaryCard from './SummaryCard';
 
 
 const loanSchema = z.object({
@@ -318,6 +320,8 @@ export default function LoansView() {
     activeLoansTaken,
     paidLoansTaken,
     loanRepayments,
+    totalOwedToYou,
+    totalYouOwe,
   } = useMemo(() => {
     const repayments = new Map<string, number>();
     transactions.filter(t => t.type === 'repayment' && t.loan_id).forEach(t => {
@@ -326,13 +330,21 @@ export default function LoansView() {
   
     const allGiven = loans.filter(l => l.type === 'loanGiven');
     const allTaken = loans.filter(l => l.type === 'loanTaken');
+    
+    const activeGiven = allGiven.filter(l => l.status === 'active');
+    const activeTaken = allTaken.filter(l => l.status === 'active');
+
+    const totalOwed = activeGiven.reduce((sum, loan) => sum + (loan.amount - (repayments.get(loan.id) || 0)), 0);
+    const totalOwe = activeTaken.reduce((sum, loan) => sum + (loan.amount - (repayments.get(loan.id) || 0)), 0);
   
     return {
-      activeLoansGiven: allGiven.filter(l => l.status === 'active'),
+      activeLoansGiven: activeGiven,
       paidLoansGiven: allGiven.filter(l => l.status === 'paid'),
-      activeLoansTaken: allTaken.filter(l => l.status === 'active'),
+      activeLoansTaken: activeTaken,
       paidLoansTaken: allTaken.filter(l => l.status === 'paid'),
-      loanRepayments: repayments
+      loanRepayments: repayments,
+      totalOwedToYou: totalOwed,
+      totalYouOwe: totalOwe,
     }
   }, [loans, transactions]);
 
@@ -346,8 +358,19 @@ export default function LoansView() {
   }
 
   return (
-    <>
+    <Dialog open={formOpen || !!repayingLoan} onOpenChange={(open) => {
+        if (!open) {
+            setFormOpen(false);
+            setEditingLoan(null);
+            setRepayingLoan(null);
+        }
+    }}>
       <AlertDialog>
+        <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-2">
+            <SummaryCard title="Total Owed To You" value={formatCurrency(totalOwedToYou)} icon="debtor" />
+            <SummaryCard title="Total You Owe" value={formatCurrency(totalYouOwe)} icon="creditor" />
+        </div>
         <Card>
           <CardHeader>
              <div className="flex justify-between items-center">
@@ -355,9 +378,11 @@ export default function LoansView() {
                 <CardTitle>Loan Manager</CardTitle>
                 <CardDescription>Track money you've borrowed or lent.</CardDescription>
               </div>
-              <Button onClick={handleAddClick}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Loan
-              </Button>
+              <DialogTrigger asChild>
+                <Button onClick={handleAddClick}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Loan
+                </Button>
+              </DialogTrigger>
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
@@ -385,7 +410,7 @@ export default function LoansView() {
                   {paidLoansGiven.length > 0 && (
                       <Accordion type="single" collapsible className="w-full mt-4">
                           <AccordionItem value="paid-given">
-                              <AccordionTrigger>Paid Loans Given ({paidLoansGiven.length})</AccordionTrigger>
+                              <AccordionTrigger>View Paid Loans ({paidLoansGiven.length})</AccordionTrigger>
                               <AccordionContent>
                                 <div className="border rounded-md">
                                     <ul className="divide-y divide-border">
@@ -422,7 +447,7 @@ export default function LoansView() {
                    {paidLoansTaken.length > 0 && (
                       <Accordion type="single" collapsible className="w-full mt-4">
                           <AccordionItem value="paid-taken">
-                              <AccordionTrigger>Paid Loans Taken ({paidLoansTaken.length})</AccordionTrigger>
+                              <AccordionTrigger>View Paid Loans ({paidLoansTaken.length})</AccordionTrigger>
                               <AccordionContent>
                                 <div className="border rounded-md">
                                     <ul className="divide-y divide-border">
@@ -439,6 +464,7 @@ export default function LoansView() {
                 </>
           </CardContent>
         </Card>
+        </div>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -451,30 +477,19 @@ export default function LoansView() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{editingLoan ? 'Edit Loan' : 'Add a New Loan'}</DialogTitle>
-            </DialogHeader>
-            <LoanForm loan={editingLoan} onFinished={closeForm} />
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={!!repayingLoan} onOpenChange={(open) => !open && setRepayingLoan(null)}>
-         {repayingLoan && (
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Log Repayment</DialogTitle>
-                </DialogHeader>
-                <RepaymentForm
-                    loan={repayingLoan}
-                    outstandingAmount={repayingLoan.amount - (loanRepayments.get(repayingLoan.id) || 0)}
-                    onFinished={closeRepayForm}
-                />
-            </DialogContent>
-        )}
-      </Dialog>
-    </>
+       <DialogContent>
+          <DialogHeader>
+              <DialogTitle>{editingLoan ? 'Edit Loan' : (repayingLoan ? 'Log Repayment' : 'Add a New Loan')}</DialogTitle>
+          </DialogHeader>
+          {editingLoan && <LoanForm loan={editingLoan} onFinished={closeForm} />}
+          {!editingLoan && !repayingLoan && <LoanForm onFinished={closeForm} />}
+          {repayingLoan && <RepaymentForm
+              loan={repayingLoan}
+              outstandingAmount={repayingLoan.amount - (loanRepayments.get(repayingLoan.id) || 0)}
+              onFinished={closeRepayForm}
+          />}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -509,11 +524,15 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
             <div className="flex items-center">
                 <div className='flex items-center'>
                     {loan.status === 'active' && (
-                        <Button variant="ghost" size="icon" onClick={() => onRepayClick(loan)} title="Log Repayment">
-                            <HandCoins className="h-4 w-4" />
-                        </Button>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => onRepayClick(loan)} title="Log Repayment">
+                                <HandCoins className="h-4 w-4" />
+                            </Button>
+                        </DialogTrigger>
                     )}
-                    <Button variant="ghost" size="icon" onClick={() => onEditClick(loan)}><Pencil className="h-4 w-4" /></Button>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => onEditClick(loan)}><Pencil className="h-4 w-4" /></Button>
+                    </DialogTrigger>
                     <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => onDeleteClick(loan)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </AlertDialogTrigger>
