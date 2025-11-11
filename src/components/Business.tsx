@@ -15,7 +15,7 @@ import { Separator } from './ui/separator';
 import GoogleSheetConnect from './GoogleSheetConnect';
 
 export default function Business() {
-  const { isLoading, projects, deleteProject, currency, allTransactions, allLoans, setActiveProject, user } = useFinancials();
+  const { isLoading, projects, deleteProject, currency, allTransactions, allLoans, setActiveProject, user, allBankAccounts } = useFinancials();
   const { toast } = useToast();
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -50,42 +50,15 @@ export default function Business() {
   };
 
   const { projectTree, projectBalances } = useMemo(() => {
-    if (!projects || !allTransactions || !allLoans) {
+    if (!projects || !allBankAccounts) {
         return { projectTree: [], projectBalances: new Map() };
     }
 
     const balances = new Map<string, number>();
-    projects.forEach(p => balances.set(p.id, 0));
-
-    allTransactions.forEach(t => {
-      if (t.project_id && balances.has(t.project_id)) {
-        let currentBalance = balances.get(t.project_id) || 0;
-        if (t.type === 'income') {
-          currentBalance += t.amount;
-        } else if (t.type === 'expense') {
-          currentBalance -= t.amount;
-        } else if (t.type === 'repayment') {
-            const relatedLoan = allLoans.find(l => l.id === t.loan_id);
-            if (relatedLoan?.type === 'loanGiven') {
-                currentBalance += t.amount; // Money coming back in
-            } else if (relatedLoan?.type === 'loanTaken') {
-                currentBalance -= t.amount; // Money going out
-            }
-        }
-        balances.set(t.project_id, currentBalance);
-      }
-    });
-
-    allLoans.forEach(l => {
-      if (l.project_id && balances.has(l.project_id)) {
-        let currentBalance = balances.get(l.project_id) || 0;
-        if (l.type === 'loanTaken') { // Money came in
-          currentBalance += l.amount;
-        } else if (l.type === 'loanGiven') { // Money went out
-          currentBalance -= l.amount;
-        }
-        balances.set(l.project_id, currentBalance);
-      }
+    projects.forEach(p => {
+        const projectAccounts = allBankAccounts.filter(acc => acc.project_id === p.id);
+        const totalBalance = projectAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+        balances.set(p.id, totalBalance);
     });
 
     const tree: (Project & { children: Project[], level: number })[] = [];
@@ -119,7 +92,7 @@ export default function Business() {
     
     return { projectTree: flattenedTree, projectBalances: balances };
 
-  }, [projects, allTransactions, allLoans]);
+  }, [projects, allBankAccounts]);
 
 
   return (
