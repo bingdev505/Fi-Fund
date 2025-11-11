@@ -1,65 +1,69 @@
-const CACHE_NAME = 'financeflow-cache-v1';
-const urlsToCache = [
-  '/',
-  '/overview',
-  '/ai-chat',
-  '/tasks',
-  '/passwords',
-  '/business',
-  '/reports',
-  '/settings',
-  '/login',
-  '/signup',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
-];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-  );
+let notificationTimeout;
+let tasks = [];
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
 });
 
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SCHEDULE_NOTIFICATIONS') {
+    tasks = event.data.tasks;
+    scheduleNextNotification();
+  }
+});
+
+function scheduleNextNotification() {
+  if (notificationTimeout) {
+    clearTimeout(notificationTimeout);
+  }
+
+  const now = new Date().getTime();
+  let nextNotificationTime = Infinity;
+  let nextTask = null;
+
+  tasks.forEach(task => {
+    if (task.due_date && task.status !== 'done') {
+      const dueDate = new Date(task.due_date).getTime();
+      if (dueDate > now && dueDate < nextNotificationTime) {
+        nextNotificationTime = dueDate;
+        nextTask = task;
       }
-    )
-  );
-});
+    }
+  });
 
-self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
+  if (nextTask) {
+    const delay = nextNotificationTime - now;
+    notificationTimeout = setTimeout(() => {
+      self.registration.showNotification('Task Due!', {
+        body: `Your task "${nextTask.name}" is due now.`,
+        icon: '/icons/icon-192x192.png',
+        tag: nextTask.id,
+      });
+      // After showing notification, reschedule for the next one
+      scheduleNextNotification();
+    }, delay);
+  }
+}
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      if (clientList.length > 0) {
+        let client = clientList[0];
+        for (let i = 0; i < clientList.length; i++) {
+          if (clientList[i].focused) {
+            client = clientList[i];
           }
-        })
-      );
+        }
+        return client.focus();
+      }
+      return clients.openWindow('/tasks');
     })
   );
-});
-
-self.addEventListener('push', event => {
-  const data = event.data.json();
-  const title = data.title || 'FinanceFlow';
-  const options = {
-    body: data.body,
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png'
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
 });

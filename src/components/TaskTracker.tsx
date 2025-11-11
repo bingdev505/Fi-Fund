@@ -295,32 +295,21 @@ export default function TaskTracker() {
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   
   useEffect(() => {
-    // Request notification permission on component mount
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
+    const requestNotificationPermission = async () => {
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+    };
+    requestNotificationPermission();
+  }, []);
 
-    const notifiedTasks = new Set<string>();
-    const interval = setInterval(() => {
-      const now = new Date();
-      tasks.forEach(task => {
-        if (task.due_date && task.status !== 'done' && !notifiedTasks.has(task.id)) {
-          const dueDate = parseISO(task.due_date);
-          const timeDifference = dueDate.getTime() - now.getTime();
-          if (timeDifference > 0 && timeDifference < 60000) { // If due within the next minute
-             if (Notification.permission === 'granted') {
-              new Notification('Task Due!', {
-                body: `Your task "${task.name}" is due now.`,
-                icon: '/icons/icon-192x192.png'
-              });
-              notifiedTasks.add(task.id);
-            }
-          }
-        }
+  useEffect(() => {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SCHEDULE_NOTIFICATIONS',
+        tasks: tasks,
       });
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(interval);
+    }
   }, [tasks]);
 
   const handleEditClick = (task: Task) => {
