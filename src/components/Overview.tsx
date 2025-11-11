@@ -76,8 +76,8 @@ export default function Overview() {
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard title="Total Income" value={formatCurrency(totalIncome)} icon="income" />
           <SummaryCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon="expense" />
-          <SummaryCard title="Owed to You" value={formatCurrency(outstandingLoansGiven)} icon="debtor" />
-          <SummaryCard title="You Owe" value={formatCurrency(outstandingLoansTaken)} icon="creditor" />
+          <SummaryCard title="Loan Given" value={formatCurrency(outstandingLoansGiven)} icon="debtor" />
+          <SummaryCard title="Loan Taken" value={formatCurrency(outstandingLoansTaken)} icon="creditor" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
