@@ -33,6 +33,7 @@ const loanSchema = z.object({
   type: z.enum(['loanGiven', 'loanTaken']),
   contact_id: z.string().min(1, "Please select or create a contact."),
   amount: z.coerce.number().positive("Amount must be positive."),
+  date: z.date(),
   description: z.string().optional(),
   due_date: z.date().optional(),
   project_id: z.string().optional(),
@@ -52,6 +53,7 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
       amount: '' as any,
       contact_id: '',
       description: '',
+      date: new Date(),
       project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
       account_id: allBankAccounts.find(acc => acc.is_primary)?.id
     }
@@ -83,6 +85,7 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
         ...values,
         status: 'active',
         contact_id: contactId,
+        date: values.date.toISOString(),
         due_date: values.due_date?.toISOString(),
     };
 
@@ -174,6 +177,44 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
             )}
           />
         </div>
+        <FormField
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                <FormLabel>Date</FormLabel>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant={'outline'}
+                        className={cn(
+                            'w-full pl-3 text-left font-normal',
+                            !field.value && 'text-muted-foreground'
+                        )}
+                        >
+                        {field.value ? (
+                            format(field.value, 'PPP')
+                        ) : (
+                            <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+        />
         <FormField
           control={form.control}
           name="description"
@@ -472,6 +513,7 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
                     <p className="font-medium">{contactName} - <span className={cn("font-normal", loan.type === 'loanGiven' ? 'text-red-600' : 'text-green-600')}>{formatCurrency(loan.amount)}</span></p>
                     <p className="text-sm text-muted-foreground">{loan.description}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>On: {format(parseISO(loan.date), 'PPP')}</span>
                         {loan.due_date && <span>Due: {format(parseISO(loan.due_date), 'PPP')}</span>}
                         {loan.status === 'active' && outstandingAmount > 0 && (
                             <span className='font-semibold text-yellow-600'>Outstanding: {formatCurrency(outstandingAmount)}</span>

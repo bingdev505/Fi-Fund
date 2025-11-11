@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,6 +36,7 @@ import { Combobox } from './ui/combobox';
 const formSchema = z.object({
   type: z.enum(['expense', 'income', 'loanGiven', 'loanTaken']),
   amount: z.coerce.number().positive('Amount must be positive'),
+  date: z.date(),
   category: z.string().optional(),
   description: z.string().optional(),
   contact_id: z.string().optional(),
@@ -87,6 +89,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
     defaultValues: isTransaction ? {
       type: (entry as Transaction).type as 'expense' | 'income',
       amount: entry.amount,
+      date: parseISO(entry.date),
       description: entry.description || '',
       category: (entry as Transaction).category,
       account_id: (entry as Transaction).account_id,
@@ -95,6 +98,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
     } : {
       type: (entry as Loan).type as 'loanGiven' | 'loanTaken',
       amount: entry.amount,
+      date: parseISO(entry.date),
       description: entry.description || '',
       contact_id: (entry as Loan).contact_id,
       account_id: (entry as Loan).account_id,
@@ -134,12 +138,12 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
         finalClientId = newClient.id;
       }
 
-      const finalTransaction = { ...entry, ...data, description: data.description || '', client_id: finalClientId } as Transaction;
+      const finalTransaction = { ...entry, ...data, date: data.date.toISOString(), description: data.description || '', client_id: finalClientId } as Transaction;
       await updateTransaction(finalTransaction.id, finalTransaction);
       updatedEntry = finalTransaction;
       toast({ title: "Transaction Updated" });
     } else {
-      const finalLoan = { ...entry, ...data, due_date: data.due_date?.toISOString(), description: data.description || '' } as Loan;
+      const finalLoan = { ...entry, ...data, date: data.date.toISOString(), due_date: data.due_date?.toISOString(), description: data.description || '' } as Loan;
       await updateLoan((entry as Loan).id, finalLoan);
       updatedEntry = finalLoan;
       toast({ title: "Loan Updated" });
@@ -197,7 +201,44 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
             )}
           />
         </div>
-
+        <FormField
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                <FormLabel>Date</FormLabel>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant={'outline'}
+                        className={cn(
+                            'w-full pl-3 text-left font-normal',
+                            !field.value && 'text-muted-foreground'
+                        )}
+                        >
+                        {field.value ? (
+                            format(field.value, 'PPP')
+                        ) : (
+                            <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+        />
         {(watchedType === 'income' || watchedType === 'expense') && (
            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField

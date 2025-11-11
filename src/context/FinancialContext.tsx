@@ -23,18 +23,18 @@ interface FinancialContextType {
   
   transactions: Transaction[];
   allTransactions: Transaction[];
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'user_id'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  addTransactions: (transactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[]) => Promise<{ id: string }[]>;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'user_id'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addTransactions: (transactions: Omit<Transaction, 'id' | 'user_id'>[]) => Promise<{ id: string }[]>;
   updateTransaction: (transactionId: string, updatedData: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (transaction: Transaction, chatMessageId?: string) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
-  addRepayment: (loan: Loan, amount: number, accountId: string, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addRepayment: (loan: Loan, amount: number, accountId: string, date: Date, returnRef?: boolean) => Promise<{ id: string } | void>;
   
   loans: Loan[];
   allLoans: Loan[];
-  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  addLoans: (loans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[]) => Promise<void>;
-  addOrUpdateLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addLoans: (loans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[]) => Promise<void>;
+  addOrUpdateLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'status'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string, chatMessageId?: string) => Promise<void>;
   getLoanById: (id: string) => Loan | undefined;
@@ -537,13 +537,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (categoryToDelete?.project_id) triggerSync(categoryToDelete.project_id);
   };
 
-  const addTransactions = async (transactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[]): Promise<{ id: string }[]> => {
+  const addTransactions = async (transactions: Omit<Transaction, 'id' | 'user_id'>[]): Promise<{ id: string }[]> => {
     if (!user || transactions.length === 0) return [];
     const dbTransactions = transactions.map(t => ({
       ...t,
+      date: t.date || new Date().toISOString(),
       project_id: t.project_id || (allProjects.find(p => p.name === PERSONAL_PROJECT_NAME))?.id,
       user_id: user.id,
-      date: new Date().toISOString(),
     }));
 
     const { data: newTransactions, error } = await supabase.from('transactions').insert(dbTransactions).select();
@@ -558,13 +558,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     return newTransactions.map(t => ({ id: t.id }));
   };
 
-  const addLoans = async (loans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>[]) => {
+  const addLoans = async (loans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[]) => {
     if (!user || loans.length === 0) return;
     const now = new Date().toISOString();
     const dbLoans = loans.map(l => ({
       ...l,
+      date: l.date || now,
       project_id: l.project_id || (allProjects.find(p => p.name === PERSONAL_PROJECT_NAME))?.id,
-      date: now,
       created_at: now,
       user_id: user.id,
     }));
@@ -580,14 +580,14 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'date' | 'user_id'>, returnRef = false): Promise<{ id: string } | void> => {
+  const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'user_id'>, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     const dbTransaction = {
       ...transactionData,
+      date: transactionData.date || new Date().toISOString(),
       project_id: transactionData.project_id || personalProject?.id,
       user_id: user.id,
-      date: new Date().toISOString(),
     };
     
     const { data: newTransaction, error } = await supabase.from('transactions').insert(dbTransaction).select().single();
@@ -650,12 +650,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   };
     
-  const addRepayment = async (loan: Loan, amount: number, accountId: string, returnRef = false): Promise<{ id: string } | void> => {
+  const addRepayment = async (loan: Loan, amount: number, accountId: string, date: Date, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
 
     const transactionData = {
         type: 'repayment' as 'repayment',
         amount,
+        date: date.toISOString(),
         category: 'Loan Repayment',
         description: `Repayment for loan to/from ${allContacts.find(c => c.id === loan.contact_id)?.name || 'Unknown'}`,
         account_id: accountId,
@@ -837,15 +838,15 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     updateStateAndCache(setAllCredentials, (prev: Credential[]) => prev.filter(c => c.id !== credentialId));
   };
   
-  const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date'>, returnRef = false): Promise<{ id: string } | void> => {
+  const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
     const now = new Date().toISOString();
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     const dbLoan = {
       ...loanData,
+      date: loanData.date || now,
       project_id: loanData.project_id || personalProject?.id,
       user_id: user.id,
-      date: now,
       created_at: now,
     };
     const { data: newLoan, error } = await supabase.from('loans').insert(dbLoan).select().single();
@@ -857,7 +858,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (returnRef) return { id: newLoan.id };
   };
 
-  const addOrUpdateLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>, returnRef = false): Promise<{ id: string } | void> => {
+  const addOrUpdateLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'status'>, returnRef = false): Promise<{ id: string } | void> => {
     const existingLoan = allLoans.find(l => l.contact_id === loanData.contact_id && l.status === 'active' && l.type === loanData.type);
     if (existingLoan) {
       const newAmount = existingLoan.amount + loanData.amount;

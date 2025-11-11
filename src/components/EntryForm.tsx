@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,6 +35,7 @@ import { Combobox } from './ui/combobox';
 const formSchema = z.object({
   entryType: z.enum(['expense', 'income', 'transfer', 'loanGiven', 'loanTaken']),
   amount: z.coerce.number().positive('Amount must be positive'),
+  date: z.date(),
   category: z.string().optional(),
   contact_id: z.string().optional(),
   description: z.string().optional(),
@@ -120,6 +122,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     defaultValues: {
       entryType: 'expense',
       amount: '' as any,
+      date: new Date(),
       description: '',
       category: '',
       contact_id: '',
@@ -220,6 +223,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       await addTransaction({
         type: entryType as 'income' | 'expense' | 'transfer',
         amount: data.amount,
+        date: data.date.toISOString(),
         category: entryType === 'transfer' ? 'Bank Transfer' : data.category!,
         description: finalDescription,
         account_id: data.account_id,
@@ -242,6 +246,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
       await addLoan({
         type: entryType,
         amount: data.amount,
+        date: data.date.toISOString(),
         contact_id: finalContactId,
         description: finalDescription,
         due_date: data.due_date?.toISOString(),
@@ -329,19 +334,60 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           />
         </div>
         
-        <FormField
-          control={form.control}
-          name="amount"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Amount ({currency})</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="e.g. 1500" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Amount ({currency})</FormLabel>
+                <FormControl>
+                    <Input type="number" placeholder="e.g. 1500" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                    <FormLabel>Date</FormLabel>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <FormControl>
+                            <Button
+                            variant={'outline'}
+                            className={cn(
+                                'w-full pl-3 text-left font-normal',
+                                !field.value && 'text-muted-foreground'
+                            )}
+                            >
+                            {field.value ? (
+                                format(field.value, 'PPP')
+                            ) : (
+                                <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                        </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                        />
+                        </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
+        
 
         {entryType === 'transfer' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
