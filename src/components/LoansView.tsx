@@ -368,8 +368,8 @@ export default function LoansView() {
       <AlertDialog>
         <div className="space-y-6">
         <div className="grid gap-6 md:grid-cols-2">
-            <SummaryCard title="Total Owed To You" value={formatCurrency(totalOwedToYou)} icon="debtor" />
-            <SummaryCard title="Total You Owe" value={formatCurrency(totalYouOwe)} icon="creditor" />
+            <SummaryCard title="Loans Given" value={formatCurrency(totalOwedToYou)} icon="debtor" />
+            <SummaryCard title="Loans Taken" value={formatCurrency(totalYouOwe)} icon="creditor" />
         </div>
         <Card>
           <CardHeader>
