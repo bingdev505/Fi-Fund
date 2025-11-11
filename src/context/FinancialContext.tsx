@@ -203,28 +203,25 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const loadMoreChatMessages = useCallback(async () => {
     if (!user || !hasMoreChatMessages) return;
-
-    const nextPage = chatPage + 1;
-    const { data: newMessages, error } = await supabase
+  
+    // Fetch all remaining messages
+    const { data: allMessages, error } = await supabase
       .from('chat_messages')
       .select('*')
       .eq('user_id', user.id)
-      .order('timestamp', { ascending: false })
-      .range(nextPage * CHAT_PAGE_SIZE, (nextPage + 1) * CHAT_PAGE_SIZE - 1);
-
+      .order('timestamp', { ascending: true });
+  
     if (error) {
-      console.error("Error fetching more chat messages:", error);
+      console.error("Error fetching all chat messages:", error);
       return;
     }
-
-    if (newMessages.length < CHAT_PAGE_SIZE) {
-      setHasMoreChatMessages(false);
+  
+    if (allMessages) {
+      setAllChatMessages(allMessages);
     }
-    
-    setAllChatMessages(prev => [...newMessages.reverse(), ...prev]);
-    setChatPage(nextPage);
-
-  }, [user, chatPage, hasMoreChatMessages]);
+  
+    setHasMoreChatMessages(false); // All messages are loaded
+  }, [user, hasMoreChatMessages]);
 
   const fetchData = useCallback(async (userId: string) => {
     // 1. Load from cache first
@@ -274,7 +271,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('tasks').select('*').eq('user_id', userId),
         supabase.from('credentials').select('*').eq('user_id', userId),
         supabase.from('loans').select('*').eq('user_id', userId),
-        supabase.from('chat_messages').select('*').eq('user_id', userId).order('timestamp', { ascending: false }).range(0, CHAT_PAGE_SIZE - 1),
+        supabase.from('chat_messages').select('*').eq('user_id', userId).order('timestamp', { ascending: false }).limit(CHAT_PAGE_SIZE),
         supabase.from('user_settings').select('*').eq('user_id', userId).single(),
       ]);
 
@@ -321,8 +318,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       
       const initialMessages = (chatMessagesRes.data || []).reverse();
       setAllChatMessages(initialMessages);
-      setChatPage(0);
-      setHasMoreChatMessages(initialMessages.length === CHAT_PAGE_SIZE);
+      setHasMoreChatMessages((chatMessagesRes.data || []).length === CHAT_PAGE_SIZE);
 
       if ((!bankAccountsRes.data || bankAccountsRes.data.length === 0) && projects.length > 0) {
         const { data: newAccount } = await supabase.from('bank_accounts').insert({ user_id: userId, name: 'Primary Account', balance: 0, is_primary: true, project_id: personalProject?.id }).select().single();
