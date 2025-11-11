@@ -221,7 +221,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setHasMoreChatMessages(false);
     }
     
-    setAllChatMessages(prev => [...newMessages.reverse(), ...prev].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
+    setAllChatMessages(prev => [...newMessages.reverse(), ...prev]);
     setChatPage(nextPage);
 
   }, [user, chatPage, hasMoreChatMessages]);
@@ -319,7 +319,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllCredentials(credentialsRes.data || []);
       setAllLoans(loansRes.data || []);
       
-      const initialMessages = (chatMessagesRes.data || []).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const initialMessages = (chatMessagesRes.data || []).reverse();
       setAllChatMessages(initialMessages);
       setChatPage(0);
       setHasMoreChatMessages(initialMessages.length === CHAT_PAGE_SIZE);
@@ -645,6 +645,27 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             console.error("Error deleting related chat message", chatError);
         } else {
             setAllChatMessages((prev) => prev.filter(m => m.id !== chatMessageId));
+        }
+    }
+
+    // Special handling for transfer deletion
+    if (transactionToDelete.type === 'transfer' && transactionToDelete.from_account_id && transactionToDelete.to_account_id) {
+        const fromAccount = rawBankAccounts.find(acc => acc.id === transactionToDelete.from_account_id);
+        const toAccount = rawBankAccounts.find(acc => acc.id === transactionToDelete.to_account_id);
+        
+        if (fromAccount && toAccount) {
+            const updates = [
+                supabase.from('bank_accounts').update({ balance: fromAccount.balance + transactionToDelete.amount }).eq('id', fromAccount.id),
+                supabase.from('bank_accounts').update({ balance: toAccount.balance - transactionToDelete.amount }).eq('id', toAccount.id)
+            ];
+            const results = await Promise.all(updates);
+            const updateError = results.some(res => res.error);
+            if (updateError) {
+                console.error("Failed to reverse transfer balances in DB");
+                // Don't proceed with deletion if we can't update balances
+                toast({ variant: 'destructive', title: 'Deletion Failed', description: 'Could not update account balances.' });
+                return;
+            }
         }
     }
     
@@ -1019,3 +1040,5 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     </FinancialContext.Provider>
   );
 }
+
+    
