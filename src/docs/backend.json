@@ -165,7 +165,8 @@
         "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
         "dueDate": { "type": "string", "format": "date-time" },
         "created_at": { "type": "string", "format": "date-time" },
-        "recurrence": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"], "description": "How often the task repeats." }
+        "recurrence": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"], "description": "How often the task repeats." },
+        "recurrence_days": { "type": "array", "items": { "type": "number" }, "description": "For weekly recurrence, an array of numbers representing days of the week (0=Sun, 1=Mon, etc.)." }
       },
       "required": ["id", "userId", "name", "status", "created_at"]
     },

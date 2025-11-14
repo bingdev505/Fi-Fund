@@ -102,6 +102,7 @@ export type Task = {
   due_date?: LocalTimestamp;
   created_at: LocalTimestamp;
   recurrence?: 'none' | 'daily' | 'weekly' | 'monthly';
+  recurrence_days?: number[]; // For weekly recurrence, e.g. [0, 2, 4] for Sun, Tue, Thu
 };
 
 export type Credential = {

@@ -36,6 +36,7 @@ const taskSchema = z.object({
   }),
   project_id: z.string().optional(),
   recurrence: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(),
+  recurrence_days: z.array(z.number()).optional(),
 }).refine(data => !data.due_time || (data.due_time && data.due_date), {
     message: "A due date is required if you specify a time.",
     path: ["due_date"],
@@ -45,6 +46,33 @@ type TaskFormProps = {
     task?: Task | null;
     onFinished: () => void;
 };
+
+function DaySelector({ value, onChange }: { value: number[]; onChange: (days: number[]) => void }) {
+    const days = ["S", "M", "T", "W", "T", "F", "S"];
+
+    const toggleDay = (dayIndex: number) => {
+        const newValue = value.includes(dayIndex)
+            ? value.filter(d => d !== dayIndex)
+            : [...value, dayIndex];
+        onChange(newValue.sort());
+    };
+
+    return (
+        <div className="flex justify-center gap-2">
+            {days.map((day, index) => (
+                <Button
+                    type="button"
+                    key={index}
+                    variant={value.includes(index) ? "default" : "outline"}
+                    className={cn("h-8 w-8 rounded-full p-0", value.includes(index) && "bg-primary text-primary-foreground")}
+                    onClick={() => toggleDay(index)}
+                >
+                    {day}
+                </Button>
+            ))}
+        </div>
+    );
+}
 
 function TaskForm({ task, onFinished }: TaskFormProps) {
     const { addTask, updateTask, projects, activeProject } = useFinancials();
@@ -64,6 +92,7 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             due_time: defaultTime,
             project_id: task.project_id || personalProject?.id,
             recurrence: task.recurrence || 'none',
+            recurrence_days: task.recurrence_days || [],
         } : {
             name: '',
             description: '',
@@ -71,8 +100,11 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             due_time: '',
             project_id: activeProject?.id !== 'all' ? activeProject?.id : personalProject?.id,
             recurrence: 'none',
+            recurrence_days: [],
         }
     });
+
+    const watchedRecurrence = form.watch('recurrence');
 
     async function onSubmit(values: z.infer<typeof taskSchema>) {
         let finalDueDate: string | undefined = undefined;
@@ -92,6 +124,7 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             project_id: values.project_id,
             due_date: finalDueDate,
             recurrence: values.recurrence,
+            recurrence_days: values.recurrence === 'weekly' ? values.recurrence_days : [],
         };
 
         if (task) {
@@ -189,6 +222,23 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                         </FormItem>
                     )}
                 />
+
+                {watchedRecurrence === 'weekly' && (
+                    <FormField
+                        control={form.control}
+                        name="recurrence_days"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Repeat on</FormLabel>
+                                <FormControl>
+                                    <DaySelector value={field.value || []} onChange={field.onChange} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+
                  <FormField
                     control={form.control}
                     name="project_id"
