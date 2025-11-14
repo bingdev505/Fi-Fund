@@ -5,8 +5,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { PlusCircle, KeyRound, Pencil, Trash2, Eye, EyeOff, Copy } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { PlusCircle, KeyRound, Pencil, Trash2, Eye, EyeOff, Copy, Link as LinkIcon } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import * as OTPAuth from "otpauth";
 import { Progress } from './ui/progress';
+import Link from 'next/link';
 
 const credentialSchema = z.object({
   site_name: z.string().min(2, 'Site name must be at least 2 characters'),
@@ -72,8 +73,8 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField control={form.control} name="site_name" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Site Name</FormLabel>
-                        <FormControl><Input placeholder="e.g. Google" {...field} /></FormControl>
+                        <FormLabel>Site Name / URL</FormLabel>
+                        <FormControl><Input placeholder="e.g. google.com" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )} />
@@ -356,25 +357,67 @@ type CredentialItemProps = {
     onDelete: (cred: Credential) => void;
 };
 
-const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => (
+const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => {
+    const { toast } = useToast();
+
+    const handleCopy = (text: string, fieldName: string) => {
+        navigator.clipboard.writeText(text);
+        toast({ title: `${fieldName} copied to clipboard` });
+    };
+
+    const isUrl = (text: string) => {
+        try {
+            const url = new URL(text.startsWith('http') ? text : `https://${text}`);
+            return url.protocol === "http:" || url.protocol === "https:";
+        } catch (_) {
+            return false;
+        }
+    };
+    
+    const siteIsUrl = isUrl(cred.site_name);
+
+    return (
     <div className="p-4 group hover-mobile-bg-muted border-b last:border-b-0">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-                <KeyRound className="h-5 w-5 text-muted-foreground" />
-                <div>
-                    <p className="font-medium">{cred.site_name}</p>
-                    <p className="text-sm text-muted-foreground">{cred.username}</p>
+                <KeyRound className="h-5 w-5 text-muted-foreground mt-1" />
+                <div className="flex-1">
+                    <div className="flex items-center gap-1">
+                         {siteIsUrl ? (
+                            <a href={!cred.site_name.startsWith('http') ? `https://${cred.site_name}`: cred.site_name} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
+                                {cred.site_name}
+                            </a>
+                        ) : (
+                           <p className="font-medium">{cred.site_name}</p>
+                        )}
+                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(cred.site_name, 'Site name')}>
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                        {siteIsUrl && (
+                             <a href={!cred.site_name.startsWith('http') ? `https://${cred.site_name}`: cred.site_name} target="_blank" rel="noopener noreferrer">
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <LinkIcon className="h-4 w-4" />
+                                </Button>
+                             </a>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <p className="text-sm text-muted-foreground">{cred.username}</p>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(cred.username, 'Username')}>
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
             </div>
             <div className="group-hover-mobile-opacity flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => onEdit(cred)}>
-                <Pencil className="h-4 w-4" />
-            </Button>
-            <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={() => onDelete(cred)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Button variant="ghost" size="icon" onClick={() => onEdit(cred)}>
+                    <Pencil className="h-4 w-4" />
                 </Button>
-            </AlertDialogTrigger>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(cred)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                </AlertDialogTrigger>
             </div>
         </div>
         <div className="mt-4 space-y-4 pl-9">
@@ -392,4 +435,5 @@ const CredentialItem = ({ cred, onEdit, onDelete }: CredentialItemProps) => (
             )}
         </div>
     </div>
-);
+    );
+};
