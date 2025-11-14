@@ -53,7 +53,26 @@ const answerFinancialQuestionFlow = ai.defineFlow(
     outputSchema: AnswerFinancialQuestionOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    let output;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+        try {
+            const response = await prompt(input);
+            output = response.output;
+            break; // Success
+        } catch (e: any) {
+            attempts++;
+            if (attempts >= maxAttempts) {
+                console.error("AI flow 'answerFinancialQuestion' failed after multiple retries:", e);
+                throw new Error("The AI service is currently overloaded. Please try again in a moment.");
+            }
+            console.log(`AI call failed (answerFinancialQuestion), attempt ${attempts}. Retrying in ${attempts}s...`);
+            await new Promise(res => setTimeout(res, attempts * 1000));
+        }
+    }
+    
     return output!;
   }
 );
