@@ -191,6 +191,7 @@ export default function AIChat() {
         transactions,
         loans,
         bankAccounts,
+        contacts,
       });
       
       let chatHistoryForContext = '';
