@@ -82,7 +82,26 @@ const routeUserIntentFlow = ai.defineFlow(
     outputSchema: RouteUserIntentOutputSchema,
   },
   async (input) => {
-    const {output} = await intentPrompt({ chat_input: input.chat_input });
+    let output;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      try {
+        const response = await intentPrompt({ chat_input: input.chat_input });
+        output = response.output;
+        break; // Success, exit loop
+      } catch (e: any) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.error("AI flow failed after multiple retries:", e);
+          throw new Error("The AI service is currently unavailable. Please try again later.");
+        }
+        console.log(`AI call failed, attempt ${attempts}. Retrying in ${attempts}s...`);
+        await new Promise(res => setTimeout(res, attempts * 1000));
+      }
+    }
+
     const intent = output!.intent;
 
     if (intent === 'logData') {
