@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
-import { subDays, format } from 'date-fns';
+import { subDays, format, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Transaction } from '@/lib/types';
 
@@ -73,10 +73,11 @@ export default function Reports() {
   const { filteredData, totalIncome, totalExpenses } = useMemo(() => {
     let data = chartTransactions;
 
-    if (dateRange?.from && dateRange?.to) {
+    if (dateRange?.from) {
+      const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
       data = data.filter(t => {
         const tDate = new Date(t.date);
-        return tDate >= dateRange.from! && tDate <= dateRange.to!;
+        return tDate >= dateRange.from! && tDate <= toDate;
       });
     }
 
@@ -269,5 +270,7 @@ export default function Reports() {
     </div>
   );
 }
+
+    
 
     
