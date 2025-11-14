@@ -15,70 +15,98 @@ function structureDataForSheet(
 ): { headers: string[], rows: StructuredRow[] } {
     const headers = ["transaction_id", "Date", "Type", "Account", "Category", "Contact", "Description", "Amount"];
     
-    const combinedEntries: (Transaction | Loan)[] = [...transactions, ...loans];
-    const sortedEntries = combinedEntries.sort((a, b) => new Date(a.date || a.created_at).getTime() - new Date(b.date || b.created_at).getTime());
-
     const accountMap = new Map(bankAccounts.map(acc => [acc.id, acc.name]));
     const contactMap = new Map(allContacts.map(c => [c.id, c.name]));
 
-    const rows: StructuredRow[] = sortedEntries.map(entry => {
-        const row: StructuredRow = [
-            entry.id,
-            new Date(entry.date || entry.created_at).toLocaleDateString('en-CA'), // YYYY-MM-DD
-            '', // Type
-            '', // Account
-            '', // Category
-            '', // Contact
-            entry.description || '', // Description
-            0   // Amount
-        ];
+    const processedRows: StructuredRow[] = [];
 
-        let type = '';
-        let amount = entry.amount;
+    // Process all transactions first, handling transfers specially
+    transactions.forEach(tx => {
+        if (tx.type === 'transfer') {
+            const fromAccountName = accountMap.get(tx.from_account_id || '') || 'Unknown';
+            const toAccountName = accountMap.get(tx.to_account_id || '') || 'Unknown';
 
-        if ('category' in entry) { // It's a Transaction
-            const tx = entry as Transaction;
-            type = tx.type.charAt(0).toUpperCase() + tx.type.slice(1);
-            row[3] = accountMap.get(tx.account_id || '') || '';
-            row[4] = tx.category;
-            row[5] = tx.client_id ? contactMap.get(tx.client_id) : '';
-
-            if (tx.type === 'transfer') {
-                const from = accountMap.get(tx.from_account_id || '') || 'Unknown';
-                const to = accountMap.get(tx.to_account_id || '') || 'Unknown';
-                row[4] = `${from} -> ${to}`;
-            }
+            // Create two rows for a transfer
+            // 1. Expense from source account
+            processedRows.push([
+                tx.id + '_from',
+                new Date(tx.date).toLocaleDateString('en-CA'),
+                'Transfer Out',
+                fromAccountName,
+                'Bank Transfer',
+                '',
+                tx.description || `Transfer to ${toAccountName}`,
+                -Math.abs(tx.amount)
+            ]);
+            // 2. Income to destination account
+            processedRows.push([
+                tx.id + '_to',
+                new Date(tx.date).toLocaleDateString('en-CA'),
+                'Transfer In',
+                toAccountName,
+                'Bank Transfer',
+                '',
+                tx.description || `Transfer from ${fromAccountName}`,
+                Math.abs(tx.amount)
+            ]);
+        } else {
+            let amount = tx.amount;
+            let type = tx.type.charAt(0).toUpperCase() + tx.type.slice(1);
+            let contact = tx.client_id ? contactMap.get(tx.client_id) : '';
+            let description = tx.description || '';
 
             if (tx.type === 'repayment' && tx.loan_id) {
                  const relatedLoan = loans.find(l => l.id === tx.loan_id);
-                 row[5] = relatedLoan ? contactMap.get(relatedLoan.contact_id) : '';
-                 row[6] = `Repayment for loan regarding ${row[5]}`;
-
+                 contact = relatedLoan ? contactMap.get(relatedLoan.contact_id) : '';
+                 description = `Repayment for loan regarding ${contact}`;
                  if (relatedLoan?.type === 'loanTaken') amount = -Math.abs(amount);
                  else amount = Math.abs(amount);
             } else if (tx.type === 'income') {
                 amount = Math.abs(amount);
-            } else { // expense or other
+            } else { // expense
                 amount = -Math.abs(amount);
             }
 
-        } else { // It's a Loan
-            const loan = entry as Loan;
-            type = loan.type === 'loanGiven' ? 'Loan Given' : 'Loan Taken';
-            row[3] = accountMap.get(loan.account_id) || '';
-            row[5] = contactMap.get(loan.contact_id) || 'Unknown Contact';
-
-            if (loan.type === 'loanGiven') amount = -Math.abs(amount);
-            else amount = Math.abs(amount);
+            processedRows.push([
+                tx.id,
+                new Date(tx.date).toLocaleDateString('en-CA'),
+                type,
+                accountMap.get(tx.account_id || '') || '',
+                tx.category,
+                contact,
+                description,
+                amount
+            ]);
         }
-        
-        row[2] = type;
-        row[7] = amount;
-
-        return row;
     });
 
-    return { headers, rows };
+    // Process all loans
+    loans.forEach(loan => {
+        const type = loan.type === 'loanGiven' ? 'Loan Given' : 'Loan Taken';
+        let amount = loan.amount;
+        if (loan.type === 'loanGiven') amount = -Math.abs(amount);
+        else amount = Math.abs(amount);
+
+        processedRows.push([
+            loan.id,
+            new Date(loan.date || loan.created_at).toLocaleDateString('en-CA'),
+            type,
+            accountMap.get(loan.account_id) || '',
+            'Loan',
+            contactMap.get(loan.contact_id) || 'Unknown Contact',
+            loan.description || '',
+            amount
+        ]);
+    });
+
+    // Sort all processed rows by date
+    const sortedRows = processedRows.sort((a, b) => {
+        const dateA = new Date(a[1] as string).getTime();
+        const dateB = new Date(b[1] as string).getTime();
+        return dateA - dateB;
+    });
+
+    return { headers, rows: sortedRows };
 }
 
 type ParsedSheetData = {
@@ -113,6 +141,11 @@ function parseSheetData(
         const row = sheetData[i];
         const [id, dateStr, type, accountName, category, contactName, description, amountStr] = row;
         
+        // Skip transfer in/out rows as they are derived from a single transaction
+        if (id && (id.endsWith('_from') || id.endsWith('_to'))) {
+            continue;
+        }
+
         const amount = parseFloat(amountStr);
         if (!type || isNaN(amount)) continue;
 
@@ -169,7 +202,7 @@ function parseSheetData(
                     amount: Math.abs(amount),
                     status: 'active',
                     description: description || 'From Google Sheet',
-                    created_at: date,
+                    date: date,
                     account_id: accountId,
                 });
             } else {
@@ -302,9 +335,9 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
                      if (!error && data) transactions.push(data);
                 }
                  for (const entry of newLoans) {
-                     const { data, error } = await supabase.from('loans').insert({...entry, account_id: entry.account_id || primaryAccount.id, user_id: input.userId!}).select().single();
+                     const { data, error } = await supabase.from('loans').insert({...entry, account_id: entry.account_id || primaryAccount.id, user_id: input.userId!, created_at: entry.date, date: entry.date }).select().single();
                      if (!error && data) loans.push(data);
-                }
+                 }
                  for (const entry of updatedTransactions) {
                     const { data, error } = await supabase.from('transactions').update(entry).eq('id', entry.id).select().single();
                     if (!error && data) {
