@@ -90,7 +90,7 @@ export default function Reports() {
     }
 
     const income = data.filter(t => t.type === 'income' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanGiven')).reduce((sum, t) => sum + t.amount, 0);
-    const expenses = data.filter(t => t.type === 'expense' || t.type === 'transfer' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanTaken')).reduce((sum, t) => sum + t.amount, 0);
+    const expenses = data.filter(t => t.type === 'expense' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanTaken')).reduce((sum, t) => sum + t.amount, 0);
 
     return { filteredData: data, totalIncome: income, totalExpenses: expenses };
   }, [chartTransactions, dateRange, typeFilter, categoryFilter, loans]);
@@ -238,7 +238,7 @@ export default function Reports() {
                             <TableCell>{t.category}</TableCell>
                             <TableCell className={cn("text-right font-semibold", 
                                 t.type === 'income' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanGiven') ? 'text-green-600' : 
-                                (t.type === 'expense' || t.type === 'transfer' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanTaken')) ? 'text-red-600' : ''
+                                (t.type === 'expense' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanTaken')) ? 'text-red-600' : ''
                             )}>
                                 {formatCurrency(t.amount)}
                             </TableCell>
@@ -275,9 +275,5 @@ export default function Reports() {
     </div>
   );
 }
-
-    
-
-    
 
     
