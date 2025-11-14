@@ -213,7 +213,7 @@ export default function Reports() {
                     <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Account</TableHead>
-                        <TableHead className="text-center">Type</TableHead>
+                        <TableHead>Type</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
@@ -228,7 +228,12 @@ export default function Reports() {
                                  ? `${getAccountName(t.from_account_id)} -> ${getAccountName(t.to_account_id)}`
                                  : getAccountName(t.account_id)}
                             </TableCell>
-                            <TableCell className="flex justify-center"><TypeIcon type={t.type} /></TableCell>
+                            <TableCell>
+                                <div className='flex items-center gap-2'>
+                                    <TypeIcon type={t.type} />
+                                    <span className="capitalize">{t.type}</span>
+                                </div>
+                            </TableCell>
                             <TableCell className="font-medium">{t.description}</TableCell>
                             <TableCell>{t.category}</TableCell>
                             <TableCell className={cn("text-right font-semibold", 
@@ -270,6 +275,8 @@ export default function Reports() {
     </div>
   );
 }
+
+    
 
     
 
