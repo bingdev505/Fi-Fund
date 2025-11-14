@@ -32,7 +32,7 @@ interface FinancialContextType {
   
   loans: Loan[];
   allLoans: Loan[];
-  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'status'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   addLoans: (loans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[]) => Promise<void>;
   addOrUpdateLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'status'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
@@ -364,7 +364,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         if (user) {
             // This is a simplified cache update. A more robust solution
             // might update just the relevant part of the 'all_data' cache item.
-            const currentCache = JSON.parse(localStorage.getItem(cacheKey('all_data', user.id)) || '{}');
             // This is a placeholder for a key to identify the table, e.g., 'projects', 'transactions'
             // you need to know which table this update belongs to.
             // For now, this will not work as expected without a table identifier.
@@ -801,41 +800,55 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
 
   const addCredential = async (credentialData: Omit<Credential, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return;
-    const encryptedCreds = encrypt(credentialData, user.id);
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
     const finalProjectId = credentialData.project_id === personalProject?.id ? credentialData.project_id : (credentialData.project_id || personalProject?.id);
     
+    const encryptedCreds = encrypt(credentialData, user.id);
+
     const dbData = {
-      ...encryptedCreds,
       site_name: credentialData.site_name,
       username: credentialData.username,
+      password: encryptedCreds.password,
+      totp_secret: encryptedCreds.totp_secret,
       project_id: finalProjectId,
       user_id: user.id,
       created_at: new Date().toISOString()
     };
     const { data: newCredential, error } = await supabase.from('credentials').insert(dbData).select().single();
-    if (error) throw error;
-    updateStateAndCache(setAllCredentials, (prev: Credential[]) => [...prev, decrypt(newCredential, user.id)]);
+    if (error) {
+      console.error("Error adding credential:", error);
+      throw error;
+    }
+    setAllCredentials((prev) => [...prev, decrypt(newCredential, user.id)]);
   };
 
-  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'user_id'>>) => {
+  const updateCredential = async (credentialId: string, credentialData: Partial<Omit<Credential, 'id' | 'user_id' | 'created_at'>>) => {
     if (!user) return;
+    
     const encryptedCreds = encrypt(credentialData, user.id);
-     const dbData = {
-      ...encryptedCreds,
+    const dbData: Partial<any> = {
       site_name: credentialData.site_name,
       username: credentialData.username,
       project_id: credentialData.project_id,
     };
+    if (encryptedCreds.password) dbData.password = encryptedCreds.password;
+    if (encryptedCreds.totp_secret) dbData.totp_secret = encryptedCreds.totp_secret;
+
     const { data: updatedCredential, error } = await supabase.from('credentials').update(dbData).eq('id', credentialId).select().single();
-    if (error) throw error;
-    updateStateAndCache(setAllCredentials, (prev: Credential[]) => prev.map(c => c.id === updatedCredential.id ? decrypt(updatedCredential, user.id) : c));
+    if (error) {
+      console.error("Error updating credential:", error);
+      throw error;
+    }
+    setAllCredentials((prev) => prev.map(c => c.id === updatedCredential.id ? decrypt(updatedCredential, user.id) : c));
   };
   
   const deleteCredential = async (credentialId: string) => {
     const { error } = await supabase.from('credentials').delete().eq('id', credentialId);
-    if (error) throw error;
-    updateStateAndCache(setAllCredentials, (prev: Credential[]) => prev.filter(c => c.id !== credentialId));
+    if (error) {
+      console.error("Error deleting credential:", error);
+      throw error;
+    }
+    setAllCredentials((prev) => prev.filter(c => c.id !== credentialId));
   };
   
   const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef = false): Promise<{ id: string } | void> => {
