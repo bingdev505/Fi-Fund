@@ -221,166 +221,172 @@ export default function AIChat() {
       let transactionIds: string[] = [];
 
       if (result.intent === 'logData') {
-        const logResults = result.result;
-        
-        let responseParts: string[] = [];
-        const newTransactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[] = [];
-        const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>[] = [];
-        
-        const projectId = activeProject?.id === 'all' ? undefined : activeProject?.id;
-        const businessName = activeProject?.name || 'Personal';
+        const logResultPayload = result.result.result;
 
-        for (const logResult of logResults) {
-            let accountIdToUse: string | undefined;
-            let accountNameToUse: string | undefined;
-            let wasAccountFound = false;
+        if (Array.isArray(logResultPayload)) {
+            const logResults = logResultPayload;
+            let responseParts: string[] = [];
+            const newTransactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[] = [];
+            const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>[] = [];
+            
+            const projectId = activeProject?.id === 'all' ? undefined : activeProject?.id;
+            const businessName = activeProject?.name || 'Personal';
 
-            if (logResult.account_name) {
-                const searchName = logResult.account_name.toLowerCase();
-                const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(searchName));
-                
-                if (foundAccount) {
-                    accountIdToUse = foundAccount.id;
-                    accountNameToUse = foundAccount.name;
-                    wasAccountFound = true;
+            for (const logResult of logResults) {
+                let accountIdToUse: string | undefined;
+                let accountNameToUse: string | undefined;
+                let wasAccountFound = false;
+
+                if (logResult.account_name) {
+                    const searchName = logResult.account_name.toLowerCase();
+                    const foundAccount = bankAccounts.find(acc => acc.name.toLowerCase().includes(searchName));
+                    
+                    if (foundAccount) {
+                        accountIdToUse = foundAccount.id;
+                        accountNameToUse = foundAccount.name;
+                        wasAccountFound = true;
+                    } else {
+                        responseParts.push(`Could not find account '${logResult.account_name}'.`);
+                        continue;
+                    }
                 } else {
-                    responseParts.push(`Could not find account '${logResult.account_name}'.`);
+                    const primaryAccount = bankAccounts.find(acc => acc.is_primary);
+                    if (primaryAccount) {
+                        accountIdToUse = primaryAccount.id;
+                        accountNameToUse = primaryAccount.name;
+                        wasAccountFound = true;
+                    }
+                }
+
+                if (!wasAccountFound) {
+                    responseParts.push("Could not log an entry as no primary account is set.");
                     continue;
                 }
-            } else {
-                const primaryAccount = bankAccounts.find(acc => acc.is_primary);
-                if (primaryAccount) {
-                    accountIdToUse = primaryAccount.id;
-                    accountNameToUse = primaryAccount.name;
-                    wasAccountFound = true;
+
+                if (!accountIdToUse) {
+                    responseParts.push("Could not log an entry as no primary account is set.");
+                    toast({
+                      variant: 'destructive',
+                      title: 'No Account Available',
+                      description: 'Please set a primary bank account in settings, or specify an account in your message.',
+                    });
+                    continue;
                 }
-            }
 
-            if (!wasAccountFound) {
-                responseParts.push("Could not log an entry as no primary account is set.");
-                continue;
-            }
-
-            if (!accountIdToUse) {
-                responseParts.push("Could not log an entry as no primary account is set.");
-                toast({
-                  variant: 'destructive',
-                  title: 'No Account Available',
-                  description: 'Please set a primary bank account in settings, or specify an account in your message.',
-                });
-                continue;
-            }
-
-            if (logResult.transaction_type === 'income' || logResult.transaction_type === 'expense') {
-                let clientId: string | undefined;
-                if(logResult.client_name) {
-                    let client = clients.find(c => c.name.toLowerCase() === logResult.client_name!.toLowerCase() && c.project_id === projectId);
-                    if(!client) {
-                        client = await addClient({ name: logResult.client_name }, projectId);
-                        responseParts.push(`Created new client '${client.name}'.`);
+                if (logResult.transaction_type === 'income' || logResult.transaction_type === 'expense') {
+                    let clientId: string | undefined;
+                    if(logResult.client_name) {
+                        let client = clients.find(c => c.name.toLowerCase() === logResult.client_name!.toLowerCase() && c.project_id === projectId);
+                        if(!client) {
+                            client = await addClient({ name: logResult.client_name }, projectId);
+                            responseParts.push(`Created new client '${client.name}'.`);
+                        }
+                        clientId = client.id;
                     }
-                    clientId = client.id;
-                }
-                
-                if (logResult.category) {
-                  const categoryExists = categories.some(
-                    (c) =>
-                      c.name.toLowerCase() === logResult.category!.toLowerCase() &&
-                      c.type === logResult.transaction_type
-                  );
-                  if (!categoryExists) {
-                    await addCategory({ name: logResult.category, type: logResult.transaction_type }, projectId);
-                     responseParts.push(`Created new category '${logResult.category}'.`);
-                  }
-                }
+                    
+                    if (logResult.category) {
+                      const categoryExists = categories.some(
+                        (c) =>
+                          c.name.toLowerCase() === logResult.category!.toLowerCase() &&
+                          c.type === logResult.transaction_type
+                      );
+                      if (!categoryExists) {
+                        await addCategory({ name: logResult.category, type: logResult.transaction_type }, projectId);
+                         responseParts.push(`Created new category '${logResult.category}'.`);
+                      }
+                    }
 
-                newTransactions.push({
-                    type: logResult.transaction_type,
-                    amount: logResult.amount,
-                    category: logResult.category!,
-                    description: logResult.description || 'AI Logged Transaction',
-                    account_id: accountIdToUse,
-                    project_id: projectId,
-                    client_id: clientId,
-                });
-                const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged under '${businessName}' to ${accountNameToUse}.`;
-                responseParts.push(toastDescription);
-            } else if (logResult.transaction_type === 'repayment') {
-                 if (!logResult.contact_id) {
-                    responseParts.push("Could not log repayment: contact name is missing.");
-                } else {
-                    const contact = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
-                    if (!contact) {
-                         responseParts.push(`Could not find contact '${logResult.contact_id}'.`);
+                    newTransactions.push({
+                        type: logResult.transaction_type,
+                        amount: logResult.amount,
+                        category: logResult.category!,
+                        description: logResult.description || 'AI Logged Transaction',
+                        account_id: accountIdToUse,
+                        project_id: projectId,
+                        client_id: clientId,
+                    });
+                    const toastDescription = `${logResult.transaction_type} of ${formatCurrency(logResult.amount)} in ${logResult.category} logged under '${businessName}' to ${accountNameToUse}.`;
+                    responseParts.push(toastDescription);
+                } else if (logResult.transaction_type === 'repayment') {
+                     if (!logResult.contact_id) {
+                        responseParts.push("Could not log repayment: contact name is missing.");
                     } else {
-                        const activeLoansForContact = loans.filter(l => l.contact_id === contact.id && l.status === 'active');
-                        if (activeLoansForContact.length === 0) {
-                            responseParts.push(`No active loans with ${contact.name} to repay.`);
-                        } else if (activeLoansForContact.length > 1) {
-                            responseParts.push(`Multiple active loans with ${contact.name}. Please log repayment manually.`);
+                        const contact = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
+                        if (!contact) {
+                             responseParts.push(`Could not find contact '${logResult.contact_id}'.`);
                         } else {
-                            const loanToRepay = activeLoansForContact[0];
-                            const repaymentRef = await addRepayment(loanToRepay, logResult.amount, accountIdToUse, true);
-                            if (repaymentRef) transactionIds.push(repaymentRef.id);
-                            responseParts.push(`Logged repayment of ${formatCurrency(logResult.amount)} for loan with ${contact.name} under '${businessName}'.`);
+                            const activeLoansForContact = loans.filter(l => l.contact_id === contact.id && l.status === 'active');
+                            if (activeLoansForContact.length === 0) {
+                                responseParts.push(`No active loans with ${contact.name} to repay.`);
+                            } else if (activeLoansForContact.length > 1) {
+                                responseParts.push(`Multiple active loans with ${contact.name}. Please log repayment manually.`);
+                            } else {
+                                const loanToRepay = activeLoansForContact[0];
+                                const repaymentRef = await addRepayment(loanToRepay, logResult.amount, accountIdToUse, new Date(), true);
+                                if (repaymentRef) transactionIds.push(repaymentRef.id);
+                                responseParts.push(`Logged repayment of ${formatCurrency(logResult.amount)} for loan with ${contact.name} under '${businessName}'.`);
+                            }
                         }
                     }
-                }
-            } else { // loanGiven or loanTaken
-                if (!logResult.contact_id) {
-                    responseParts.push(`Could not log loan: contact name is missing.`);
-                    continue;
-                }
-
-                let contact = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
-                if (!contact) {
-                    try {
-                      contact = await addContact({ name: logResult.contact_id });
-                      responseParts.push(`Created new contact '${contact.name}'.`);
-                    } catch (e) {
-                      console.error("Failed to create new contact:", e);
-                      responseParts.push(`Could not create new contact '${logResult.contact_id}'.`);
-                      continue; 
+                } else { // loanGiven or loanTaken
+                    if (!logResult.contact_id) {
+                        responseParts.push(`Could not log loan: contact name is missing.`);
+                        continue;
                     }
+
+                    let contact = contacts.find(c => c.name.toLowerCase() === logResult.contact_id!.toLowerCase());
+                    if (!contact) {
+                        try {
+                          contact = await addContact({ name: logResult.contact_id });
+                          responseParts.push(`Created new contact '${contact.name}'.`);
+                        } catch (e) {
+                          console.error("Failed to create new contact:", e);
+                          responseParts.push(`Could not create new contact '${logResult.contact_id}'.`);
+                          continue; 
+                        }
+                    }
+
+                    newLoans.push({
+                        type: logResult.transaction_type,
+                        amount: logResult.amount,
+                        contact_id: contact.id, 
+                        description: logResult.description || 'AI Logged Loan',
+                        account_id: accountIdToUse,
+                        project_id: projectId
+                    });
+
+                     const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} logged under '${businessName}' against account ${accountNameToUse}.`;
+                    responseParts.push(toastDescription);
                 }
-
-                newLoans.push({
-                    type: logResult.transaction_type,
-                    amount: logResult.amount,
-                    contact_id: contact.id, 
-                    description: logResult.description || 'AI Logged Loan',
-                    account_id: accountIdToUse,
-                    project_id: projectId
-                });
-
-                 const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} logged under '${businessName}' against account ${accountNameToUse}.`;
-                responseParts.push(toastDescription);
             }
-        }
-        
-        if(newTransactions.length > 0) {
-            const addedRefs = await addTransactions(newTransactions);
-            transactionIds.push(...addedRefs.map(r => r.id));
+            
+            if(newTransactions.length > 0) {
+                const addedRefs = await addTransactions(newTransactions);
+                transactionIds.push(...addedRefs.map(r => r.id));
+            }
+
+            for (const loan of newLoans) {
+                const addedRef = await addOrUpdateLoan(loan, true);
+                if (addedRef) transactionIds.push(addedRef.id);
+            }
+
+            assistantResponse = responseParts.join(' ');
+            if (logResults.length > 1) {
+                toast({
+                    title: 'Logged Multiple Entries',
+                    description: `The AI logged ${logResults.length} separate financial entries.`,
+                });
+            } else if (logResults.length === 1) {
+                 toast({
+                    title: 'Logged via AI Chat',
+                    description: assistantResponse,
+                });
+            }
+             setLastProcessedMessage(userMessageContent);
+        } else if (logResultPayload && 'clarification_needed' in logResultPayload) {
+            assistantResponse = logResultPayload.clarification_needed;
         }
 
-        for (const loan of newLoans) {
-            const addedRef = await addOrUpdateLoan(loan, true);
-            if (addedRef) transactionIds.push(addedRef.id);
-        }
-
-        assistantResponse = responseParts.join(' ');
-        if (logResults.length > 1) {
-            toast({
-                title: 'Logged Multiple Entries',
-                description: `The AI logged ${logResults.length} separate financial entries.`,
-            });
-        } else if (logResults.length === 1) {
-             toast({
-                title: 'Logged via AI Chat',
-                description: assistantResponse,
-            });
-        }
-         setLastProcessedMessage(userMessageContent);
       } else if (result.intent === 'question') {
         assistantResponse = result.result.answer;
          setLastProcessedMessage(userMessageContent);

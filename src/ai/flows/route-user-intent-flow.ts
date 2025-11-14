@@ -17,7 +17,7 @@ const RouteUserIntentInputSchema = z.object({
 export type RouteUserIntentInput = z.infer<typeof RouteUserIntentInputSchema>;
 
 // Re-define the schemas here since we can't import them from 'use server' files.
-const LogFinancialDataResultSchema = z.array(z.object({
+const TransactionObjectSchema = z.object({
   transaction_type: z.enum(['income', 'expense', 'loanGiven', 'loanTaken', 'repayment']),
   category: z.string().optional(),
   contact_id: z.string().optional(),
@@ -25,7 +25,17 @@ const LogFinancialDataResultSchema = z.array(z.object({
   amount: z.number(),
   description: z.string().optional(),
   account_name: z.string().optional(),
-}));
+});
+
+const LogFinancialDataResultSchema = z.object({
+    result: z.union([
+        z.array(TransactionObjectSchema),
+        z.object({
+            clarification_needed: z.string()
+        })
+    ])
+});
+
 
 const AnswerFinancialQuestionResultSchema = z.object({
   answer: z.string(),
