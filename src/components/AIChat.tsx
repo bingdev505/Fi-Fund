@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import { Bot, Loader2, Send, User, PlusCircle, Pencil, Trash2, HandCoins, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -86,9 +87,11 @@ export default function AIChat() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   };
 
-  useEffect(() => {
-    // Scroll to bottom on initial load and when new messages are added.
-    scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  useLayoutEffect(() => {
+    // Use useLayoutEffect to scroll to bottom before the browser paints to avoid flickering
+    if (scrollEndRef.current) {
+        scrollEndRef.current.scrollIntoView();
+    }
   }, [messages.length, isMessagesLoading, isProcessing]);
 
 
@@ -583,3 +586,5 @@ export default function AIChat() {
     </div>
   );
 }
+
+    
