@@ -19,6 +19,7 @@ import EntryForm from './EntryForm';
 import { useAuth } from '@/context/AuthContext';
 import RepaymentForm from './RepaymentForm';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 
 const useChatHistory = () => {
     const { chatMessages, addChatMessage, updateChatMessage, deleteChatMessage, isLoading: isFinancialsLoading } = useFinancials();
@@ -433,7 +434,7 @@ export default function AIChat() {
                   <AvatarFallback className="bg-transparent"><Bot className="text-primary" /></AvatarFallback>
                 </Avatar>
               )}
-              <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
+              <div className={cn('rounded-lg px-3 py-2 max-w-[75%] shadow-sm text-sm relative prose prose-sm', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground')}>
                  {message.transaction_id && (
                   <div className="absolute top-1/2 -translate-y-1/2 -left-20 group-hover-mobile-opacity transition-opacity flex items-center bg-white rounded-full border shadow-sm ml-[30px]">
                       <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleEditClick(message)}>
@@ -444,7 +445,19 @@ export default function AIChat() {
                       </Button>
                   </div>
                 )}
-                <p>{message.content}</p>
+                 {message.role === 'assistant' ? (
+                  <ReactMarkdown
+                    components={{
+                      table: ({node, ...props}) => <table className="w-full text-left" {...props} />,
+                      th: ({node, ...props}) => <th className="border px-2 py-1" {...props} />,
+                      td: ({node, ...props}) => <td className="border px-2 py-1" {...props} />,
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  <p>{message.content}</p>
+                )}
               </div>
               {message.role === 'user' && (
                 <Avatar className="h-8 w-8 border">
