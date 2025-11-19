@@ -193,7 +193,7 @@ function parseSheetData(
         } else {
             // New Entry
             const date = dateStr ? new Date(dateStr).toISOString() : new Date().toISOString();
-            const accountId = accountMap.get(accountName?.toLowerCase()) || allBankAccounts[0]?.id;
+            const accountId = accountMap.get(accountName?.toLowerCase()) || allBankAccounts.find(acc => acc.is_primary)?.id;
             
             if (isLoan) {
                 result.newLoans.push({
@@ -203,7 +203,7 @@ function parseSheetData(
                     status: 'active',
                     description: description || 'From Google Sheet',
                     date: date,
-                    account_id: accountId,
+                    account_id: accountId!,
                 });
             } else {
                 result.newTransactions.push({
@@ -331,11 +331,11 @@ export async function syncTransactionsToSheet(input: SyncToGoogleSheetInput): Pr
                 );
 
                 for (const entry of newTransactions) {
-                     const { data, error } = await supabase.from('transactions').insert({...entry, account_id: entry.account_id || primaryAccount.id, user_id: input.userId!}).select().single();
+                     const { data, error } = await supabase.from('transactions').insert({...entry, account_id: entry.account_id || primaryAccount?.id, user_id: input.userId!}).select().single();
                      if (!error && data) transactions.push(data);
                 }
                  for (const entry of newLoans) {
-                     const { data, error } = await supabase.from('loans').insert({...entry, account_id: entry.account_id || primaryAccount.id, user_id: input.userId!, created_at: entry.date, date: entry.date }).select().single();
+                     const { data, error } = await supabase.from('loans').insert({...entry, account_id: entry.account_id || primaryAccount?.id, user_id: input.userId!, created_at: entry.date, date: entry.date }).select().single();
                      if (!error && data) loans.push(data);
                  }
                  for (const entry of updatedTransactions) {
