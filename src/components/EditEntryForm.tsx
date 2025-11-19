@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,7 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { Save, CalendarIcon } from 'lucide-react';
+import { Save, CalendarIcon, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -60,7 +59,7 @@ const formSchema = z.object({
   }
   return true;
 }, {
-  message: "Please select a category.",
+  message: "Please provide a category.",
   path: ["category"],
 })
 .refine(data => {
@@ -108,6 +107,7 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
     },
   });
 
+  const { isSubmitting } = form.formState;
   const watchedType = form.watch('type');
   const selectedProjectId = form.watch('project_id');
 
@@ -465,9 +465,9 @@ export default function EditEntryForm({ entry, onFinished }: EditEntryFormProps)
           </>
         )}
 
-        <Button type="submit" className="w-full">
-          <Save className="mr-2 h-4 w-4" />
-          Save Changes
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          {isSubmitting ? 'Saving...' : 'Save Changes'}
         </Button>
       </form>
     </Form>

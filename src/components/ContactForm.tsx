@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Save } from 'lucide-react';
+import { PlusCircle, Save, Loader2 } from 'lucide-react';
 import type { Contact } from '@/lib/types';
 
 const contactSchema = z.object({
@@ -35,6 +35,8 @@ export default function ContactForm({ contact, onFinished }: ContactFormProps) {
     resolver: zodResolver(contactSchema),
     defaultValues: contact ? { name: contact.name } : { name: '' },
   });
+
+  const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof contactSchema>) {
     if (contact) {
@@ -66,9 +68,15 @@ export default function ContactForm({ contact, onFinished }: ContactFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-            {contact ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-            {contact ? 'Save Changes' : 'Add Contact'}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : contact ? (
+              <Save className="mr-2 h-4 w-4" />
+            ) : (
+              <PlusCircle className="mr-2 h-4 w-4" />
+            )}
+            {isSubmitting ? 'Saving...' : contact ? 'Save Changes' : 'Add Contact'}
         </Button>
       </form>
     </Form>

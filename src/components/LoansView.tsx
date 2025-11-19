@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -59,6 +58,7 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
     }
   });
 
+  const { isSubmitting } = form.formState;
   const contactOptions = useMemo(() => {
     return contacts.map(c => ({ value: c.id, label: c.name }));
   }, [contacts]);
@@ -281,7 +281,10 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">Add Loan</Button>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {isSubmitting ? 'Adding...' : 'Add Loan'}
+        </Button>
       </form>
     </Form>
   );

@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import type { BankAccount } from '@/lib/types';
-import { PlusCircle, Save } from 'lucide-react';
+import { PlusCircle, Save, Loader2 } from 'lucide-react';
 
 const bankAccountSchema = z.object({
   name: z.string().min(2, 'Bank name must be at least 2 characters'),
@@ -43,19 +43,21 @@ export default function BankAccountForm({ account, onFinished }: BankAccountForm
     },
   });
 
+  const { isSubmitting } = form.formState;
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   };
 
-  function onSubmit(values: z.infer<typeof bankAccountSchema>) {
+  async function onSubmit(values: z.infer<typeof bankAccountSchema>) {
     if (account) {
-      updateBankAccount(account.id, values);
+      await updateBankAccount(account.id, values);
       toast({
         title: 'Bank Account Updated',
         description: `${values.name} has been updated.`,
       });
     } else {
-      addBankAccount(values, activeProject?.id);
+      await addBankAccount(values, activeProject?.id);
       toast({
         title: 'Bank Account Added',
         description: `${values.name} with a balance of ${formatCurrency(values.balance)} has been added.`,
@@ -95,9 +97,15 @@ export default function BankAccountForm({ account, onFinished }: BankAccountForm
             )}
           />
         </div>
-        <Button type="submit" className="w-full">
-          {account ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-          {account ? 'Save Changes' : 'Add Account'}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : account ? (
+            <Save className="mr-2 h-4 w-4" />
+          ) : (
+            <PlusCircle className="mr-2 h-4 w-4" />
+          )}
+          {isSubmitting ? 'Saving...' : account ? 'Save Changes' : 'Add Account'}
         </Button>
       </form>
     </Form>

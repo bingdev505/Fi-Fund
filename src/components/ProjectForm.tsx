@@ -54,6 +54,8 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
     },
   });
 
+  const { isSubmitting } = form.formState;
+
   async function onSubmit(values: z.infer<typeof projectSchema>) {
     if (project?.name === 'Personal' && values.name !== 'Personal') {
         toast({
@@ -215,9 +217,9 @@ export default function ProjectForm({ project, onFinished }: ProjectFormProps) {
         )}
 
         
-        <Button type="submit" className="w-full">
-          {project ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-          {project ? 'Save Changes' : 'Create Business'}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : project ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+          {isSubmitting ? 'Saving...' : project ? 'Save Changes' : 'Create Business'}
         </Button>
       </form>
     </Form>

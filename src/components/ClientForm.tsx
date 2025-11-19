@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Save } from 'lucide-react';
+import { PlusCircle, Save, Loader2 } from 'lucide-react';
 import type { Client } from '@/lib/types';
 
 const clientSchema = z.object({
@@ -35,6 +35,8 @@ export default function ClientForm({ client, onFinished }: ClientFormProps) {
     resolver: zodResolver(clientSchema),
     defaultValues: client ? { name: client.name } : { name: '' },
   });
+
+  const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof clientSchema>) {
     if (client) {
@@ -66,9 +68,15 @@ export default function ClientForm({ client, onFinished }: ClientFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-            {client ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-            {client ? 'Save Changes' : 'Add Client'}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : client ? (
+              <Save className="mr-2 h-4 w-4" />
+            ) : (
+              <PlusCircle className="mr-2 h-4 w-4" />
+            )}
+            {isSubmitting ? 'Saving...' : client ? 'Save Changes' : 'Add Client'}
         </Button>
       </form>
     </Form>

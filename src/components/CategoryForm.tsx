@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Save } from 'lucide-react';
+import { PlusCircle, Save, Loader2 } from 'lucide-react';
 import type { Category } from '@/lib/types';
 
 const categorySchema = z.object({
@@ -43,6 +43,8 @@ export default function CategoryForm({ category, onFinished }: CategoryFormProps
       type: 'expense',
     },
   });
+
+  const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof categorySchema>) {
     if (category) {
@@ -95,9 +97,15 @@ export default function CategoryForm({ category, onFinished }: CategoryFormProps
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-            {category ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-            {category ? 'Save Changes' : 'Add Category'}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : category ? (
+              <Save className="mr-2 h-4 w-4" />
+            ) : (
+              <PlusCircle className="mr-2 h-4 w-4" />
+            )}
+            {isSubmitting ? 'Saving...' : category ? 'Save Changes' : 'Add Category'}
         </Button>
       </form>
     </Form>

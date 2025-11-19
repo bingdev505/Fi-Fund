@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -6,7 +5,7 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PlusCircle, ListTodo, Pencil, Trash2, CheckCircle, CircleDot, PlayCircle, Bell, Repeat } from 'lucide-react';
+import { PlusCircle, ListTodo, Pencil, Trash2, CheckCircle, CircleDot, PlayCircle, Bell, Repeat, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -103,7 +102,8 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
             recurrence_days: [],
         }
     });
-
+    
+    const { isSubmitting } = form.formState;
     const watchedRecurrence = form.watch('recurrence');
 
     async function onSubmit(values: z.infer<typeof taskSchema>) {
@@ -263,8 +263,9 @@ function TaskForm({ task, onFinished }: TaskFormProps) {
                         </FormItem>
                     )}
                 />
-                <Button type="submit" className="w-full">
-                    {task ? 'Save Changes' : 'Add Task'}
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isSubmitting ? 'Saving...' : task ? 'Save Changes' : 'Add Task'}
                 </Button>
             </form>
         </Form>

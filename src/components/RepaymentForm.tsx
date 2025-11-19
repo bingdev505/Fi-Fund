@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, CalendarIcon } from 'lucide-react';
+import { PlusCircle, CalendarIcon, Loader2 } from 'lucide-react';
 import type { Loan } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -49,6 +48,7 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
     },
   });
   
+  const { isSubmitting } = form.formState;
   const watchedAmount = form.watch('amount');
 
   async function onSubmit(values: z.infer<typeof repaymentSchema>) {
@@ -171,9 +171,9 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
                 This will mark the loan as fully paid.
             </div>
         )}
-        <Button type="submit" className="w-full">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Log Repayment
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+            {isSubmitting ? 'Logging...' : 'Log Repayment'}
         </Button>
       </form>
     </Form>

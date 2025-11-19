@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -6,7 +5,7 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PlusCircle, KeyRound, Pencil, Trash2, Eye, EyeOff, Copy, Link as LinkIcon } from 'lucide-react';
+import { PlusCircle, KeyRound, Pencil, Trash2, Eye, EyeOff, Copy, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,12 +56,14 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
         }
     });
 
-    function onSubmit(values: z.infer<typeof credentialSchema>) {
+    const { isSubmitting } = form.formState;
+
+    async function onSubmit(values: z.infer<typeof credentialSchema>) {
         if (credential) {
-            updateCredential(credential.id, values);
+            await updateCredential(credential.id, values);
             toast({ title: "Credential Updated" });
         } else {
-            addCredential(values);
+            await addCredential(values);
             toast({ title: "Credential Added" });
         }
         onFinished();
@@ -123,8 +124,9 @@ function CredentialForm({ credential, onFinished }: CredentialFormProps) {
                         </FormItem>
                     )}
                 />
-                <Button type="submit" className="w-full">
-                    {credential ? 'Save Changes' : 'Add Credential'}
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isSubmitting ? 'Saving...' : credential ? 'Save Changes' : 'Add Credential'}
                 </Button>
             </form>
         </Form>

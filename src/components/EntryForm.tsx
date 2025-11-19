@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,7 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, CalendarIcon } from 'lucide-react';
+import { PlusCircle, CalendarIcon, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -134,6 +133,7 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     },
   });
 
+  const { isSubmitting } = form.formState;
   const entryType = form.watch('entryType');
   const selectedProjectId = form.watch('project_id');
 
@@ -615,9 +615,13 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
           </div>
         )}
 
-        <Button type="submit" className="w-full" disabled={allBankAccounts.length === 0}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Entry
+        <Button type="submit" className="w-full" disabled={allBankAccounts.length === 0 || isSubmitting}>
+          {isSubmitting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <PlusCircle className="mr-2 h-4 w-4" />
+          )}
+          {isSubmitting ? 'Adding...' : 'Add Entry'}
         </Button>
         {allBankAccounts.length === 0 && (
             <p className="text-sm text-destructive text-center">Please add a bank account in Settings before adding entries.</p>
@@ -626,5 +630,3 @@ export default function EntryForm({ onFinished }: EntryFormProps) {
     </Form>
   );
 }
-
-    
