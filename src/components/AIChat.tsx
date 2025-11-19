@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
@@ -230,8 +229,8 @@ export default function AIChat() {
         if (Array.isArray(logResultPayload)) {
             const logResults = logResultPayload;
             let responseParts: string[] = [];
-            const newTransactions: Omit<Transaction, 'id' | 'date' | 'user_id'>[] = [];
-            const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'date' | 'status'>[] = [];
+            const newTransactions: Omit<Transaction, 'id' | 'user_id'>[] = [];
+            const newLoans: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'status'>[] = [];
             
             const projectId = activeProject?.id === 'all' ? undefined : activeProject?.id;
             const businessName = activeProject?.name || 'Personal';
@@ -599,5 +598,3 @@ export default function AIChat() {
     </div>
   );
 }
-
-    
