@@ -197,19 +197,20 @@ export default function AIChat() {
       });
       
       let chatHistoryForContext = '';
-      if (messages.length > 0) {
-        const lastMessage = messages[messages.length - 1];
-
+      const recentMessages = messages.slice(-5);
+      if (recentMessages.length > 0) {
+        // Check if the last message is recent (e.g., within 5 minutes)
+        const lastMessage = recentMessages[recentMessages.length - 1];
         if (lastMessage?.timestamp) {
             const lastMessageDate = new Date(lastMessage.timestamp);
             const now = new Date();
             const timeDiffMinutes = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60);
-
+            
+            // Only include history if the conversation is ongoing
             if (timeDiffMinutes < 5) {
-            chatHistoryForContext = messages
-                .slice(-4)
-                .map(msg => `${msg.role}: ${msg.content}`)
-                .join('\n');
+                chatHistoryForContext = recentMessages
+                    .map(msg => `${msg.role}: ${msg.content}`)
+                    .join('\n');
             }
         }
       }

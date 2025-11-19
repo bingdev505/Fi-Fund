@@ -64,8 +64,12 @@ const logFinancialDataPrompt = ai.definePrompt({
     -   **Unclear split**: "bill 1000, I paid with 2 friends" -> Ask: "How should the 1000 be split? Was it split equally, or did you cover a different amount?"
     -   If you need to ask a question, use the 'clarification_needed' field in your response.
 
-2.  **Multiple Transactions**: If a user's message implies multiple financial events, create a separate object for each one in the array.
-3.  **Splitting Expenses**: If a user mentions an expense shared with other people (e.g., "food for 500 with 3 friends"), you must:
+2.  **Context is Everything**: Use the 'chat_history' to understand follow-up messages.
+    -   If history is "user: food 50" and the new input is "60", you must infer this is another 'food' expense of 60.
+    -   If history contains a clarification question from you, the user's new input is likely the answer. Use it to complete the original transaction.
+
+3.  **Multiple Transactions**: If a user's message implies multiple financial events, create a separate object for each one in the array.
+4.  **Splitting Expenses**: If a user mentions an expense shared with other people (e.g., "food for 500 with 3 friends"), you must:
     a. Calculate the cost per person.
     b. Create an 'expense' transaction for the user's share.
     c. Create a 'loanGiven' transaction for each other person's share.
@@ -74,31 +78,31 @@ const logFinancialDataPrompt = ai.definePrompt({
         - User's share is a 125 'expense'.
         - Create three 'loanGiven' transactions of 125 each for "Shammas", "Muzail", and "Hakim".
         - The final 'result' should be an array of FOUR transaction objects.
-4.  **Field Assignment**:
+5.  **Field Assignment**:
     - For 'loanGiven', 'loanTaken', or 'repayment', the 'contact_id' field MUST contain the name of the person/entity.
     - For 'income' or 'expense', use the 'category' field for the type of transaction (e.g., 'Salary', 'Groceries').
     - For 'income' or 'expense', if a source/company/person is mentioned (the 'who' or 'where from'), put their name in the 'client_name' field.
-5.  **Client vs. Category Example**: For the input "salary get from folksdev 5000":
+6.  **Client vs. Category Example**: For the input "salary get from folksdev 5000":
     - 'transaction_type' should be 'income'.
     - 'category' should be 'Salary'.
     - 'client_name' should be 'folksdev'.
     - 'amount' should be 5000.
-6.  **Bank Account**: If the user mentions an account (e.g., 'from savings', 'at Federal bank'), extract only the name like 'savings' or 'federal' into the 'accountName' field. If no account is mentioned, check the chat history. Do not include the account name in the description or category.
-7.  **Loan Direction**:
+7.  **Bank Account**: If the user mentions an account (e.g., 'from savings', 'at Federal bank'), extract only the name like 'savings' or 'federal' into the 'accountName' field. If no account is mentioned, check the chat history. Do not include the account name in the description or category.
+8.  **Loan Direction**:
     - "I gave [Name] a loan", "loan given for [Name]", "lent [Name] 500" -> 'loanGiven', contact_id is '[Name]'.
     - "[Name] gave me a loan", "loan taken from [Name]", "borrowed 500 from [Name]" -> 'loanTaken', contact_id is '[Name]'.
-8.  **Repayment**:
+9.  **Repayment**:
     - "repaid [Name]" or "[Name] repaid me" -> 'repayment', contact_id is '[Name]'.
-9.  **Amount**: Ensure the amount is always a positive number.
-10. **Description**: If not provided, create a short, relevant summary.
-
-### User Input:
-{{{chat_input}}}
+10. **Amount**: Ensure the amount is always a positive number.
+11. **Description**: If not provided, create a short, relevant summary based on the transaction type and category/contact.
 
 ### Chat History (for context):
 {{{chat_history}}}
 
-Analyze the input. If you are certain, return a JSON object with a 'result' field containing an array of all identified financial transactions. If you are uncertain, return a 'result' object with a 'clarification_needed' field containing your question to the user.`,
+### User Input:
+{{{chat_input}}}
+
+Analyze the input and history. If you are certain, return a JSON object with a 'result' field containing an array of all identified financial transactions. If you are uncertain, return a 'result' object with a 'clarification_needed' field containing your question to the user.`,
 });
 
 const logFinancialDataFlow = ai.defineFlow(
