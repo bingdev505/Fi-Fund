@@ -831,8 +831,8 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       username: credentialData.username,
       project_id: credentialData.project_id,
     };
-    if (encryptedCreds.password) dbData.password = encryptedCreds.password;
-    if (encryptedCreds.totp_secret) dbData.totp_secret = encryptedCreds.totp_secret;
+    if (credentialData.password) dbData.password = encryptedCreds.password;
+    if (credentialData.totp_secret) dbData.totp_secret = encryptedCreds.totp_secret;
 
     const { data: updatedCredential, error } = await supabase.from('credentials').update(dbData).eq('id', credentialId).select().single();
     if (error) {
