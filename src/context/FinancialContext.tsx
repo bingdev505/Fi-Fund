@@ -28,12 +28,11 @@ interface FinancialContextType {
   updateTransaction: (transactionId: string, updatedData: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (transaction: Transaction, chatMessageId?: string) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
-  addRepayment: (loan: Loan, amount: number, accountId: string, date: Date, returnRef?: boolean) => Promise<{ id: string } | void>;
+  addRepayment: (contactId: string, amount: number, accountId: string, date: Date, returnRef?: boolean) => Promise<{ id: string } | void | undefined>;
   
   loans: Loan[];
   allLoans: Loan[];
-  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'status'>, returnRef?: boolean) => Promise<{ id: string } | void>;
-  addLoans: (loans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[]) => Promise<void>;
+  addLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   addOrUpdateLoan: (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'status'>, returnRef?: boolean) => Promise<{ id: string } | void>;
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string, chatMessageId?: string) => Promise<void>;
@@ -557,28 +556,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     return newTransactions.map(t => ({ id: t.id }));
   };
 
-  const addLoans = async (loans: Omit<Loan, 'id' | 'user_id' | 'created_at'>[]) => {
-    if (!user || loans.length === 0) return;
-    const now = new Date().toISOString();
-    const dbLoans = loans.map(l => ({
-      ...l,
-      date: l.date || now,
-      project_id: l.project_id || (allProjects.find(p => p.name === PERSONAL_PROJECT_NAME))?.id,
-      created_at: now,
-      user_id: user.id,
-    }));
-
-    const { data: newLoans, error } = await supabase.from('loans').insert(dbLoans).select();
-    if (error) throw error;
-
-    updateStateAndCache(setAllLoans, (prev: Loan[]) => [...prev, ...newLoans]);
-
-    const projectIds = [...new Set(newLoans.map(l => l.project_id).filter(Boolean))];
-    for (const projectId of projectIds) {
-      triggerSync(projectId!);
-    }
-  };
-
   const addTransaction = async (transactionData: Omit<Transaction, 'id'| 'user_id'>, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
     const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
@@ -649,31 +626,60 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   };
     
-  const addRepayment = async (loan: Loan, amount: number, accountId: string, date: Date, returnRef = false): Promise<{ id: string } | void> => {
+  const addRepayment = async (contactId: string, amount: number, accountId: string, date: Date, returnRef = false) => {
     if (!user) throw new Error("User not authenticated");
+    let amountToRepay = amount;
 
-    const transactionData = {
-        type: 'repayment' as 'repayment',
-        amount,
-        date: date.toISOString(),
-        category: 'Loan Repayment',
-        description: `Repayment for loan to/from ${allContacts.find(c => c.id === loan.contact_id)?.name || 'Unknown'}`,
-        account_id: accountId,
-        loan_id: loan.id,
-        project_id: loan.project_id
-    };
+    // Get all active loans for the contact, sorted oldest first
+    const contactLoans = allLoans
+      .filter(l => l.contact_id === contactId && l.status === 'active')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const newDocRef = await addTransaction(transactionData, true);
-    
-    const totalRepaid = allTransactions
-        .filter(t => t.loan_id === loan.id && t.type === 'repayment')
-        .reduce((sum, t) => sum + t.amount, 0) + amount;
-        
-    if (totalRepaid >= loan.amount) {
-        await updateLoan(loan.id, { status: 'paid' });
+    if (contactLoans.length === 0) {
+      toast({ variant: 'destructive', title: 'No active loans for this contact' });
+      return;
     }
-    if (returnRef) return newDocRef as { id: string };
+
+    const transactionRefs: { id: string }[] = [];
+
+    for (const loan of contactLoans) {
+        if (amountToRepay <= 0) break;
+
+        const loanRepayments = allTransactions
+            .filter(t => t.loan_id === loan.id && t.type === 'repayment')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const outstanding = loan.amount - loanRepayments;
+        const paymentForThisLoan = Math.min(amountToRepay, outstanding);
+
+        if (paymentForThisLoan > 0) {
+            const repaymentTx: Omit<Transaction, 'id' | 'user_id'> = {
+                type: 'repayment',
+                amount: paymentForThisLoan,
+                date: date.toISOString(),
+                category: 'Loan Repayment',
+                description: `Repayment for loan from ${allContacts.find(c => c.id === contactId)?.name || 'Unknown'}`,
+                account_id: accountId,
+                loan_id: loan.id,
+                project_id: loan.project_id
+            };
+            const newTxRef = await addTransaction(repaymentTx, true);
+            if (newTxRef) {
+                transactionRefs.push(newTxRef);
+            }
+            amountToRepay -= paymentForThisLoan;
+
+            if (loanRepayments + paymentForThisLoan >= loan.amount) {
+                await updateLoan(loan.id, { status: 'paid' });
+            }
+        }
+    }
+    
+    if (returnRef && transactionRefs.length > 0) {
+        return transactionRefs[0];
+    }
   };
+
 
   const addBankAccount = async (account: Omit<BankAccount, 'id' | 'user_id' | 'is_primary'>, project_id?: string) => {
     if (!user) return;
@@ -872,14 +878,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   };
 
   const addOrUpdateLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at' | 'status'>, returnRef = false): Promise<{ id: string } | void> => {
-    const existingLoan = allLoans.find(l => l.contact_id === loanData.contact_id && l.status === 'active' && l.type === loanData.type);
-    if (existingLoan) {
-      const newAmount = existingLoan.amount + loanData.amount;
-      await updateLoan(existingLoan.id, { amount: newAmount });
-      if (returnRef) return { id: existingLoan.id };
-    } else {
-      return addLoan({ ...loanData, status: 'active' }, returnRef);
-    }
+    return addLoan({ ...loanData, status: 'active' }, returnRef);
   };
 
   const updateLoan = async (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => {
@@ -999,7 +998,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
     tasks: filteredTasks, addTask, updateTask, deleteTask,
     credentials: filteredCredentials, addCredential, updateCredential, deleteCredential,
-    loans: filteredLoans, allLoans, addLoan, addLoans, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
+    loans: filteredLoans, allLoans, addLoan, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
     chatMessages: allChatMessages,
     addChatMessage, 
     updateChatMessage, 
@@ -1017,7 +1016,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       addCategory, updateCategory, deleteCategory,
       addTask, updateTask, deleteTask,
       addCredential, updateCredential, deleteCredential,
-      addLoan, addLoans, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
+      addLoan, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
       addChatMessage, updateChatMessage, deleteChatMessage,
       setCurrency,
       triggerSync

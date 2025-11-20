@@ -71,16 +71,32 @@ export default function AIChat() {
 
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
   const [isRepayLoanOpen, setIsRepayLoanOpen] = useState(false);
-  const [selectedLoanToRepay, setSelectedLoanToRepay] = useState<Loan | null>(null);
+  const [selectedRepayContact, setSelectedRepayContact] = useState<Contact | null>(null);
 
-  const activeLoans = useMemo(() => loans.filter(l => l.status === 'active'), [loans]);
-  const loanRepayments = useMemo(() => {
+  const contactsWithActiveLoans = useMemo(() => {
+    const activeLoanContactIds = new Set(loans.filter(l => l.status === 'active').map(l => l.contact_id));
+    return contacts.filter(c => activeLoanContactIds.has(c.id));
+  }, [loans, contacts]);
+
+  const contactLoanTotals = useMemo(() => {
+    const totals = new Map<string, number>();
     const repayments = new Map<string, number>();
+
     transactions.filter(t => t.type === 'repayment' && t.loan_id).forEach(t => {
       repayments.set(t.loan_id!, (repayments.get(t.loan_id!) || 0) + t.amount);
     });
-    return repayments;
-  }, [transactions]);
+
+    loans.forEach(loan => {
+        if(loan.status === 'active') {
+            const currentTotal = totals.get(loan.contact_id) || 0;
+            const outstanding = loan.amount - (repayments.get(loan.id) || 0);
+            totals.set(loan.contact_id, currentTotal + outstanding);
+        }
+    });
+
+    return totals;
+
+  }, [loans, transactions]);
 
 
   const formatCurrency = (amount: number) => {
@@ -319,17 +335,9 @@ export default function AIChat() {
                         if (!contact) {
                              responseParts.push(`Could not find contact '${logResult.contact_id}'.`);
                         } else {
-                            const activeLoansForContact = loans.filter(l => l.contact_id === contact.id && l.status === 'active');
-                            if (activeLoansForContact.length === 0) {
-                                responseParts.push(`No active loans with ${contact.name} to repay.`);
-                            } else if (activeLoansForContact.length > 1) {
-                                responseParts.push(`Multiple active loans with ${contact.name}. Please log repayment manually.`);
-                            } else {
-                                const loanToRepay = activeLoansForContact[0];
-                                const repaymentRef = await addRepayment(loanToRepay, logResult.amount, accountIdToUse, new Date(), true);
-                                if (repaymentRef) transactionIds.push(repaymentRef.id);
-                                responseParts.push(`Logged repayment of ${formatCurrency(logResult.amount)} for loan with ${contact.name} under '${businessName}'.`);
-                            }
+                            const repaymentRef = await addRepayment(contact.id, logResult.amount, accountIdToUse, new Date(), true);
+                            if (repaymentRef) transactionIds.push(repaymentRef.id);
+                            responseParts.push(`Logged repayment of ${formatCurrency(logResult.amount)} for loan with ${contact.name} under '${businessName}'.`);
                         }
                     }
                 } else { // loanGiven or loanTaken
@@ -350,14 +358,16 @@ export default function AIChat() {
                         }
                     }
 
-                    newLoans.push({
+                    const newLoan = {
                         type: logResult.transaction_type,
                         amount: logResult.amount,
                         contact_id: contact.id, 
                         description: logResult.description || 'AI Logged Loan',
                         account_id: accountIdToUse,
                         project_id: projectId
-                    });
+                    };
+                    const addedRef = await addOrUpdateLoan(newLoan, true);
+                    if (addedRef) transactionIds.push(addedRef.id);
 
                      const toastDescription = `${logResult.transaction_type === 'loanGiven' ? 'Loan given to' : 'Loan taken from'} ${contact.name} for ${formatCurrency(logResult.amount)} logged under '${businessName}' against account ${accountNameToUse}.`;
                     responseParts.push(toastDescription);
@@ -367,11 +377,6 @@ export default function AIChat() {
             if(newTransactions.length > 0) {
                 const addedRefs = await addTransactions(newTransactions);
                 transactionIds.push(...addedRefs.map(r => r.id));
-            }
-
-            for (const loan of newLoans) {
-                const addedRef = await addOrUpdateLoan(loan, true);
-                if (addedRef) transactionIds.push(addedRef.id);
             }
 
             assistantResponse = responseParts.join(' ');
@@ -514,7 +519,7 @@ export default function AIChat() {
                   </DialogContent>
               </Dialog>
               <Dialog open={isRepayLoanOpen} onOpenChange={(open) => {
-                  if (!open) setSelectedLoanToRepay(null);
+                  if (!open) setSelectedRepayContact(null);
                   setIsRepayLoanOpen(open);
               }}>
                   <DialogTrigger asChild>
@@ -527,30 +532,28 @@ export default function AIChat() {
                       <DialogHeader>
                           <DialogTitle>Repay Loan</DialogTitle>
                       </DialogHeader>
-                      {selectedLoanToRepay ? (
+                      {selectedRepayContact ? (
                           <RepaymentForm 
-                              loan={selectedLoanToRepay} 
-                              outstandingAmount={selectedLoanToRepay.amount - (loanRepayments.get(selectedLoanToRepay.id) || 0)}
+                              contactId={selectedRepayContact.id} 
                               onFinished={() => {
-                                  setSelectedLoanToRepay(null);
+                                  setSelectedRepayContact(null);
                                   setIsRepayLoanOpen(false);
                               }}
                           />
                       ) : (
                           <div className="py-4">
-                          {activeLoans.length > 0 ? (
+                          {contactsWithActiveLoans.length > 0 ? (
                           <ul className="space-y-2 max-h-64 overflow-y-auto">
-                              {activeLoans.map(loan => (
-                              <li key={loan.id}>
+                              {contactsWithActiveLoans.map(contact => (
+                              <li key={contact.id}>
                                   <Button
                                   variant="outline"
                                   className="w-full justify-between h-auto py-2"
-                                  onClick={() => setSelectedLoanToRepay(loan)}
+                                  onClick={() => setSelectedRepayContact(contact)}
                                   >
                                   <div className="text-left">
-                                      <p className="font-semibold">{contacts.find(c => c.id === loan.contact_id)?.name}</p>
-                                      <p className="text-sm text-muted-foreground">{formatCurrency(loan.amount)} on {format(new Date(loan.date), "PPP")}</p>
-                                      <p className="text-sm text-yellow-600 font-semibold">Outstanding: {formatCurrency(loan.amount - (loanRepayments.get(loan.id) || 0))}</p>
+                                      <p className="font-semibold">{contact.name}</p>
+                                      <p className="text-sm text-yellow-600 font-semibold">Outstanding: {formatCurrency(contactLoanTotals.get(contact.id) || 0)}</p>
                                   </div>
                                   <ChevronRight className="h-4 w-4" />
                                   </Button>

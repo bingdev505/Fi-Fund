@@ -22,10 +22,10 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useMemo } from 'react';
 
 type RepaymentFormProps = {
-  loan: Loan;
-  outstandingAmount: number;
+  contactId: string;
   onFinished: () => void;
 };
 
@@ -35,9 +35,23 @@ const repaymentSchema = z.object({
   date: z.date(),
 });
 
-export default function RepaymentForm({ loan, outstandingAmount, onFinished }: RepaymentFormProps) {
-  const { addRepayment, currency, bankAccounts, contacts } = useFinancials();
+export default function RepaymentForm({ contactId, onFinished }: RepaymentFormProps) {
+  const { addRepayment, currency, bankAccounts, contacts, loans, transactions } = useFinancials();
   const { toast } = useToast();
+  
+  const { outstandingAmount, loanType, contactName } = useMemo(() => {
+    const contactLoans = loans.filter(l => l.contact_id === contactId && l.status === 'active');
+    const type = contactLoans.length > 0 ? contactLoans[0].type : undefined;
+    const name = contacts.find(c => c.id === contactId)?.name || 'Unknown Contact';
+
+    const totalOwed = contactLoans.reduce((sum, loan) => {
+        const repayments = transactions.filter(t => t.loan_id === loan.id).reduce((s, t) => s + t.amount, 0);
+        return sum + (loan.amount - repayments);
+    }, 0);
+
+    return { outstandingAmount: totalOwed, loanType: type, contactName: name };
+  }, [contactId, loans, contacts, transactions]);
+
 
   const form = useForm<z.infer<typeof repaymentSchema>>({
     resolver: zodResolver(repaymentSchema),
@@ -58,11 +72,10 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
     }
 
     try {
-        const contactName = contacts.find(c => c.id === loan.contact_id)?.name || 'Unknown';
-        await addRepayment(loan, values.amount, values.account_id, values.date);
+        await addRepayment(contactId, values.amount, values.account_id, values.date);
         toast({
             title: 'Repayment Logged',
-            description: `A repayment of ${formatCurrency(values.amount)} has been logged for the loan to/from ${contactName}.`
+            description: `A repayment of ${formatCurrency(values.amount)} has been logged for loans with ${contactName}.`
         })
         onFinished();
     } catch (error: any) {
@@ -77,15 +90,13 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   };
-  
-  const contactName = contacts.find(c => c.id === loan.contact_id)?.name || 'Unknown Contact';
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="p-4 border rounded-md bg-muted/50">
-            <p className="text-sm text-muted-foreground">Loan to/from: <span className='font-medium text-foreground'>{contactName}</span></p>
-            <p className="text-sm text-muted-foreground">Outstanding Amount: <span className='font-medium text-foreground'>{formatCurrency(outstandingAmount)}</span></p>
+            <p className="text-sm text-muted-foreground">Loan Contact: <span className='font-medium text-foreground'>{contactName}</span></p>
+            <p className="text-sm text-muted-foreground">Total Outstanding: <span className='font-medium text-foreground'>{formatCurrency(outstandingAmount)}</span></p>
         </div>
         <FormField
             control={form.control}
@@ -107,7 +118,7 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>
-                        {loan.type === 'loanGiven' ? 'Repay To Account' : 'Repay From Account'}
+                        {loanType === 'loanGiven' ? 'Repay To Account' : 'Repay From Account'}
                     </FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
@@ -168,7 +179,7 @@ export default function RepaymentForm({ loan, outstandingAmount, onFinished }: R
         </div>
          {Number(watchedAmount).toFixed(2) === outstandingAmount.toFixed(2) && outstandingAmount > 0 && (
             <div className="text-sm p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
-                This will mark the loan as fully paid.
+                This will mark all active loans with this contact as fully paid.
             </div>
         )}
         <Button type="submit" className="w-full" disabled={isSubmitting}>

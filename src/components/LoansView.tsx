@@ -5,7 +5,7 @@ import { useFinancials } from '@/hooks/useFinancials';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PlusCircle, Handshake, Loader2, Pencil, Trash2, HandCoins } from 'lucide-react';
+import { PlusCircle, Handshake, Loader2, Pencil, Trash2, HandCoins, ChevronDown, ChevronUp } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,7 +24,6 @@ import { Combobox } from './ui/combobox';
 import type { Loan } from '@/lib/types';
 import RepaymentForm from './RepaymentForm';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
-import SummaryCard from './SummaryCard';
 import EditEntryForm from './EditEntryForm';
 
 
@@ -41,7 +40,7 @@ const loanSchema = z.object({
 
 
 function LoanForm({ onFinished }: { onFinished: () => void; }) {
-  const { addLoan, projects, activeProject, contacts, addContact, allBankAccounts, currency } = useFinancials();
+  const { addLoan, projects, activeProject, contacts, addContact, allBankAccounts, currency, loans } = useFinancials();
   const { toast } = useToast();
   const personalProject = useMemo(() => projects.find(p => p.name === 'Personal'), [projects]);
 
@@ -59,6 +58,9 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
   });
 
   const { isSubmitting } = form.formState;
+  const watchedContactId = form.watch('contact_id');
+  const watchedLoanType = form.watch('type');
+
   const contactOptions = useMemo(() => {
     return contacts.map(c => ({ value: c.id, label: c.name }));
   }, [contacts]);
@@ -66,6 +68,17 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
   };
+  
+  const existingLoanInfo = useMemo(() => {
+    if (!watchedContactId) return null;
+    const contactName = contacts.find(c => c.id === watchedContactId)?.name || watchedContactId;
+    
+    const totalTaken = loans.filter(l => l.contact_id === watchedContactId && l.type === 'loanTaken' && l.status === 'active').reduce((sum, l) => sum + l.amount, 0);
+    const totalGiven = loans.filter(l => l.contact_id === watchedContactId && l.type === 'loanGiven' && l.status === 'active').reduce((sum, l) => sum + l.amount, 0);
+
+    return { contactName, totalTaken, totalGiven };
+  }, [watchedContactId, loans, contacts]);
+
 
   async function onSubmit(values: z.infer<typeof loanSchema>) {
     let contactId = values.contact_id;
@@ -97,6 +110,13 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {existingLoanInfo && (existingLoanInfo.totalGiven > 0 || existingLoanInfo.totalTaken > 0) && (
+             <div className="p-3 bg-muted/50 rounded-md border text-sm">
+                 <p className='font-medium mb-1'>Existing loans with {existingLoanInfo.contactName}:</p>
+                 {existingLoanInfo.totalGiven > 0 && <p>You have given: <span className="font-semibold">{formatCurrency(existingLoanInfo.totalGiven)}</span></p>}
+                 {existingLoanInfo.totalTaken > 0 && <p>You have taken: <span className="font-semibold">{formatCurrency(existingLoanInfo.totalTaken)}</span></p>}
+             </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
                 control={form.control}
@@ -282,7 +302,7 @@ function LoanForm({ onFinished }: { onFinished: () => void; }) {
           )}
         />
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4"/>}
           {isSubmitting ? 'Adding...' : 'Add Loan'}
         </Button>
       </form>
@@ -299,15 +319,12 @@ export default function LoansView() {
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [deletingLoan, setDeletingLoan] = useState<Loan | null>(null);
   const [repayingLoan, setRepayingLoan] = useState<Loan | null>(null);
+  const [repayingContactId, setRepayingContactId] = useState<string | null>(null);
+
 
   const handleEditClick = (loan: Loan) => {
     setEditingLoan(loan);
     setEditFormOpen(true);
-  };
-  
-  const handleAddClick = () => {
-    setEditingLoan(null);
-    setAddFormOpen(true);
   };
 
   const handleDelete = () => {
@@ -326,31 +343,45 @@ export default function LoansView() {
   }
 
   const {
-    activeLoansGiven,
-    paidLoansGiven,
-    activeLoansTaken,
-    paidLoansTaken,
+    groupedLoansGiven,
+    groupedLoansTaken,
     loanRepayments,
   } = useMemo(() => {
     const repayments = new Map<string, number>();
     transactions.filter(t => t.type === 'repayment' && t.loan_id).forEach(t => {
       repayments.set(t.loan_id!, (repayments.get(t.loan_id!) || 0) + t.amount);
     });
-  
-    const allGiven = loans.filter(l => l.type === 'loanGiven');
-    const allTaken = loans.filter(l => l.type === 'loanTaken');
+
+    const groupLoans = (loanList: Loan[]) => {
+      const grouped = new Map<string, { contactName: string; loans: Loan[]; total: number; totalRepaid: number }>();
+      loanList.forEach(loan => {
+        if (!grouped.has(loan.contact_id)) {
+          grouped.set(loan.contact_id, {
+            contactName: getContactName(loan.contact_id),
+            loans: [],
+            total: 0,
+            totalRepaid: 0,
+          });
+        }
+        const entry = grouped.get(loan.contact_id)!;
+        entry.loans.push(loan);
+        if (loan.status === 'active') {
+          entry.total += loan.amount;
+          entry.totalRepaid += repayments.get(loan.id) || 0;
+        }
+      });
+      return Array.from(grouped.values());
+    };
     
     return {
-      activeLoansGiven: allGiven.filter(l => l.status === 'active'),
-      paidLoansGiven: allGiven.filter(l => l.status === 'paid'),
-      activeLoansTaken: allTaken.filter(l => l.status === 'active'),
-      paidLoansTaken: allTaken.filter(l => l.status === 'paid'),
+      groupedLoansGiven: groupLoans(loans.filter(l => l.type === 'loanGiven')),
+      groupedLoansTaken: groupLoans(loans.filter(l => l.type === 'loanTaken')),
       loanRepayments: repayments,
     }
-  }, [loans, transactions]);
+  }, [loans, transactions, contacts]);
 
   const closeRepayForm = () => {
-      setRepayingLoan(null);
+      setRepayingContactId(null);
   }
 
   const handleEditFinished = () => {
@@ -359,7 +390,7 @@ export default function LoansView() {
   }
 
   return (
-    <Dialog open={repayingLoan !== null} onOpenChange={(open) => !open && setRepayingLoan(null)}>
+    <Dialog open={repayingContactId !== null} onOpenChange={(open) => !open && setRepayingContactId(null)}>
       <AlertDialog>
         <div className="space-y-6">
         <Card>
@@ -371,7 +402,7 @@ export default function LoansView() {
               </div>
               <Dialog open={addFormOpen} onOpenChange={setAddFormOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={handleAddClick}>
+                  <Button onClick={() => setAddFormOpen(true)}>
                       <PlusCircle className="mr-2 h-4 w-4" /> Add Loan
                   </Button>
                 </DialogTrigger>
@@ -383,82 +414,42 @@ export default function LoansView() {
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
-                <>
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Loans Given</h3>
-                  {activeLoansGiven.length > 0 ? (
-                    <div className="border rounded-md">
-                      <ul className="divide-y divide-border">
-                        {activeLoansGiven.map(loan => (
-                          <LoanItem
-                            key={loan.id}
-                            loan={loan}
-                            contactName={getContactName(loan.contact_id)}
-                            formatCurrency={formatCurrency}
-                            repaidAmount={loanRepayments.get(loan.id) || 0}
-                            onEditClick={handleEditClick}
-                            onDeleteClick={setDeletingLoan}
-                            onRepayClick={setRepayingLoan}
-                          />
-                        ))}
-                      </ul>
-                    </div>
-                  ) : <p className="text-sm text-muted-foreground text-center py-4">No active loans given.</p>}
-                  {paidLoansGiven.length > 0 && (
-                      <Accordion type="single" collapsible className="w-full mt-4">
-                          <AccordionItem value="paid-given">
-                              <AccordionTrigger>View Paid Loans ({paidLoansGiven.length})</AccordionTrigger>
-                              <AccordionContent>
-                                <div className="border rounded-md">
-                                    <ul className="divide-y divide-border">
-                                        {paidLoansGiven.map(loan => (
-                                            <LoanItem key={loan.id} loan={loan} contactName={getContactName(loan.contact_id)} formatCurrency={formatCurrency} repaidAmount={loanRepayments.get(loan.id) || 0} onEditClick={handleEditClick} onDeleteClick={setDeletingLoan} onRepayClick={setRepayingLoan} />
-                                        ))}
-                                    </ul>
-                                </div>
-                              </AccordionContent>
-                          </AccordionItem>
-                      </Accordion>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Loans Taken</h3>
-                  {activeLoansTaken.length > 0 ? (
-                     <div className="border rounded-md">
-                      <ul className="divide-y divide-border">
-                        {activeLoansTaken.map(loan => (
-                           <LoanItem
-                            key={loan.id}
-                            loan={loan}
-                            contactName={getContactName(loan.contact_id)}
-                            formatCurrency={formatCurrency}
-                            repaidAmount={loanRepayments.get(loan.id) || 0}
-                            onEditClick={handleEditClick}
-                            onDeleteClick={setDeletingLoan}
-                            onRepayClick={setRepayingLoan}
-                          />
-                        ))}
-                      </ul>
-                    </div>
-                  ) : <p className="text-sm text-muted-foreground text-center py-4">No active loans taken.</p>}
-                   {paidLoansTaken.length > 0 && (
-                      <Accordion type="single" collapsible className="w-full mt-4">
-                          <AccordionItem value="paid-taken">
-                              <AccordionTrigger>View Paid Loans ({paidLoansTaken.length})</AccordionTrigger>
-                              <AccordionContent>
-                                <div className="border rounded-md">
-                                    <ul className="divide-y divide-border">
-                                        {paidLoansTaken.map(loan => (
-                                            <LoanItem key={loan.id} loan={loan} contactName={getContactName(loan.contact_id)} formatCurrency={formatCurrency} repaidAmount={loanRepayments.get(loan.id) || 0} onEditClick={handleEditClick} onDeleteClick={setDeletingLoan} onRepayClick={setRepayingLoan} />
-                                        ))}
-                                    </ul>
-                                </div>
-                              </AccordionContent>
-                          </AccordionItem>
-                      </Accordion>
-                  )}
-                </div>
-                </>
+            <div>
+              <h3 className="text-lg font-medium mb-2">Loans Given (You are the lender)</h3>
+              {groupedLoansGiven.length > 0 ? (
+                <Accordion type="single" collapsible className="w-full">
+                  {groupedLoansGiven.map(group => (
+                    <ContactLoanGroup 
+                      key={group.contactName}
+                      group={group}
+                      formatCurrency={formatCurrency}
+                      loanRepayments={loanRepayments}
+                      onEditClick={handleEditClick}
+                      onDeleteClick={setDeletingLoan}
+                      onRepayClick={(loan) => setRepayingContactId(loan.contact_id)}
+                    />
+                  ))}
+                </Accordion>
+              ) : <p className="text-sm text-muted-foreground text-center py-4">No loans given.</p>}
+            </div>
+            <div>
+              <h3 className="text-lg font-medium mb-2">Loans Taken (You are the borrower)</h3>
+              {groupedLoansTaken.length > 0 ? (
+                 <Accordion type="single" collapsible className="w-full">
+                  {groupedLoansTaken.map(group => (
+                    <ContactLoanGroup 
+                      key={group.contactName}
+                      group={group}
+                      formatCurrency={formatCurrency}
+                      loanRepayments={loanRepayments}
+                      onEditClick={handleEditClick}
+                      onDeleteClick={setDeletingLoan}
+                      onRepayClick={(loan) => setRepayingContactId(loan.contact_id)}
+                    />
+                  ))}
+                </Accordion>
+              ) : <p className="text-sm text-muted-foreground text-center py-4">No loans taken.</p>}
+            </div>
           </CardContent>
         </Card>
         </div>
@@ -481,24 +472,63 @@ export default function LoansView() {
             </DialogContent>
         </Dialog>
       </AlertDialog>
-
-       <DialogContent>
-          <DialogHeader>
-              <DialogTitle>Log Repayment</DialogTitle>
-          </DialogHeader>
-          {repayingLoan && <RepaymentForm
-              loan={repayingLoan}
-              outstandingAmount={repayingLoan.amount - (loanRepayments.get(repayingLoan.id) || 0)}
-              onFinished={closeRepayForm}
-          />}
-      </DialogContent>
+        {repayingContactId && (
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Log Repayment</DialogTitle>
+                </DialogHeader>
+                <RepaymentForm
+                    contactId={repayingContactId}
+                    onFinished={closeRepayForm}
+                />
+            </DialogContent>
+        )}
     </Dialog>
   );
 }
 
-const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClick, onRepayClick, repaidAmount }: {
+const ContactLoanGroup = ({ group, formatCurrency, loanRepayments, onEditClick, onDeleteClick, onRepayClick }: {
+    group: { contactName: string; loans: Loan[]; total: number; totalRepaid: number; };
+    formatCurrency: (amount: number) => string;
+    loanRepayments: Map<string, number>;
+    onEditClick: (loan: Loan) => void;
+    onDeleteClick: (loan: Loan) => void;
+    onRepayClick: (loan: Loan) => void;
+}) => {
+    const outstanding = group.total - group.totalRepaid;
+
+    return (
+        <AccordionItem value={group.contactName}>
+            <AccordionTrigger>
+                <div className="flex justify-between items-center w-full pr-4">
+                    <span className="font-medium">{group.contactName}</span>
+                    <div className="text-right">
+                       {outstanding > 0 && <span className="font-semibold text-yellow-600">{formatCurrency(outstanding)}</span>}
+                        <p className="text-xs text-muted-foreground">Total: {formatCurrency(group.total)}</p>
+                    </div>
+                </div>
+            </AccordionTrigger>
+            <AccordionContent>
+                <ul className="divide-y divide-border border rounded-md">
+                    {group.loans.map(loan => (
+                        <LoanItem
+                            key={loan.id}
+                            loan={loan}
+                            formatCurrency={formatCurrency}
+                            repaidAmount={loanRepayments.get(loan.id) || 0}
+                            onEditClick={onEditClick}
+                            onDeleteClick={onDeleteClick}
+                            onRepayClick={onRepayClick}
+                        />
+                    ))}
+                </ul>
+            </AccordionContent>
+        </AccordionItem>
+    );
+};
+
+const LoanItem = ({ loan, formatCurrency, onEditClick, onDeleteClick, onRepayClick, repaidAmount }: {
   loan: Loan;
-  contactName: string;
   formatCurrency: (amount: number) => string;
   repaidAmount: number;
   onEditClick: (loan: Loan) => void;
@@ -508,20 +538,19 @@ const LoanItem = ({ loan, contactName, formatCurrency, onEditClick, onDeleteClic
   const outstandingAmount = loan.amount - repaidAmount;
 
   return (
-    <li className="p-4 group hover:bg-muted/50">
+    <li className="p-3 group hover:bg-muted/50">
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <Handshake className="h-5 w-5 text-muted-foreground" />
                 <div>
-                    <p className="font-medium">{contactName} - <span className={cn("font-normal", loan.type === 'loanGiven' ? 'text-red-600' : 'text-green-600')}>{formatCurrency(loan.amount)}</span></p>
-                    <p className="text-sm text-muted-foreground">{loan.description}</p>
+                     <p className={cn("font-medium", loan.status === 'paid' && 'line-through')}>{formatCurrency(loan.amount)}</p>
+                    {loan.description && <p className="text-sm text-muted-foreground">{loan.description}</p>}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>On: {format(parseISO(loan.date), 'PPP')}</span>
                         {loan.due_date && <span>Due: {format(parseISO(loan.due_date), 'PPP')}</span>}
-                        {loan.status === 'active' && outstandingAmount > 0 && (
-                            <span className='font-semibold text-yellow-600'>Outstanding: {formatCurrency(outstandingAmount)}</span>
+                        {loan.status === 'active' && outstandingAmount > 0 && outstandingAmount < loan.amount && (
+                            <span className='font-semibold text-blue-600'>Repaid: {formatCurrency(repaidAmount)}</span>
                         )}
-                        <span className={cn('font-semibold', loan.status === 'active' ? 'text-yellow-600' : 'text-green-600')}>{loan.status}</span>
                     </div>
                 </div>
             </div>
