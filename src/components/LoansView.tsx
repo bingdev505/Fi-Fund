@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -353,10 +354,11 @@ export default function LoansView() {
     });
 
     const groupLoans = (loanList: Loan[]) => {
-      const grouped = new Map<string, { contactName: string; loans: Loan[]; total: number; totalRepaid: number }>();
+      const grouped = new Map<string, { contactId: string; contactName: string; loans: Loan[]; total: number; totalRepaid: number }>();
       loanList.forEach(loan => {
         if (!grouped.has(loan.contact_id)) {
           grouped.set(loan.contact_id, {
+            contactId: loan.contact_id,
             contactName: getContactName(loan.contact_id),
             loans: [],
             total: 0,
@@ -420,7 +422,7 @@ export default function LoansView() {
                 <Accordion type="single" collapsible className="w-full">
                   {groupedLoansGiven.map(group => (
                     <ContactLoanGroup 
-                      key={group.contactName}
+                      key={group.contactId}
                       group={group}
                       formatCurrency={formatCurrency}
                       loanRepayments={loanRepayments}
@@ -438,7 +440,7 @@ export default function LoansView() {
                  <Accordion type="single" collapsible className="w-full">
                   {groupedLoansTaken.map(group => (
                     <ContactLoanGroup 
-                      key={group.contactName}
+                      key={group.contactId}
                       group={group}
                       formatCurrency={formatCurrency}
                       loanRepayments={loanRepayments}
@@ -488,7 +490,7 @@ export default function LoansView() {
 }
 
 const ContactLoanGroup = ({ group, formatCurrency, loanRepayments, onEditClick, onDeleteClick, onRepayClick }: {
-    group: { contactName: string; loans: Loan[]; total: number; totalRepaid: number; };
+    group: { contactId: string; contactName: string; loans: Loan[]; total: number; totalRepaid: number; };
     formatCurrency: (amount: number) => string;
     loanRepayments: Map<string, number>;
     onEditClick: (loan: Loan) => void;
