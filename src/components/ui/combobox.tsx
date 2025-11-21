@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -37,17 +38,33 @@ export function Combobox({
     noResultsText = "No results found."
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  
+  const [inputValue, setInputValue] = React.useState("")
+
   const handleSelect = (currentValue: string) => {
-    const newValue = currentValue === value ? "" : currentValue;
-    onChange(newValue);
-    setOpen(false)
+    onChange(currentValue);
+    setOpen(false);
+    setInputValue("");
   }
 
-  const selectedOption = options.find((option) => option.value.toLowerCase() === value?.toLowerCase());
+  const selectedOption = options.find((option) => option.value === value);
+
+  const filteredOptions = inputValue
+    ? options.filter((option) =>
+        option.label.toLowerCase().includes(inputValue.toLowerCase())
+      )
+    : options;
+
+  const showCreateOption = inputValue && !filteredOptions.some(
+      (option) => option.label.toLowerCase() === inputValue.toLowerCase()
+    );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!isOpen) {
+            setInputValue("");
+        }
+    }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -55,9 +72,11 @@ export function Combobox({
           aria-expanded={open}
           className="w-full justify-between"
         >
-          {value
-            ? selectedOption?.label || `Create "${value}"`
-            : placeholder}
+          <span className="truncate">
+            {value
+              ? selectedOption?.label || value
+              : placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -65,23 +84,19 @@ export function Combobox({
         <Command>
           <CommandInput 
             placeholder={searchPlaceholder}
+            value={inputValue}
+            onValueChange={setInputValue}
           />
           <CommandList>
-             <CommandEmpty>
-                <CommandItem
-                    value={value} // Use the current input value for creation
-                    onSelect={handleSelect}
-                    className="cursor-pointer"
-                >
-                    Create "{value}"
-                </CommandItem>
-            </CommandEmpty>
+             {filteredOptions.length === 0 && !showCreateOption && (
+                <CommandEmpty>{noResultsText}</CommandEmpty>
+             )}
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  onSelect={handleSelect}
+                  onSelect={() => handleSelect(option.value)}
                 >
                   <Check
                     className={cn(
@@ -92,6 +107,16 @@ export function Combobox({
                   {option.label}
                 </CommandItem>
               ))}
+               {showCreateOption && (
+                <CommandItem
+                    key={inputValue}
+                    value={inputValue}
+                    onSelect={() => handleSelect(inputValue)}
+                >
+                    <Check className={cn("mr-2 h-4 w-4", "opacity-0")} />
+                    Create "{inputValue}"
+                </CommandItem>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>
