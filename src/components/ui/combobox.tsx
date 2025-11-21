@@ -38,33 +38,9 @@ export function Combobox({
     noResultsText = "No results found."
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const [inputValue, setInputValue] = React.useState("")
-
-  const handleSelect = (currentValue: string) => {
-    onChange(currentValue);
-    setOpen(false);
-    setInputValue("");
-  }
-
-  const selectedOption = options.find((option) => option.value === value);
-
-  const filteredOptions = inputValue
-    ? options.filter((option) =>
-        option.label.toLowerCase().includes(inputValue.toLowerCase())
-      )
-    : options;
-
-  const showCreateOption = inputValue && !filteredOptions.some(
-      (option) => option.label.toLowerCase() === inputValue.toLowerCase()
-    );
 
   return (
-    <Popover open={open} onOpenChange={(isOpen) => {
-        setOpen(isOpen);
-        if (!isOpen) {
-            setInputValue("");
-        }
-    }}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -74,29 +50,46 @@ export function Combobox({
         >
           <span className="truncate">
             {value
-              ? selectedOption?.label || value
+              ? options.find((option) => option.value === value)?.label || value
               : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
+        <Command
+            filter={(value, search) => {
+                const option = options.find(o => o.value === value);
+                if (option) {
+                    return option.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                }
+                return 0;
+            }}
+        >
           <CommandInput 
             placeholder={searchPlaceholder}
-            value={inputValue}
-            onValueChange={setInputValue}
           />
           <CommandList>
-             {filteredOptions.length === 0 && !showCreateOption && (
-                <CommandEmpty>{noResultsText}</CommandEmpty>
-             )}
+            <CommandEmpty>
+                <CommandItem
+                    onSelect={() => {
+                        const currentInput = (document.querySelector(`[cmdk-input]` ) as HTMLInputElement)?.value;
+                        onChange(currentInput)
+                        setOpen(false)
+                    }}
+                 >
+                    Create "{ (document.querySelector(`[cmdk-input]` ) as HTMLInputElement)?.value }"
+                </CommandItem>
+            </CommandEmpty>
             <CommandGroup>
-              {filteredOptions.map((option) => (
+              {options.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  onSelect={() => handleSelect(option.value)}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue === value ? "" : currentValue)
+                    setOpen(false)
+                  }}
                 >
                   <Check
                     className={cn(
@@ -107,16 +100,6 @@ export function Combobox({
                   {option.label}
                 </CommandItem>
               ))}
-               {showCreateOption && (
-                <CommandItem
-                    key={inputValue}
-                    value={inputValue}
-                    onSelect={() => handleSelect(inputValue)}
-                >
-                    <Check className={cn("mr-2 h-4 w-4", "opacity-0")} />
-                    Create "{inputValue}"
-                </CommandItem>
-              )}
             </CommandGroup>
           </CommandList>
         </Command>
