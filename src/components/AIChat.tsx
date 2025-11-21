@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
@@ -385,7 +386,7 @@ export default function AIChat() {
                     title: 'Logged Multiple Entries',
                     description: `The AI logged ${logResults.length} separate financial entries.`,
                 });
-            } else if (logResults.length === 1) {
+            } else if (logResults.length === 1 && assistantResponse) {
                  toast({
                     title: 'Logged via AI Chat',
                     description: assistantResponse,
@@ -401,6 +402,10 @@ export default function AIChat() {
          setLastProcessedMessage(userMessageContent);
       } else { // intent is 'command'
         assistantResponse = result.result.response;
+      }
+      
+      if (!assistantResponse) {
+          throw new Error("Assistant response was empty after processing.");
       }
 
       await addMessage({
@@ -602,3 +607,5 @@ export default function AIChat() {
     </div>
   );
 }
+
+    
