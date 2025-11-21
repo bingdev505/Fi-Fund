@@ -38,21 +38,11 @@ export function Combobox({
     noResultsText = "No results found."
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const [searchTerm, setSearchTerm] = React.useState("")
   
-  const handleSelect = (selectedValue: string) => {
-    onChange(selectedValue === value ? "" : selectedValue);
-    setOpen(false);
-    setSearchTerm("");
-  };
-  
-  const filteredOptions = searchTerm
-    ? options.filter(option =>
-        option.label.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : options;
-
-  const showCreateNew = searchTerm && !filteredOptions.some(opt => opt.label.toLowerCase() === searchTerm.toLowerCase());
+  const handleSelect = (currentValue: string) => {
+    onChange(currentValue === value ? "" : currentValue)
+    setOpen(false)
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -72,30 +62,34 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command shouldFilter={false}>
-          <CommandInput 
-            placeholder={searchPlaceholder}
-            value={searchTerm}
-            onValueChange={setSearchTerm}
-          />
-          <CommandList className="max-h-[200px] overflow-y-auto overflow-x-hidden">
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList cmdk-list-aria-label="Suggestions">
             <CommandEmpty>
-              {showCreateNew ? (
-                 <CommandItem
-                    onSelect={() => handleSelect(searchTerm)}
-                 >
-                    Create "{searchTerm}"
-                </CommandItem>
-              ) : (
-                noResultsText
-              )}
+                <div 
+                    className="cursor-pointer p-2"
+                    onSelect={() => {
+                        const commandInput = document.querySelector('input[cmdk-input]');
+                        if (commandInput) {
+                            handleSelect((commandInput as HTMLInputElement).value);
+                        }
+                    }}
+                    onClick={() => {
+                         const commandInput = document.querySelector('input[cmdk-input]');
+                        if (commandInput) {
+                            handleSelect((commandInput as HTMLInputElement).value);
+                        }
+                    }}
+                >
+                    Create "{document.querySelector('input[cmdk-input]')?.getAttribute('value')}"
+                </div>
             </CommandEmpty>
             <CommandGroup>
-              {filteredOptions.map((option) => (
+              {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
-                  onSelect={handleSelect}
+                  value={option.label}
+                  onSelect={() => handleSelect(option.value)}
                 >
                   <Check
                     className={cn(
@@ -107,15 +101,6 @@ export function Combobox({
                 </CommandItem>
               ))}
             </CommandGroup>
-             {showCreateNew && filteredOptions.length > 0 && (
-                 <CommandGroup>
-                     <CommandItem
-                        onSelect={() => handleSelect(searchTerm)}
-                     >
-                        Create "{searchTerm}"
-                    </CommandItem>
-                 </CommandGroup>
-             )}
           </CommandList>
         </Command>
       </PopoverContent>
