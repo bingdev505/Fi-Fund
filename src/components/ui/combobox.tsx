@@ -69,7 +69,7 @@ export function Combobox({
             value={query}
             onValueChange={setQuery}
           />
-          <CommandList>
+          <CommandList className="max-h-64 overflow-y-auto">
             {filteredOptions.length === 0 && query.length > 0 ? (
                  <CommandItem
                     value={query}
