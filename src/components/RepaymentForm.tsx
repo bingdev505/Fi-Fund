@@ -16,13 +16,13 @@ import { Input } from '@/components/ui/input';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, CalendarIcon, Loader2 } from 'lucide-react';
-import type { Loan } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useMemo } from 'react';
+import { Textarea } from './ui/textarea';
 
 type RepaymentFormProps = {
   contactId: string;
@@ -33,6 +33,7 @@ const repaymentSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),
   account_id: z.string({ required_error: 'Please select an account.' }),
   date: z.date(),
+  description: z.string().optional(),
 });
 
 export default function RepaymentForm({ contactId, onFinished }: RepaymentFormProps) {
@@ -59,6 +60,7 @@ export default function RepaymentForm({ contactId, onFinished }: RepaymentFormPr
       amount: outstandingAmount,
       account_id: bankAccounts.find(acc => acc.is_primary)?.id || bankAccounts[0]?.id,
       date: new Date(),
+      description: '',
     },
   });
   
@@ -72,7 +74,7 @@ export default function RepaymentForm({ contactId, onFinished }: RepaymentFormPr
     }
 
     try {
-        await addRepayment(contactId, values.amount, values.account_id, values.date);
+        await addRepayment(contactId, values.amount, values.account_id, values.date, values.description);
         toast({
             title: 'Repayment Logged',
             description: `A repayment of ${formatCurrency(values.amount)} has been logged for loans with ${contactName}.`
@@ -177,6 +179,19 @@ export default function RepaymentForm({ contactId, onFinished }: RepaymentFormPr
                 )}
              />
         </div>
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description (Optional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="e.g. Monthly repayment" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
          {Number(watchedAmount).toFixed(2) === outstandingAmount.toFixed(2) && outstandingAmount > 0 && (
             <div className="text-sm p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
                 This will mark all active loans with this contact as fully paid.

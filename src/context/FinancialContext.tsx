@@ -27,7 +27,7 @@ interface FinancialContextType {
   updateTransaction: (transactionId: string, updatedData: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (transaction: Transaction, chatMessageId?: string) => Promise<void>;
   getTransactionById: (id: string) => Transaction | undefined;
-  addRepayment: (contactId: string, amount: number, accountId: string, date: Date, returnRef?: boolean) => Promise<{ id: string } | void | undefined>;
+  addRepayment: (contactId: string, amount: number, accountId: string, date: Date, description?: string, returnRef?: boolean) => Promise<{ id: string } | void | undefined>;
   
   loans: Loan[];
   allLoans: Loan[];
@@ -613,7 +613,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
   };
     
-  const addRepayment = async (contactId: string, amount: number, accountId: string, date: Date, returnRef = false) => {
+  const addRepayment = async (contactId: string, amount: number, accountId: string, date: Date, description?: string, returnRef = false) => {
     if (!user) throw new Error("User not authenticated");
     let amountToRepay = amount;
 
@@ -628,6 +628,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     }
 
     const transactionRefs: { id: string }[] = [];
+    const contactName = allContacts.find(c => c.id === contactId)?.name || 'Unknown';
 
     for (const loan of contactLoans) {
         if (amountToRepay <= 0) break;
@@ -645,7 +646,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
                 amount: paymentForThisLoan,
                 date: date.toISOString(),
                 category: 'Loan Repayment',
-                description: `Repayment for loan from ${allContacts.find(c => c.id === contactId)?.name || 'Unknown'}`,
+                description: description || `Repayment for loan with ${contactName}`,
                 account_id: accountId,
                 loan_id: loan.id,
                 project_id: loan.project_id
@@ -919,6 +920,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const contextValue: FinancialContextType = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
     transactions: filteredTransactions, allTransactions, addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
+    loans: filteredLoans, allLoans, addLoan, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, allClients, addClient, updateClient, deleteClient,
     contacts: filteredContacts, allContacts, addContact, updateContact, deleteContact,
@@ -935,6 +937,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, filteredTasks, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
       setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
       addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
+      addLoan, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
       addClient, updateClient, deleteClient,
       addContact, updateContact, deleteContact,
