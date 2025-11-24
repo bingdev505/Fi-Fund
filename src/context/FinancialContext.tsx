@@ -3,7 +3,7 @@
 'use client';
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
-import type { Transaction, Loan, BankAccount, Project, Client, Category, Contact, ChatMessage } from '@/lib/types';
+import type { Transaction, Loan, BankAccount, Project, Client, Category, Contact, ChatMessage, Investment } from '@/lib/types';
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
@@ -35,6 +35,12 @@ interface FinancialContextType {
   updateLoan: (loanId: string, loanData: Partial<Omit<Loan, 'id' | 'user_id'>>) => Promise<void>;
   deleteLoan: (loanId: string, chatMessageId?: string) => Promise<void>;
   getLoanById: (id: string) => Loan | undefined;
+
+  investments: Investment[];
+  allInvestments: Investment[];
+  addInvestment: (investmentData: Omit<Investment, 'id' | 'user_id'>) => Promise<Investment>;
+  updateInvestment: (investmentId: string, investmentData: Partial<Omit<Investment, 'id' | 'user_id'>>) => Promise<void>;
+  deleteInvestment: (investmentId: string) => Promise<void>;
 
   bankAccounts: BankAccount[];
   allBankAccounts: BankAccount[];
@@ -95,6 +101,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [allLoans, setAllLoans] = useState<Loan[]>([]);
+  const [allInvestments, setAllInvestments] = useState<Investment[]>([]);
   const [allChatMessages, setAllChatMessages] = useState<ChatMessage[]>([]);
   
   const [currency, setCurrencyState] = useState<string>('INR');
@@ -111,6 +118,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     allProjects,
     allTransactions,
     allLoans,
+    allInvestments,
     allBankAccounts: rawBankAccounts,
     allClients,
     allContacts,
@@ -122,12 +130,13 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       allProjects,
       allTransactions,
       allLoans,
+      allInvestments,
       allBankAccounts: rawBankAccounts,
       allClients,
       allContacts,
       user,
     };
-  }, [allProjects, allTransactions, allLoans, rawBankAccounts, allClients, allContacts, user]);
+  }, [allProjects, allTransactions, allLoans, allInvestments, rawBankAccounts, allClients, allContacts, user]);
 
   const allBankAccounts = useMemo(() => {
     const balanceMap = new Map<string, number>();
@@ -135,7 +144,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       balanceMap.set(acc.id, acc.balance); // Start with initial balance
     });
   
-    [...allTransactions, ...allLoans].forEach(entry => {
+    [...allTransactions, ...allLoans, ...allInvestments].forEach(entry => {
       if ('category' in entry) { // Transaction
         const tx = entry as Transaction;
         if (tx.type === 'income' && tx.account_id && balanceMap.has(tx.account_id)) {
@@ -149,6 +158,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           if (balanceMap.has(tx.to_account_id)) {
             balanceMap.set(tx.to_account_id, balanceMap.get(tx.to_account_id)! + tx.amount);
           }
+        }
+      } else if ('investment_type' in entry) { // Investment
+        const inv = entry as Investment;
+        if (inv.account_id && balanceMap.has(inv.account_id)) {
+          balanceMap.set(inv.account_id, balanceMap.get(inv.account_id)! - inv.amount);
         }
       } else { // Loan
         const loan = entry as Loan;
@@ -178,7 +192,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       ...acc,
       balance: balanceMap.get(acc.id) ?? acc.balance,
     }));
-  }, [rawBankAccounts, allTransactions, allLoans]);
+  }, [rawBankAccounts, allTransactions, allLoans, allInvestments]);
   
 
   const fetchData = useCallback(async (userId: string) => {
@@ -193,6 +207,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setAllContacts(cachedData.contacts || []);
             setAllCategories(cachedData.categories || []);
             setAllLoans(cachedData.loans || []);
+            setAllInvestments(cachedData.investments || []);
             setAllChatMessages(cachedData.chat_messages || []);
             isDataLoadedFromCache = true;
             setIsLoading(false);
@@ -211,6 +226,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         contactsRes,
         categoriesRes,
         loansRes,
+        investmentsRes,
         chatMessagesRes,
         userSettingsRes
       ] = await Promise.all([
@@ -221,6 +237,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('contacts').select('*').eq('user_id', userId),
         supabase.from('categories').select('*').eq('user_id', userId),
         supabase.from('loans').select('*').eq('user_id', userId),
+        supabase.from('investments').select('*').eq('user_id', userId),
         supabase.from('chat_messages').select('*').eq('user_id', userId).order('timestamp', { ascending: true }),
         supabase.from('user_settings').select('*').eq('user_id', userId).single(),
       ]);
@@ -233,6 +250,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           contacts: contactsRes.data || [],
           categories: categoriesRes.data || [],
           loans: loansRes.data || [],
+          investments: investmentsRes.data || [],
           chat_messages: chatMessagesRes.data || [],
       };
       localStorage.setItem(cacheKey('all_data', userId), JSON.stringify(fetchedData));
@@ -262,6 +280,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllContacts(fetchedData.contacts);
       setAllCategories(fetchedData.categories);
       setAllLoans(fetchedData.loans);
+      setAllInvestments(fetchedData.investments);
       setAllChatMessages(fetchedData.chat_messages);
 
       if ((!bankAccountsRes.data || bankAccountsRes.data.length === 0) && projects.length > 0) {
@@ -777,6 +796,36 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     if (loanToDelete.project_id) triggerSync(loanToDelete.project_id);
   };
 
+  const addInvestment = async (investmentData: Omit<Investment, 'id' | 'user_id'>): Promise<Investment> => {
+    if (!user) throw new Error("User not authenticated");
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    const dbInvestment = {
+      ...investmentData,
+      project_id: investmentData.project_id || personalProject?.id,
+      user_id: user.id,
+    };
+    const { data: newInvestment, error } = await supabase.from('investments').insert(dbInvestment).select().single();
+    if (error) throw error;
+    updateStateAndCache(setAllInvestments, (prev: Investment[]) => [...prev, newInvestment]);
+    if (newInvestment.project_id) triggerSync(newInvestment.project_id);
+    return newInvestment;
+  };
+
+  const updateInvestment = async (investmentId: string, investmentData: Partial<Omit<Investment, 'id' | 'user_id'>>) => {
+    const { data: updatedInvestment, error } = await supabase.from('investments').update(investmentData).eq('id', investmentId).select().single();
+    if (error) throw error;
+    updateStateAndCache(setAllInvestments, (prev: Investment[]) => prev.map(i => i.id === updatedInvestment.id ? updatedInvestment : i));
+    if (updatedInvestment.project_id) triggerSync(updatedInvestment.project_id);
+  };
+
+  const deleteInvestment = async (investmentId: string) => {
+    const investmentToDelete = allInvestments.find(i => i.id === investmentId);
+    const { error } = await supabase.from('investments').delete().eq('id', investmentId);
+    if (error) throw error;
+    updateStateAndCache(setAllInvestments, (prev: Investment[]) => prev.filter(i => i.id !== investmentId));
+    if (investmentToDelete?.project_id) triggerSync(investmentToDelete.project_id);
+  };
+
   const addChatMessage = async (messageData: Omit<ChatMessage, 'id' | 'user_id' | 'timestamp'>) => {
     if (!user) throw new Error("User not authenticated");
     const dbMessage = {
@@ -847,10 +896,19 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     return (activeProject === null ? allLoans : allLoans.filter(l => l.project_id === personalProject?.id || !l.project_id));
   }, [allLoans, activeProject, allProjects]);
 
+  const filteredInvestments = useMemo(() => {
+    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
+    if (activeProject && activeProject.id !== 'all') {
+      return allInvestments.filter(i => i.project_id === activeProject.id);
+    }
+    return (activeProject === null ? allInvestments : allInvestments.filter(i => i.project_id === personalProject?.id || !i.project_id));
+  }, [allInvestments, activeProject, allProjects]);
+
   const contextValue: FinancialContextType = useMemo(() => ({
     projects: allProjects, activeProject, setActiveProject, defaultProject, setDefaultProject, addProject, updateProject, deleteProject,
     transactions: filteredTransactions, allTransactions, addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
     loans: filteredLoans, allLoans, addLoan, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
+    investments: filteredInvestments, allInvestments, addInvestment, updateInvestment, deleteInvestment,
     bankAccounts: filteredBankAccounts, allBankAccounts, addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
     clients: filteredClients, allClients, addClient, updateClient, deleteClient,
     contacts: filteredContacts, allContacts, addContact, updateContact, deleteContact,
@@ -863,10 +921,11 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
-      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
+      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, filteredLoans, allLoans, filteredInvestments, allInvestments, allChatMessages, currency, isLoading, isUserLoading,
       setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
       addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
       addLoan, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
+      addInvestment, updateInvestment, deleteInvestment,
       addBankAccount, updateBankAccount, deleteBankAccount, setPrimaryBankAccount, linkBankAccount,
       addClient, updateClient, deleteClient,
       addContact, updateContact, deleteContact,

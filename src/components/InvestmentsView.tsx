@@ -42,10 +42,12 @@ export default function InvestmentsView() {
   };
 
   const totalCurrentValue = useMemo(() => {
+    if (!investments) return 0;
     return investments.reduce((total, inv) => total + (inv.current_value || inv.amount), 0);
   }, [investments]);
   
   const totalInvested = useMemo(() => {
+    if (!investments) return 0;
     return investments.reduce((total, inv) => total + inv.amount, 0);
   }, [investments]);
 
@@ -70,7 +72,7 @@ export default function InvestmentsView() {
             </div>
           </CardHeader>
           <CardContent>
-             {investments.length > 0 ? (
+             {investments && investments.length > 0 ? (
                 <div className="border rounded-md">
                   <ul className="divide-y divide-border">
                     {investments.map(inv => (
