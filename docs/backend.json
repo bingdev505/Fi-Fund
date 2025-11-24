@@ -164,26 +164,11 @@
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["todo", "in-progress", "done"] },
         "dueDate": { "type": "string", "format": "date-time" },
-        "created_at": { "type": "string", "format": "date-time" }
+        "created_at": { "type": "string", "format": "date-time" },
+        "recurrence": { "type": "string", "enum": ["none", "daily", "weekly", "monthly"], "description": "How often the task repeats." },
+        "recurrence_days": { "type": "array", "items": { "type": "number" }, "description": "For weekly recurrence, an array of numbers representing days of the week (0=Sun, 1=Mon, etc.)." }
       },
       "required": ["id", "userId", "name", "status", "created_at"]
-    },
-    "Credential": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Credential",
-      "description": "Represents a stored credential (password, TOTP secret) for a user.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "projectId": { "type": "string" },
-        "siteName": { "type": "string" },
-        "username": { "type": "string" },
-        "password": { "type": "string" },
-        "totpSecret": { "type": "string" },
-        "created_at": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "siteName", "username", "created_at"]
     }
   },
   "auth": {

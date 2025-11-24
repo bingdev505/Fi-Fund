@@ -105,17 +105,6 @@ export type Task = {
   recurrence_days?: number[]; // For weekly recurrence, e.g. [0, 2, 4] for Sun, Tue, Thu
 };
 
-export type Credential = {
-  id: string;
-  user_id: string;
-  project_id?: string;
-  site_name: string;
-  username: string;
-  password?: string;
-  totp_secret?: string;
-  created_at: LocalTimestamp;
-};
-
 // Zod schemas for Google Sheet Sync Flow
 const TransactionSchemaForSync = z.custom<Transaction>();
 const LoanSchemaForSync = z.custom<Loan>();

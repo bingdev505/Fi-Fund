@@ -52,7 +52,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/overview', icon: LayoutDashboard, label: 'Overview' },
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },
     { href: '/tasks', icon: ListTodo, label: 'Tasks' },
-    { href: '/passwords', icon: KeyRound, label: 'Passwords' },
     { href: '/business', icon: Briefcase, label: 'Business' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
   ];
