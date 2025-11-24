@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select"
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 interface DateRangePickerProps extends React.ComponentProps<"div"> {
     date: DateRange | undefined;
@@ -26,6 +26,7 @@ export function DateRangePicker({
   date,
   onDateChange
 }: DateRangePickerProps) {
+  const isDesktop = useMediaQuery("(min-width: 768px)")
 
   const handlePresetChange = (value: string) => {
     const now = new Date();
@@ -78,10 +79,10 @@ export function DateRangePicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <div className="flex p-2">
-            <div className="pr-4 border-r">
+          <div className="flex flex-col md:flex-row p-2">
+            <div className="pb-4 md:pb-0 md:pr-4 md:border-r">
                 <h4 className="text-sm font-medium mb-2 px-2">Presets</h4>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-row md:flex-col gap-1 flex-wrap">
                     <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("today")}>Today</Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("last7")}>Last 7 Days</Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("last30")}>Last 30 Days</Button>
@@ -95,7 +96,7 @@ export function DateRangePicker({
                 defaultMonth={date?.from}
                 selected={date}
                 onSelect={onDateChange}
-                numberOfMonths={2}
+                numberOfMonths={isDesktop ? 2 : 1}
             />
           </div>
         </PopoverContent>
