@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { addDays, format, startOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
+import { addDays, format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { DateRange } from "react-day-picker"
 
@@ -20,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { useState } from "react"
@@ -89,11 +88,18 @@ export function DateRangePicker({
     </Button>
   );
 
+  const handleSelect = (range: DateRange | undefined) => {
+      onDateChange(range);
+      if (range?.from && range?.to) {
+        setIsOpen(false);
+      }
+  }
+
   const CalendarContent = () => (
-    <>
+    <div className={cn("flex flex-col md:flex-row", isDesktop ? "" : "p-4")}>
         <div className="flex flex-col p-2">
             <h4 className="text-sm font-medium mb-2 px-2">Presets</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-col gap-1 flex-wrap">
+            <div className="flex flex-wrap md:flex-col gap-1">
                 <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("today")}>Today</Button>
                 <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("last7")}>Last 7 Days</Button>
                 <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("last30")}>Last 30 Days</Button>
@@ -107,16 +113,11 @@ export function DateRangePicker({
                 mode="range"
                 defaultMonth={date?.from}
                 selected={date}
-                onSelect={(range) => {
-                  onDateChange(range);
-                  if (range?.from && range?.to) {
-                    setIsOpen(false);
-                  }
-                }}
+                onSelect={handleSelect}
                 numberOfMonths={isDesktop ? 2 : 1}
             />
         </div>
-    </>
+    </div>
   );
 
   if (isDesktop) {
@@ -141,12 +142,7 @@ export function DateRangePicker({
                 <PickerButton />
             </DialogTrigger>
             <DialogContent className="p-0 max-w-sm">
-                <DialogHeader className="p-4 pb-0">
-                    <DialogTitle>Select a date range</DialogTitle>
-                </DialogHeader>
-                <div className="flex flex-col [&>div]:border-none">
-                    <CalendarContent />
-                </div>
+                <CalendarContent />
             </DialogContent>
         </Dialog>
      </div>
