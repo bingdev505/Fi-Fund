@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useFinancials } from '@/hooks/useFinancials';
-import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark, Handshake, Contact, ArrowRightLeft, Link } from 'lucide-react';
+import { Loader2, Folder, Pencil, Trash2, PlusCircle, Users, Tag, Landmark, Handshake, Contact, ArrowRightLeft, Link, TrendingUp } from 'lucide-react';
 import ProjectForm from './ProjectForm';
 import { Button } from './ui/button';
 import { useState, useMemo } from 'react';
@@ -154,6 +154,9 @@ export default function Business() {
                             </Button>
                              <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/loans')} title="Loans">
                               <Handshake className="h-4 w-4" />
+                            </Button>
+                             <Button variant="ghost" size="icon" onClick={() => handleIconNavigation(project, '/business/investments')} title="Investments">
+                              <TrendingUp className="h-4 w-4" />
                             </Button>
                              <Button variant="ghost" size="icon" onClick={() => setConnectSheetProject(project)} title="Connect Google Sheet">
                                 <Link className="h-4 w-4" />

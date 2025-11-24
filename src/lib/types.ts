@@ -2,7 +2,7 @@
 'use client';
 import { z } from 'zod';
 
-// Timestamps are stored as ISO 8061 strings.
+// Timestamps are stored as ISO 8601 strings.
 export type LocalTimestamp = string;
 
 export type Transaction = {
@@ -34,6 +34,19 @@ export type Loan = {
   status: 'active' | 'paid';
   account_id: string;
   created_at: LocalTimestamp;
+};
+
+export type Investment = {
+    id: string;
+    user_id: string;
+    project_id?: string;
+    name: string;
+    investment_type: string;
+    amount: number;
+    current_value: number;
+    date: LocalTimestamp;
+    account_id: string;
+    broker_name?: string;
 };
 
 
@@ -68,7 +81,7 @@ export type ChatMessage = {
     content: string;
     timestamp: LocalTimestamp;
     transaction_id?: string;
-    entry_type?: 'income' | 'expense' | 'loanGiven' | 'loanTaken' | 'repayment';
+    entry_type?: 'income' | 'expense' | 'loanGiven' | 'loanTaken' | 'repayment' | 'investment';
 };
 
 export type Client = {

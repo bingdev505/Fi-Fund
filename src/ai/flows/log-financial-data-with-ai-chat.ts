@@ -25,7 +25,7 @@ export type LogFinancialDataInput = z.infer<typeof LogFinancialDataInputSchema>;
 
 const TransactionObjectSchema = z.object({
     transaction_type: z
-      .enum(['income', 'expense', 'loanGiven', 'loanTaken', 'repayment'])
+      .enum(['income', 'expense', 'loanGiven', 'loanTaken', 'repayment', 'investment'])
       .describe('The type of financial transaction.'),
     category: z.string().optional().describe('The category of the transaction for income/expense.'),
     contact_id: z.string().optional().describe('The name of the person/entity for loans or repayments.'),
@@ -33,6 +33,9 @@ const TransactionObjectSchema = z.object({
     amount: z.number().describe('The amount of the transaction.'),
     description: z.string().optional().describe('A description of the transaction.'),
     account_name: z.string().optional().describe("The specific name of the bank account if the user mentions one (e.g., 'savings', 'checking', 'federal')."),
+    investment_name: z.string().optional().describe("The name of the investment (e.g., 'Apple Stock')."),
+    investment_type: z.string().optional().describe("The type of investment (e.g., 'Stocks', 'Real Estate')."),
+    broker_name: z.string().optional().describe("The name of the broker used for the investment."),
 });
 
 const LogFinancialDataOutputSchema = z.object({
@@ -82,6 +85,7 @@ const logFinancialDataPrompt = ai.definePrompt({
     - For 'loanGiven', 'loanTaken', or 'repayment', the 'contact_id' field MUST contain the name of the person/entity.
     - For 'income' or 'expense', use the 'category' field for the type of transaction (e.g., 'Salary', 'Groceries').
     - For 'income' or 'expense', if a source/company/person is mentioned (the 'who' or 'where from'), put their name in the 'client_name' field.
+    - For 'investment', use 'investment_name', 'investment_type', 'amount', and 'broker_name' if provided.
 6.  **Client vs. Category Example**: For the input "salary get from folksdev 5000":
     - 'transaction_type' should be 'income'.
     - 'category' should be 'Salary'.
@@ -93,8 +97,10 @@ const logFinancialDataPrompt = ai.definePrompt({
     - "[Name] gave me a loan", "loan taken from [Name]", "borrowed 500 from [Name]" -> 'loanTaken', contact_id is '[Name]'.
 9.  **Repayment**:
     - "repaid [Name]" or "[Name] repaid me" -> 'repayment', contact_id is '[Name]'.
-10. **Amount**: Ensure the amount is always a positive number.
-11. **Description**: If not provided, create a short, relevant summary based on the transaction type and category/contact.
+10. **Investment**:
+    - "invested 10k in Apple stock via Zerodha" -> 'investment', amount is 10000, investment_name is 'Apple stock', investment_type is 'Stocks', broker_name is 'Zerodha'.
+11. **Amount**: Ensure the amount is always a positive number.
+12. **Description**: If not provided, create a short, relevant summary based on the transaction type and category/contact/investment.
 
 ### Chat History (for context):
 {{{chat_history}}}
