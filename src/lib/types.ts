@@ -92,19 +92,6 @@ export type Category = {
   type: 'income' | 'expense';
 };
 
-export type Task = {
-  id: string;
-  user_id: string;
-  project_id?: string;
-  name: string;
-  description?: string;
-  status: 'todo' | 'in-progress' | 'done';
-  due_date?: LocalTimestamp;
-  created_at: LocalTimestamp;
-  recurrence?: 'none' | 'daily' | 'weekly' | 'monthly';
-  recurrence_days?: number[]; // For weekly recurrence, e.g. [0, 2, 4] for Sun, Tue, Thu
-};
-
 // Zod schemas for Google Sheet Sync Flow
 const TransactionSchemaForSync = z.custom<Transaction>();
 const LoanSchemaForSync = z.custom<Loan>();

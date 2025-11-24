@@ -3,12 +3,11 @@
 'use client';
 
 import { createContext, useCallback, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
-import type { Transaction, Loan, BankAccount, Project, Client, Category, Task, Contact, ChatMessage } from '@/lib/types';
+import type { Transaction, Loan, BankAccount, Project, Client, Category, Contact, ChatMessage } from '@/lib/types';
 import { supabase } from '@/lib/supabase_client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
 import { syncTransactionsToSheet } from '@/services/google-sheets';
-import { addDays, addMonths, addWeeks, parseISO } from 'date-fns';
 
 interface FinancialContextType {
   projects: Project[];
@@ -62,11 +61,6 @@ interface FinancialContextType {
   updateCategory: (categoryId: string, categoryData: Partial<Omit<Category, 'id' | 'user_id'>>) => Promise<void>;
   deleteCategory: (categoryId: string) => Promise<void>;
   
-  tasks: Task[];
-  addTask: (taskData: Omit<Task, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
-  updateTask: (taskId: string, taskData: Partial<Omit<Task, 'id' | 'user_id' | 'created_at'>>) => Promise<void>;
-  deleteTask: (taskId: string) => Promise<void>;
-  
   chatMessages: ChatMessage[];
   addChatMessage: (messageData: Omit<ChatMessage, 'id' | 'user_id' | 'timestamp'>) => Promise<void>;
   updateChatMessage: (messageId: string, messageData: Partial<ChatMessage>) => Promise<void>;
@@ -100,7 +94,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [allLoans, setAllLoans] = useState<Loan[]>([]);
   const [allChatMessages, setAllChatMessages] = useState<ChatMessage[]>([]);
   
@@ -199,7 +192,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
             setAllClients(cachedData.clients || []);
             setAllContacts(cachedData.contacts || []);
             setAllCategories(cachedData.categories || []);
-            setAllTasks(cachedData.tasks || []);
             setAllLoans(cachedData.loans || []);
             setAllChatMessages(cachedData.chat_messages || []);
             isDataLoadedFromCache = true;
@@ -218,7 +210,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         clientsRes,
         contactsRes,
         categoriesRes,
-        tasksRes,
         loansRes,
         chatMessagesRes,
         userSettingsRes
@@ -229,7 +220,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
         supabase.from('clients').select('*').eq('user_id', userId),
         supabase.from('contacts').select('*').eq('user_id', userId),
         supabase.from('categories').select('*').eq('user_id', userId),
-        supabase.from('tasks').select('*').eq('user_id', userId),
         supabase.from('loans').select('*').eq('user_id', userId),
         supabase.from('chat_messages').select('*').eq('user_id', userId).order('timestamp', { ascending: true }),
         supabase.from('user_settings').select('*').eq('user_id', userId).single(),
@@ -242,7 +232,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
           clients: clientsRes.data || [],
           contacts: contactsRes.data || [],
           categories: categoriesRes.data || [],
-          tasks: tasksRes.data || [],
           loans: loansRes.data || [],
           chat_messages: chatMessagesRes.data || [],
       };
@@ -272,7 +261,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       setAllClients(fetchedData.clients);
       setAllContacts(fetchedData.contacts);
       setAllCategories(fetchedData.categories);
-      setAllTasks(fetchedData.tasks);
       setAllLoans(fetchedData.loans);
       setAllChatMessages(fetchedData.chat_messages);
 
@@ -436,7 +424,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     updateStateAndCache(setAllTransactions, (prev: Transaction[]) => prev.filter(t => t.project_id !== projectId));
     updateStateAndCache(setAllClients, (prev: Client[]) => prev.filter(c => c.project_id !== projectId));
     updateStateAndCache(setAllCategories, (prev: Category[]) => prev.filter(c => c.project_id !== projectId));
-    updateStateAndCache(setAllTasks, (prev: Task[]) => prev.filter(t => t.project_id !== projectId));
     updateStateAndCache(setRawBankAccounts, (prev: BankAccount[]) => prev.filter(b => b.project_id !== projectId));
     updateStateAndCache(setAllLoans, (prev: Loan[]) => prev.filter(l => l.project_id !== projectId));
     
@@ -742,56 +729,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
   const getTransactionById = useCallback((id: string) => allTransactions.find(t => t.id === id), [allTransactions]);
   const getLoanById = useCallback((id: string) => allLoans.find(l => l.id === id), [allLoans]);
 
-  const addTask = async (taskData: Omit<Task, 'id' | 'user_id' | 'created_at'>) => {
-    if (!user) return;
-    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
-    const finalProjectId = taskData.project_id === personalProject?.id ? taskData.project_id : (taskData.project_id || personalProject?.id);
-
-    const { data: newTask, error } = await supabase.from('tasks').insert({ ...taskData, project_id: finalProjectId, user_id: user.id, created_at: new Date().toISOString() }).select().single();
-    if (error) throw error;
-    updateStateAndCache(setAllTasks, (prev: Task[]) => [...prev, newTask]);
-  };
-
-  const updateTask = async (taskId: string, taskData: Partial<Omit<Task, 'id' | 'user_id' | 'created_at'>>) => {
-    const originalTask = allTasks.find(t => t.id === taskId);
-    
-    const { data: updatedTask, error } = await supabase.from('tasks').update(taskData).eq('id', taskId).select().single();
-    if (error) throw error;
-    
-    updateStateAndCache(setAllTasks, (prev: Task[]) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-
-    if (originalTask && updatedTask.status === 'done' && originalTask.status !== 'done' && updatedTask.recurrence && updatedTask.recurrence !== 'none') {
-        let nextDueDate: Date | undefined;
-        if (updatedTask.due_date) {
-            const currentDueDate = parseISO(updatedTask.due_date);
-            switch (updatedTask.recurrence) {
-                case 'daily': nextDueDate = addDays(currentDueDate, 1); break;
-                case 'weekly': nextDueDate = addWeeks(currentDueDate, 1); break;
-                case 'monthly': nextDueDate = addMonths(currentDueDate, 1); break;
-                default: break;
-            }
-        }
-        
-        if (nextDueDate) {
-            const newTaskData: Omit<Task, 'id' | 'user_id' | 'created_at'> = {
-                name: updatedTask.name,
-                description: updatedTask.description,
-                status: 'todo',
-                project_id: updatedTask.project_id,
-                due_date: nextDueDate.toISOString(),
-                recurrence: updatedTask.recurrence,
-            };
-            await addTask(newTaskData);
-        }
-    }
-  };
-
-  const deleteTask = async (taskId: string) => {
-    const { error } = await supabase.from('tasks').delete().eq('id', taskId);
-    if (error) throw error;
-    updateStateAndCache(setAllTasks, (prev: Task[]) => prev.filter(t => t.id !== taskId));
-  };
-  
   const addLoan = async (loanData: Omit<Loan, 'id' | 'user_id' | 'created_at'>, returnRef = false): Promise<{ id: string } | void> => {
     if (!user) throw new Error("User not authenticated");
     const now = new Date().toISOString();
@@ -894,13 +831,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
        return (activeProject === null ? allCategories : allCategories.filter(c => c.project_id === personalProject?.id || !c.project_id));
   }, [allCategories, activeProject, allProjects]);
 
-  const filteredTasks = useMemo(() => {
-    const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
-    return (activeProject && activeProject.id !== 'all') 
-      ? allTasks.filter(t => t.project_id === activeProject.id) 
-      : (activeProject === null ? allTasks : allTasks.filter(t => t.project_id === personalProject?.id || !t.project_id));
-  }, [allTasks, activeProject, allProjects]);
-
   const filteredBankAccounts = useMemo(() => {
       const personalProject = allProjects.find(p => p.name === PERSONAL_PROJECT_NAME);
       if (activeProject && activeProject.id !== 'all') {
@@ -925,7 +855,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     clients: filteredClients, allClients, addClient, updateClient, deleteClient,
     contacts: filteredContacts, allContacts, addContact, updateContact, deleteContact,
     categories: filteredCategories, addCategory, updateCategory, deleteCategory,
-    tasks: filteredTasks, addTask, updateTask, deleteTask,
     chatMessages: allChatMessages,
     addChatMessage, 
     updateChatMessage, 
@@ -934,7 +863,7 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
     isLoading: isLoading || isUserLoading,
     triggerSync,
   }), [
-      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, allTasks, filteredTasks, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
+      allProjects, activeProject, defaultProject, filteredTransactions, allTransactions, filteredBankAccounts, allBankAccounts, filteredClients, allClients, filteredContacts, allContacts, filteredCategories, filteredLoans, allLoans, allChatMessages, currency, isLoading, isUserLoading,
       setActiveProject, setDefaultProject, addProject, updateProject, deleteProject,
       addTransaction, addTransactions, updateTransaction, deleteTransaction, getTransactionById, addRepayment,
       addLoan, addOrUpdateLoan, updateLoan, deleteLoan, getLoanById,
@@ -942,7 +871,6 @@ export function FinancialProvider({ children }: { children: ReactNode }) {
       addClient, updateClient, deleteClient,
       addContact, updateContact, deleteContact,
       addCategory, updateCategory, deleteCategory,
-      addTask, updateTask, deleteTask,
       addChatMessage, updateChatMessage, deleteChatMessage,
       setCurrency,
       triggerSync

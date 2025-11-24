@@ -11,7 +11,6 @@ import {
   User,
   Briefcase,
   Wallet,
-  ListTodo,
   KeyRound,
   Contact,
   ArrowRightLeft,
@@ -51,7 +50,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: '/overview', icon: LayoutDashboard, label: 'Overview' },
     { href: '/ai-chat', icon: Bot, label: 'AI Chat' },
-    { href: '/tasks', icon: ListTodo, label: 'Tasks' },
     { href: '/business', icon: Briefcase, label: 'Business' },
     { href: '/reports', icon: BarChart2, label: 'Reports' },
   ];

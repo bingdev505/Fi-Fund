@@ -1,12 +1,12 @@
 
 'use client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, HandCoins, ListTodo } from 'lucide-react';
+import { TrendingUp, TrendingDown, HandCoins } from 'lucide-react';
 
 type SummaryCardProps = {
   title: string;
   value: string;
-  icon: 'income' | 'expense' | 'debtor' | 'creditor' | 'task';
+  icon: 'income' | 'expense' | 'debtor' | 'creditor';
 };
 
 const iconMap = {
@@ -29,11 +29,6 @@ const iconMap = {
     component: HandCoins,
     color: 'text-red-600 dark:text-red-400',
     bgColor: 'bg-red-100 dark:bg-red-900/50',
-  },
-  task: {
-    component: ListTodo,
-    color: 'text-amber-600 dark:text-amber-400',
-    bgColor: 'bg-amber-100 dark:bg-amber-900/50',
   },
 };
 
