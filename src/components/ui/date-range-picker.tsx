@@ -14,7 +14,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { useState } from "react"
 
 interface DateRangePickerProps extends React.ComponentProps<"div"> {
     date: DateRange | undefined;
@@ -27,80 +36,119 @@ export function DateRangePicker({
   onDateChange
 }: DateRangePickerProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)")
+  const [isOpen, setIsOpen] = useState(false);
 
   const handlePresetChange = (value: string) => {
     const now = new Date();
+    let newDate: DateRange | undefined;
     switch (value) {
       case "today":
-        onDateChange({ from: now, to: now });
+        newDate = { from: now, to: now };
         break;
       case "last7":
-        onDateChange({ from: addDays(now, -6), to: now });
+        newDate = { from: addDays(now, -6), to: now };
         break;
       case "last30":
-        onDateChange({ from: addDays(now, -29), to: now });
+        newDate = { from: addDays(now, -29), to: now };
         break;
       case "this_month":
-        onDateChange({ from: startOfMonth(now), to: endOfMonth(now) });
+        newDate = { from: startOfMonth(now), to: endOfMonth(now) };
         break;
       case "this_year":
-        onDateChange({ from: startOfYear(now), to: endOfYear(now) });
+        newDate = { from: startOfYear(now), to: endOfYear(now) };
         break;
       default:
-        onDateChange(undefined);
+        newDate = undefined;
     }
+    onDateChange(newDate);
+    setIsOpen(false);
   }
 
-  return (
-    <div className={cn("grid gap-2", className)}>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            id="date"
-            variant={"outline"}
-            className={cn(
-              "justify-start text-left font-normal",
-              !date && "text-muted-foreground"
-            )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-              date.to ? (
-                <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
-                </>
-              ) : (
-                format(date.from, "LLL dd, y")
-              )
+  const PickerButton = () => (
+    <Button
+        id="date"
+        variant={"outline"}
+        className={cn(
+            "w-full justify-start text-left font-normal",
+            !date && "text-muted-foreground"
+        )}
+        >
+        <CalendarIcon className="mr-2 h-4 w-4" />
+        {date?.from ? (
+            date.to ? (
+            <>
+                {format(date.from, "LLL dd, y")} -{" "}
+                {format(date.to, "LLL dd, y")}
+            </>
             ) : (
-              <span>Pick a date</span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <div className="flex flex-col md:flex-row p-2">
-            <div className="pb-4 md:pb-0 md:pr-4 md:border-r">
-                <h4 className="text-sm font-medium mb-2 px-2">Presets</h4>
-                <div className="flex flex-row md:flex-col gap-1 flex-wrap">
-                    <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("today")}>Today</Button>
-                    <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("last7")}>Last 7 Days</Button>
-                    <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("last30")}>Last 30 Days</Button>
-                    <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("this_month")}>This Month</Button>
-                    <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("this_year")}>This Year</Button>
-                </div>
+            format(date.from, "LLL dd, y")
+            )
+        ) : (
+            <span>Pick a date</span>
+        )}
+    </Button>
+  );
+
+  const CalendarContent = () => (
+    <>
+        <div className="flex flex-col p-2">
+            <h4 className="text-sm font-medium mb-2 px-2">Presets</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-col gap-1 flex-wrap">
+                <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("today")}>Today</Button>
+                <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("last7")}>Last 7 Days</Button>
+                <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("last30")}>Last 30 Days</Button>
+                <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("this_month")}>This Month</Button>
+                <Button variant="ghost" className="justify-start" onClick={() => handlePresetChange("this_year")}>This Year</Button>
             </div>
+        </div>
+        <div className="p-2 md:border-l">
             <Calendar
                 initialFocus
                 mode="range"
                 defaultMonth={date?.from}
                 selected={date}
-                onSelect={onDateChange}
+                onSelect={(range) => {
+                  onDateChange(range);
+                  if (range?.from && range?.to) {
+                    setIsOpen(false);
+                  }
+                }}
                 numberOfMonths={isDesktop ? 2 : 1}
             />
-          </div>
-        </PopoverContent>
-      </Popover>
-    </div>
+        </div>
+    </>
+  );
+
+  if (isDesktop) {
+      return (
+        <div className={cn("grid gap-2", className)}>
+          <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <PopoverTrigger asChild>
+              <PickerButton />
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 flex" align="start">
+              <CalendarContent />
+            </PopoverContent>
+          </Popover>
+        </div>
+      );
+  }
+
+  return (
+     <div className={cn("grid gap-2", className)}>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <PickerButton />
+            </DialogTrigger>
+            <DialogContent className="p-0 max-w-sm">
+                <DialogHeader className="p-4 pb-0">
+                    <DialogTitle>Select a date range</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col [&>div]:border-none">
+                    <CalendarContent />
+                </div>
+            </DialogContent>
+        </Dialog>
+     </div>
   )
 }
