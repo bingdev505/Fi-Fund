@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import FinancialChart from './FinancialChart';
@@ -15,7 +15,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { subDays, format, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, Loan } from '@/lib/types';
 
 
 type ReportPeriod = 'weekly' | 'monthly' | 'annual';
@@ -26,6 +26,7 @@ export default function Reports() {
   const [isLoading, setIsLoading] = useState(false);
   const [period, setPeriod] = useState<ReportPeriod>('annual');
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(projects[0]?.id);
+  const dataExplorerRef = useRef<HTMLDivElement>(null);
 
   // State for advanced filtering
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -70,30 +71,44 @@ export default function Reports() {
     return allTransactions.filter(t => t.project_id === selectedProjectId);
   }, [allTransactions, selectedProjectId]);
 
-  const { filteredData, totalIncome, totalExpenses } = useMemo(() => {
-    let data = chartTransactions;
+  const { filteredData, totalIncome, totalExpenses, totalLoanGiven, totalLoanTaken } = useMemo(() => {
+    let txData = chartTransactions;
+    let loanData = loans.filter(l => selectedProjectId ? l.project_id === selectedProjectId : true);
 
     if (dateRange?.from) {
       const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-      data = data.filter(t => {
+      txData = txData.filter(t => {
         const tDate = new Date(t.date);
         return tDate >= dateRange.from! && tDate <= toDate;
+      });
+      loanData = loanData.filter(l => {
+        const lDate = new Date(l.date);
+        return lDate >= dateRange.from! && lDate <= toDate;
       });
     }
 
     if (typeFilter !== 'all') {
-      data = data.filter(t => t.type === typeFilter);
+      txData = txData.filter(t => t.type === typeFilter);
     }
 
     if (categoryFilter !== 'all') {
-      data = data.filter(t => t.category === categoryFilter);
+      txData = txData.filter(t => t.category === categoryFilter);
     }
 
-    const income = data.filter(t => t.type === 'income' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanGiven')).reduce((sum, t) => sum + t.amount, 0);
-    const expenses = data.filter(t => t.type === 'expense' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanTaken')).reduce((sum, t) => sum + t.amount, 0);
+    const income = txData.filter(t => t.type === 'income' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanGiven')).reduce((sum, t) => sum + t.amount, 0);
+    const expenses = txData.filter(t => t.type === 'expense' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanTaken')).reduce((sum, t) => sum + t.amount, 0);
+    
+    const loanGiven = loanData.filter(l => l.type === 'loanGiven').reduce((sum, l) => sum + l.amount, 0);
+    const loanTaken = loanData.filter(l => l.type === 'loanTaken').reduce((sum, l) => sum + l.amount, 0);
 
-    return { filteredData: data, totalIncome: income, totalExpenses: expenses };
-  }, [chartTransactions, dateRange, typeFilter, categoryFilter, loans]);
+    return { 
+      filteredData: txData, 
+      totalIncome: income, 
+      totalExpenses: expenses,
+      totalLoanGiven: loanGiven,
+      totalLoanTaken: loanTaken,
+    };
+  }, [chartTransactions, loans, dateRange, typeFilter, categoryFilter, selectedProjectId]);
 
   const uniqueCategories = useMemo(() => {
     const cats = chartTransactions.map(t => t.category);
@@ -116,6 +131,13 @@ export default function Reports() {
       default: return null;
     }
   };
+
+  const handleDateChange = (newDateRange: DateRange | undefined) => {
+    setDateRange(newDateRange);
+    setTimeout(() => {
+        dataExplorerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
 
 
   return (
@@ -180,14 +202,14 @@ export default function Reports() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card ref={dataExplorerRef}>
         <CardHeader>
             <CardTitle>Data Explorer</CardTitle>
             <CardDescription>An advanced, filterable view of your transactions.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border rounded-lg">
-             <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full" />
+             <DateRangePicker date={dateRange} onDateChange={handleDateChange} className="w-full" />
              <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger><SelectValue placeholder="Filter by type..." /></SelectTrigger>
                 <SelectContent>
@@ -255,10 +277,20 @@ export default function Reports() {
                         <TableCell className="text-right font-bold">Total Income:</TableCell>
                         <TableCell className="text-right font-bold text-green-600">{formatCurrency(totalIncome)}</TableCell>
                     </TableRow>
-                     <TableRow>
+                    <TableRow>
                         <TableCell colSpan={4}></TableCell>
                         <TableCell className="text-right font-bold">Total Expenses:</TableCell>
                         <TableCell className="text-right font-bold text-red-600">{formatCurrency(totalExpenses)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                        <TableCell colSpan={4}></TableCell>
+                        <TableCell className="text-right font-bold">Loan Given:</TableCell>
+                        <TableCell className="text-right font-bold text-red-600">{formatCurrency(totalLoanGiven)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                        <TableCell colSpan={4}></TableCell>
+                        <TableCell className="text-right font-bold">Loan Taken:</TableCell>
+                        <TableCell className="text-right font-bold text-green-600">{formatCurrency(totalLoanTaken)}</TableCell>
                     </TableRow>
                      <TableRow>
                         <TableCell colSpan={4}></TableCell>
@@ -275,5 +307,3 @@ export default function Reports() {
     </div>
   );
 }
-
-    
