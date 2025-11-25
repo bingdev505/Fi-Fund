@@ -29,12 +29,12 @@ export default function Reports() {
   const dataExplorerRef = useRef<HTMLDivElement>(null);
 
   // State for advanced filtering
-  const [dateRange, setDateRange = useState<DateRange | undefined>({
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 29),
     to: new Date(),
   });
-  const [typeFilter, setTypeFilter = useState<string>('all');
-  const [categoryFilter, setCategoryFilter = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   useEffect(() => {
     if (!selectedProjectId && projects.length > 0) {
@@ -147,10 +147,21 @@ export default function Reports() {
     if (relatedLoan) {
         const contact = contacts.find(c => c.id === relatedLoan.contact_id);
         if (contact) {
-            return transaction.description || `Repayment for loan with ${contact.name}`;
+            return `Repayment for loan with ${contact.name}`;
         }
     }
     return transaction.description || 'Repayment';
+  };
+
+   const getCategoryDisplay = (transaction: Transaction) => {
+    if (transaction.type === 'repayment') {
+      const relatedLoan = loans.find(l => l.id === transaction.loan_id);
+      if (relatedLoan) {
+        const contact = contacts.find(c => c.id === relatedLoan.contact_id);
+        return contact ? `vs ${contact.name}` : 'Loan Repayment';
+      }
+    }
+    return transaction.category;
   };
 
 
@@ -270,8 +281,8 @@ export default function Reports() {
                                     <span className="capitalize">{t.type}</span>
                                 </div>
                             </TableCell>
-                            <TableCell className="font-medium">{getRepaymentDescription(t)}</TableCell>
-                            <TableCell>{t.category}</TableCell>
+                            <TableCell className="font-medium">{t.description}</TableCell>
+                            <TableCell>{getCategoryDisplay(t)}</TableCell>
                             <TableCell className={cn("text-right font-semibold", 
                                 t.type === 'income' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanGiven') ? 'text-green-600' : 
                                 (t.type === 'expense' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanTaken')) ? 'text-red-600' : ''
@@ -321,5 +332,3 @@ export default function Reports() {
     </div>
   );
 }
-
-    
