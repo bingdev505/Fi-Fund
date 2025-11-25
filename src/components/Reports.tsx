@@ -21,7 +21,7 @@ import type { Transaction, Loan } from '@/lib/types';
 type ReportPeriod = 'weekly' | 'monthly' | 'annual';
 
 export default function Reports() {
-  const { allTransactions, loans, projects, categories, bankAccounts } = useFinancials();
+  const { allTransactions, loans, projects, categories, bankAccounts, contacts } = useFinancials();
   const [insight, setInsight] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [period, setPeriod] = useState<ReportPeriod>('annual');
@@ -29,12 +29,12 @@ export default function Reports() {
   const dataExplorerRef = useRef<HTMLDivElement>(null);
 
   // State for advanced filtering
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+  const [dateRange, setDateRange = useState<DateRange | undefined>({
     from: subDays(new Date(), 29),
     to: new Date(),
   });
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter = useState<string>('all');
+  const [categoryFilter, setCategoryFilter = useState<string>('all');
 
   useEffect(() => {
     if (!selectedProjectId && projects.length > 0) {
@@ -138,6 +138,20 @@ export default function Reports() {
         dataExplorerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
   }
+
+  const getRepaymentDescription = (transaction: Transaction) => {
+    if (transaction.type !== 'repayment' || !transaction.loan_id) {
+        return transaction.description;
+    }
+    const relatedLoan = loans.find(l => l.id === transaction.loan_id);
+    if (relatedLoan) {
+        const contact = contacts.find(c => c.id === relatedLoan.contact_id);
+        if (contact) {
+            return transaction.description || `Repayment for loan with ${contact.name}`;
+        }
+    }
+    return transaction.description || 'Repayment';
+  };
 
 
   return (
@@ -256,7 +270,7 @@ export default function Reports() {
                                     <span className="capitalize">{t.type}</span>
                                 </div>
                             </TableCell>
-                            <TableCell className="font-medium">{t.description}</TableCell>
+                            <TableCell className="font-medium">{getRepaymentDescription(t)}</TableCell>
                             <TableCell>{t.category}</TableCell>
                             <TableCell className={cn("text-right font-semibold", 
                                 t.type === 'income' || (t.type === 'repayment' && loans.find(l => l.id === t.loan_id)?.type === 'loanGiven') ? 'text-green-600' : 
@@ -307,3 +321,5 @@ export default function Reports() {
     </div>
   );
 }
+
+    
